@@ -19,7 +19,7 @@ export default function Seksjon1Hero() {
 
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight text-slate-900">
-              Bli smertefri <span className="text-[#007C80]">– og</span>
+              Bli HELT smertefri <span className="text-[#007C80]">– og</span>
               <br />
               <span className="text-[#007C80]">
                 lær kroppen å fungere igjen
