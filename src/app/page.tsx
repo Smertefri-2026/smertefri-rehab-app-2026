@@ -1,5 +1,8 @@
 // src/app/page.tsx
 
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+
 import HeaderFrontpage from "@/app/frontpage/Seksjon/HeaderFrontpage";
 import SeksjonFooter from "@/app/frontpage/Seksjon/SeksjonFooter";
 
@@ -14,7 +17,17 @@ import Seksjon8Medlemskap from "@/app/frontpage/Seksjon/Seksjon8Medlemskap";
 import Seksjon9Komigang from "@/app/frontpage/Seksjon/Seksjon9Komigang";
 import Seksjon10FPriser from "@/app/frontpage/Seksjon/Seksjon10FPriser";
 
-export default function HomePage() {
+export default async function HomePage() {
+  // ✅ headers() er async i Next 15
+  const headersList = await headers();
+  const host = headersList.get("host");
+
+  // 👉 app.smertefri.no → login
+  if (host === "app.smertefri.no") {
+    redirect("/register/login");
+  }
+
+  // 👉 smertefri.no → forside
   return (
     <>
       {/* Header – kun på forsiden */}
