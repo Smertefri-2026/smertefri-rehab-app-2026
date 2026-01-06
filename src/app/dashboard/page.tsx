@@ -1,7 +1,5 @@
 "use client";
 
-// src/app/dashboard/page.tsx
-
 import { useRole } from "@/providers/RoleProvider";
 
 import Section1Alerts from "./sections/Section1Alerts";
@@ -12,20 +10,11 @@ import Section5AdminStats from "./sections/Section5AdminStats";
 import Section6Analytics from "./sections/Section6Analytics";
 
 export default function DashboardPage() {
-  const { role, loading } = useRole();
-
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-[#F4FBFA] flex items-center justify-center">
-        <p className="text-sm text-slate-500">Laster dashboard…</p>
-      </main>
-    );
-  }
+  const { role } = useRole();
 
   return (
     <main className="min-h-screen bg-[#F4FBFA]">
       <div className="mx-auto max-w-7xl px-6 py-10 space-y-10">
-
         {/* Header */}
         <header>
           <h1 className="text-2xl font-semibold text-slate-900">
@@ -42,13 +31,6 @@ export default function DashboardPage() {
         <Section3Pain />
         <Section4Nutrition />
 
-        {/* Kun trener */}
-        {role === "trainer" && (
-          <>
-            {/* evt. trainer-spesifikke seksjoner senere */}
-          </>
-        )}
-
         {/* Kun admin */}
         {role === "admin" && (
           <>
@@ -56,7 +38,6 @@ export default function DashboardPage() {
             <Section6Analytics />
           </>
         )}
-
       </div>
     </main>
   );

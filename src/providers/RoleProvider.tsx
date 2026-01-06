@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useState,
+  ReactNode,
 } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -19,7 +20,7 @@ type RoleContextType = {
 
 const RoleContext = createContext<RoleContextType | null>(null);
 
-export function RoleProvider({ children }: { children: React.ReactNode }) {
+export function RoleProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [role, setRole] = useState<Role | null>(null);
@@ -28,26 +29,28 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { data, error } = await supabase.auth.getUser();
 
-        if (!user) {
+        if (error || !data.user) {
           setLoading(false);
           return;
         }
 
+        const user = data.user;
+
         setUserId(user.id);
         setEmail(user.email ?? null);
 
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("role, email")
           .eq("id", user.id)
           .single();
 
-        if (profile?.email) setEmail(profile.email);
-        if (profile?.role) setRole(profile.role as Role);
+        if (!profileError && profile) {
+          setRole(profile.role as Role);
+          if (profile.email) setEmail(profile.email);
+        }
       } catch (err) {
         console.error("RoleProvider error:", err);
       } finally {
@@ -69,8 +72,16 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
 
 export function useRole() {
   const context = useContext(RoleContext);
+
+  // 🔐 I stedet for hard crash → trygg fallback
   if (!context) {
-    throw new Error("useRole must be used inside RoleProvider");
+    return {
+      userId: null,
+      email: null,
+      role: null,
+      loading: true,
+    };
   }
+
   return context;
 }
