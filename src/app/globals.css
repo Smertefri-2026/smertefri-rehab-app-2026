@@ -1,3 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================
+   SmerteFri Design Tokens
+   ========================= */
+
 :root {
   /* Brand */
   --sf-primary: #007C80;
@@ -5,12 +13,18 @@
   --sf-primary-soft: #E6F3F6;
 
   /* UI */
-  --sf-bg: #f8fafc;              /* slate-50 */
+  --sf-bg: #f8fafc;
   --sf-surface: #ffffff;
-  --sf-border: #e2e8f0;          /* slate-200 */
-  --sf-text: #0f172a;            /* slate-900 */
-  --sf-muted: #64748b;           /* slate-500 */
+  --sf-border: #e2e8f0;
+  --sf-text: #0f172a;
+  --sf-muted: #64748b;
 
   /* Radius */
-  --sf-radius: 16px;             /* 2xl-ish */
+  --sf-radius: 16px;
+}
+
+html,
+body {
+  background-color: var(--sf-bg);
+  color: var(--sf-text);
 }

@@ -1,0 +1,196 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+
+type HeaderVariant = "frontpage" | "auth";
+
+type Props = {
+  variant?: HeaderVariant;
+};
+
+export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const isAuth =
+    variant === "auth" || pathname.startsWith("/register");
+
+  // Gå til toppen på forsiden
+  const goTop = () => {
+    if (pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      router.push("/#top");
+    }
+  };
+
+  return (
+    <>
+      {/* HEADER */}
+      <header className="sticky top-0 z-50 w-full bg-white border-b border-sf-border">
+        <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between px-4">
+
+          {/* LOGO */}
+          <button
+            onClick={goTop}
+            className="text-3xl font-semibold tracking-tight cursor-pointer"
+            style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+          >
+            <span className="text-[#007C80]">Smerte</span>
+            <span className="text-[#29A9D6]">Fri</span>
+          </button>
+
+          {/* MIDTMENY – KUN FORSIDE */}
+          {!isAuth && (
+            <nav
+              className="
+                absolute left-1/2 hidden -translate-x-1/2
+                md:flex items-center gap-12
+                text-base font-medium text-[#004F59]
+              "
+              style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+            >
+              <a href="#smerte" className="hover:text-[#007C80] transition">
+                Smerte
+              </a>
+              <a href="#kosthold" className="hover:text-[#007C80] transition">
+                Kosthold
+              </a>
+              <a href="#tester" className="hover:text-[#007C80] transition">
+                Tester
+              </a>
+              <a href="#priser" className="hover:text-[#007C80] transition">
+                Priser
+              </a>
+            </nav>
+          )}
+
+          {/* HØYRE KNAPP – DESKTOP */}
+          <div className="hidden md:block">
+            {isAuth ? (
+              <button
+                onClick={goTop}
+                className="
+                  rounded-full
+                  border-2 border-[#007C80]
+                  bg-white
+                  px-6 py-2.5
+                  text-sm font-medium text-[#007C80]
+                  hover:bg-[#E6F3F6]
+                  transition
+                "
+                style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+              >
+                Til forsiden
+              </button>
+            ) : (
+              <Link
+                href="/register/login"
+                className="
+                  rounded-full
+                  bg-[#007C80]
+                  px-6 py-2.5
+                  text-sm font-medium text-white
+                  hover:opacity-90
+                  transition
+                "
+                style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+              >
+                Logg inn
+              </Link>
+            )}
+          </div>
+
+          {/* MOBIL */}
+          {!isAuth ? (
+            <button
+              aria-label="Meny"
+              onClick={() => setOpen(prev => !prev)}
+              className="md:hidden rounded-xl bg-sf-soft p-3 text-xl"
+            >
+              {open ? "✕" : "☰"}
+            </button>
+          ) : (
+            <button
+              onClick={goTop}
+              className="
+                md:hidden
+                rounded-full
+                border-2 border-[#007C80]
+                bg-white
+                px-4 py-2
+                text-sm font-medium text-[#007C80]
+                hover:bg-[#E6F3F6]
+                transition
+              "
+              style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+            >
+              Til forsiden
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* MOBILMENY – KUN FORSIDE */}
+      {!isAuth && open && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          {/* overlay */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setOpen(false)}
+          />
+
+          {/* panel */}
+          <div className="relative ml-auto h-full w-full max-w-sm bg-white shadow-xl">
+            <div className="flex items-center justify-between px-6 py-5 border-b">
+              <span
+                className="text-2xl font-semibold"
+                style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+              >
+                <span className="text-[#007C80]">Smerte</span>
+                <span className="text-[#29A9D6]">Fri</span>
+              </span>
+
+              <button
+                aria-label="Lukk"
+                onClick={() => setOpen(false)}
+                className="text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <nav
+              className="
+                flex flex-col items-center gap-10 py-14
+                text-xl font-medium text-[#004F59]
+              "
+              style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+            >
+              <a href="#smerte" onClick={() => setOpen(false)}>Smerte</a>
+              <a href="#kosthold" onClick={() => setOpen(false)}>Kosthold</a>
+              <a href="#tester" onClick={() => setOpen(false)}>Tester</a>
+              <a href="#priser" onClick={() => setOpen(false)}>Priser</a>
+
+              <Link
+                href="/register/login"
+                onClick={() => setOpen(false)}
+                className="
+                  mt-6 w-[85%]
+                  rounded-full bg-[#007C80]
+                  py-4 text-center
+                  text-white text-lg
+                "
+              >
+                Logg inn
+              </Link>
+            </nav>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

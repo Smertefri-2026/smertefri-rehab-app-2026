@@ -1,0 +1,63 @@
+"use client";
+
+// src/app/dashboard/page.tsx
+
+import { useRole } from "@/providers/RoleProvider";
+
+import Section1Alerts from "./sections/Section1Alerts";
+import Section2Tests from "./sections/Section2Tests";
+import Section3Pain from "./sections/Section3Pain";
+import Section4Nutrition from "./sections/Section4Nutrition";
+import Section5AdminStats from "./sections/Section5AdminStats";
+import Section6Analytics from "./sections/Section6Analytics";
+
+export default function DashboardPage() {
+  const { role, loading } = useRole();
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#F4FBFA] flex items-center justify-center">
+        <p className="text-sm text-slate-500">Laster dashboard…</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-[#F4FBFA]">
+      <div className="mx-auto max-w-7xl px-6 py-10 space-y-10">
+
+        {/* Header */}
+        <header>
+          <h1 className="text-2xl font-semibold text-slate-900">
+            Oversikt
+          </h1>
+          <p className="text-slate-600 mt-1">
+            Dette er din personlige SmerteFri-oversikt
+          </p>
+        </header>
+
+        {/* Felles – alle roller */}
+        <Section1Alerts />
+        <Section2Tests />
+        <Section3Pain />
+        <Section4Nutrition />
+
+        {/* Kun trener */}
+        {role === "trainer" && (
+          <>
+            {/* evt. trainer-spesifikke seksjoner senere */}
+          </>
+        )}
+
+        {/* Kun admin */}
+        {role === "admin" && (
+          <>
+            <Section5AdminStats />
+            <Section6Analytics />
+          </>
+        )}
+
+      </div>
+    </main>
+  );
+}
