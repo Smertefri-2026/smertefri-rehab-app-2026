@@ -1,6 +1,5 @@
 // src/app/(app)/layout.tsx
 import React from "react";
-import { RoleProvider } from "@/providers/RoleProvider";
 import Sidebar from "@/components/navigation/Sidebar";
 import TabBar from "@/components/navigation/TabBar";
 
@@ -10,19 +9,17 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <RoleProvider>
-      <div className="flex min-h-screen">
-        {/* Desktop sidebar */}
-        <Sidebar />
+    <div className="flex min-h-screen">
+      {/* Desktop sidebar */}
+      <Sidebar />
 
-        {/* Main content */}
-        <main className="flex-1 pb-20 lg:pb-0">
-          {children}
-        </main>
+      {/* Main content */}
+      <main className="flex-1 pb-20 lg:pb-0">
+        {children}
+      </main>
 
-        {/* Mobile tabbar */}
-        <TabBar />
-      </div>
-    </RoleProvider>
+      {/* Mobile tabbar */}
+      <TabBar />
+    </div>
   );
 }
