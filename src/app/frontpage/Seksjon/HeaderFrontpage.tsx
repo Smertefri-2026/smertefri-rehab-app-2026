@@ -16,21 +16,19 @@ export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
   const pathname = usePathname();
 
   const isAuth =
-    variant === "auth" || pathname.startsWith("/register");
+    variant === "auth" || pathname.startsWith("/login") || pathname.startsWith("/register");
 
-  const SITE_URL =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-
-  // Gå til toppen på forsiden
+  // 🔝 Gå til toppen på forsiden
   const goTop = () => {
     if (pathname === "/") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
-      router.push(`${SITE_URL}/#top`);
+      router.push("/#top");
     }
   };
 
-  const loginUrl = `${SITE_URL}/register/login`;
+  // ✅ ALLTID relativ rute
+  const loginUrl = "/login";
 
   return (
     <>
