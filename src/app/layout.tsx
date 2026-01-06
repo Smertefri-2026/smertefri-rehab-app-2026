@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import {
   Geist,
@@ -5,10 +6,6 @@ import {
   Montserrat_Alternates,
 } from "next/font/google";
 import "./globals.css";
-
-import { RoleProvider } from "@/providers/RoleProvider";
-import Sidebar from "@/components/navigation/Sidebar";
-import TabBar from "@/components/navigation/TabBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,20 +46,7 @@ export default function RootLayout({
           antialiased
         `}
       >
-        <RoleProvider>
-          <div className="flex min-h-screen">
-            {/* Desktop sidebar */}
-            <Sidebar />
-
-            {/* Main content */}
-            <main className="flex-1 pb-20 lg:pb-0">
-              {children}
-            </main>
-
-            {/* Mobile tabbar */}
-            <TabBar />
-          </div>
-        </RoleProvider>
+        {children}
       </body>
     </html>
   );

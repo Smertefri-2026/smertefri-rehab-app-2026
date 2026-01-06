@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import HeaderFrontpage from "@/app/frontpage/Seksjon/HeaderFrontpage";
+import HeaderFrontpage from "@/app/(marketing)/frontpage/Seksjon/HeaderFrontpage";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");

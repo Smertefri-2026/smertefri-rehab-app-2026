@@ -5,8 +5,8 @@ export function middleware(req: NextRequest) {
   const host = req.headers.get("host") ?? "";
 
   // Kun root, kun app-subdomene
-  if (req.nextUrl.pathname === "/" && host === "app.smertefri.no") {
-    return NextResponse.redirect(new URL("/login", req.url));
+if (req.nextUrl.pathname === "/" && host.startsWith("app.")) {
+  return NextResponse.redirect(new URL("/login", req.url));
   }
 
   return NextResponse.next();

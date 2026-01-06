@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import HeaderFrontpage from "@/app/frontpage/Seksjon/HeaderFrontpage";
+import HeaderFrontpage from "@/app/(marketing)/frontpage/Seksjon/HeaderFrontpage";
 
 export default function RegisterTrainerPage() {
   const router = useRouter();
