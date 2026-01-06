@@ -16,24 +16,10 @@ import Seksjon7Kalender from "@/app/frontpage/Seksjon/Seksjon7Kalender";
 import Seksjon8Medlemskap from "@/app/frontpage/Seksjon/Seksjon8Medlemskap";
 import Seksjon9Komigang from "@/app/frontpage/Seksjon/Seksjon9Komigang";
 import Seksjon10FPriser from "@/app/frontpage/Seksjon/Seksjon10FPriser";
-
-export default async function HomePage() {
-  // ✅ headers() er async i Next 15
-  const headersList = await headers();
-  const host = headersList.get("host");
-
-  // 👉 app.smertefri.no → login
-  if (host === "app.smertefri.no") {
-    redirect("/register/login");
-  }
-
-  // 👉 smertefri.no → forside
+export default function HomePage() {
   return (
     <>
-      {/* Header – kun på forsiden */}
       <HeaderFrontpage />
-
-      {/* MAIN = scroll-root */}
       <main id="top" className="w-full">
         <Seksjon1Hero />
         <Seksjon2Kjenner />
@@ -46,8 +32,6 @@ export default async function HomePage() {
         <Seksjon9Komigang />
         <Seksjon10FPriser />
       </main>
-
-      {/* Footer – kun på forsiden */}
       <SeksjonFooter />
     </>
   );
