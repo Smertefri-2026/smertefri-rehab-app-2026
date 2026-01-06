@@ -18,18 +18,22 @@ export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
   const isAuth =
     variant === "auth" || pathname.startsWith("/register");
 
+  const SITE_URL =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
   // Gå til toppen på forsiden
   const goTop = () => {
     if (pathname === "/") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
-      router.push("/#top");
+      router.push(`${SITE_URL}/#top`);
     }
   };
 
+  const loginUrl = `${SITE_URL}/register/login`;
+
   return (
     <>
-      {/* HEADER */}
       <header className="sticky top-0 z-50 w-full bg-white border-b border-sf-border">
         <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between px-4">
 
@@ -46,58 +50,29 @@ export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
           {/* MIDTMENY – KUN FORSIDE */}
           {!isAuth && (
             <nav
-              className="
-                absolute left-1/2 hidden -translate-x-1/2
-                md:flex items-center gap-12
-                text-base font-medium text-[#004F59]
-              "
+              className="absolute left-1/2 hidden -translate-x-1/2 md:flex items-center gap-12 text-base font-medium text-[#004F59]"
               style={{ fontFamily: "var(--font-montserrat-alternates)" }}
             >
-              <a href="#smerte" className="hover:text-[#007C80] transition">
-                Smerte
-              </a>
-              <a href="#kosthold" className="hover:text-[#007C80] transition">
-                Kosthold
-              </a>
-              <a href="#tester" className="hover:text-[#007C80] transition">
-                Tester
-              </a>
-              <a href="#priser" className="hover:text-[#007C80] transition">
-                Priser
-              </a>
+              <a href="#smerte">Smerte</a>
+              <a href="#kosthold">Kosthold</a>
+              <a href="#tester">Tester</a>
+              <a href="#priser">Priser</a>
             </nav>
           )}
 
-          {/* HØYRE KNAPP – DESKTOP */}
+          {/* DESKTOP */}
           <div className="hidden md:block">
             {isAuth ? (
               <button
                 onClick={goTop}
-                className="
-                  rounded-full
-                  border-2 border-[#007C80]
-                  bg-white
-                  px-6 py-2.5
-                  text-sm font-medium text-[#007C80]
-                  hover:bg-[#E6F3F6]
-                  transition
-                "
-                style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+                className="rounded-full border-2 border-[#007C80] bg-white px-6 py-2.5 text-sm font-medium text-[#007C80]"
               >
                 Til forsiden
               </button>
             ) : (
               <Link
-                href="/register/login"
-                className="
-                  rounded-full
-                  bg-[#007C80]
-                  px-6 py-2.5
-                  text-sm font-medium text-white
-                  hover:opacity-90
-                  transition
-                "
-                style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+                href={loginUrl}
+                className="rounded-full bg-[#007C80] px-6 py-2.5 text-sm font-medium text-white"
               >
                 Logg inn
               </Link>
@@ -107,8 +82,7 @@ export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
           {/* MOBIL */}
           {!isAuth ? (
             <button
-              aria-label="Meny"
-              onClick={() => setOpen(prev => !prev)}
+              onClick={() => setOpen(p => !p)}
               className="md:hidden rounded-xl bg-sf-soft p-3 text-xl"
             >
               {open ? "✕" : "☰"}
@@ -116,17 +90,7 @@ export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
           ) : (
             <button
               onClick={goTop}
-              className="
-                md:hidden
-                rounded-full
-                border-2 border-[#007C80]
-                bg-white
-                px-4 py-2
-                text-sm font-medium text-[#007C80]
-                hover:bg-[#E6F3F6]
-                transition
-              "
-              style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+              className="md:hidden rounded-full border-2 border-[#007C80] bg-white px-4 py-2 text-sm"
             >
               Til forsiden
             </button>
@@ -134,56 +98,24 @@ export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
         </div>
       </header>
 
-      {/* MOBILMENY – KUN FORSIDE */}
+      {/* MOBILMENY */}
       {!isAuth && open && (
         <div className="fixed inset-0 z-40 md:hidden">
-          {/* overlay */}
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setOpen(false)}
           />
 
-          {/* panel */}
-          <div className="relative ml-auto h-full w-full max-w-sm bg-white shadow-xl">
-            <div className="flex items-center justify-between px-6 py-5 border-b">
-              <span
-                className="text-2xl font-semibold"
-                style={{ fontFamily: "var(--font-montserrat-alternates)" }}
-              >
-                <span className="text-[#007C80]">Smerte</span>
-                <span className="text-[#29A9D6]">Fri</span>
-              </span>
-
-              <button
-                aria-label="Lukk"
-                onClick={() => setOpen(false)}
-                className="text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <nav
-              className="
-                flex flex-col items-center gap-10 py-14
-                text-xl font-medium text-[#004F59]
-              "
-              style={{ fontFamily: "var(--font-montserrat-alternates)" }}
-            >
-              <a href="#smerte" onClick={() => setOpen(false)}>Smerte</a>
-              <a href="#kosthold" onClick={() => setOpen(false)}>Kosthold</a>
-              <a href="#tester" onClick={() => setOpen(false)}>Tester</a>
-              <a href="#priser" onClick={() => setOpen(false)}>Priser</a>
+          <div className="relative ml-auto h-full w-full max-w-sm bg-white">
+            <nav className="flex flex-col items-center gap-10 py-14 text-xl">
+              <a href="#smerte">Smerte</a>
+              <a href="#kosthold">Kosthold</a>
+              <a href="#tester">Tester</a>
+              <a href="#priser">Priser</a>
 
               <Link
-                href="/register/login"
-                onClick={() => setOpen(false)}
-                className="
-                  mt-6 w-[85%]
-                  rounded-full bg-[#007C80]
-                  py-4 text-center
-                  text-white text-lg
-                "
+                href={loginUrl}
+                className="mt-6 w-[85%] rounded-full bg-[#007C80] py-4 text-center text-white"
               >
                 Logg inn
               </Link>

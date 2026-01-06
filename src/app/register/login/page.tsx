@@ -33,9 +33,12 @@ export default function LoginPage() {
       return;
     }
 
-    // ✅ Login OK → dashboard er felles inngang
+    // 🌍 Miljø-basert redirect (lokalt vs prod)
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
     setLoading(false);
-    router.replace("/dashboard");
+    router.replace(`${appUrl}/dashboard`);
   };
 
   return (
