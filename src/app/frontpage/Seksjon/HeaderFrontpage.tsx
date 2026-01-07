@@ -23,7 +23,7 @@ export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
     if (pathname === "/") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
-      router.push("/#top");
+      router.push("/");
     }
   };
 
