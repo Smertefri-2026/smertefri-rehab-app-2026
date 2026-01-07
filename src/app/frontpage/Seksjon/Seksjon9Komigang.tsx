@@ -82,7 +82,7 @@ export default function Seksjon9Komigang() {
         <div className="mt-16 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
 
           <Link
-            href="/register/login"
+            href="/login"
             className="rounded-full bg-[#007C80] px-10 py-4 text-white font-medium hover:opacity-90 transition"
           >
             Logg inn i appen

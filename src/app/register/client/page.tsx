@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import HeaderFrontpage from "@/app/(marketing)/frontpage/Seksjon/HeaderFrontpage";
+import HeaderFrontpage from "@/app/frontpage/Seksjon/HeaderFrontpage";
 
 export default function RegisterClientPage() {
   const router = useRouter();
@@ -150,7 +150,7 @@ export default function RegisterClientPage() {
 
           {/* FOOTER */}
           <div className="mt-8 text-center text-sm">
-            <Link href="/register/login" className="text-[#007C80] hover:underline">
+            <Link href="/login" className="text-[#007C80] hover:underline">
               Logg inn
             </Link>
           </div>

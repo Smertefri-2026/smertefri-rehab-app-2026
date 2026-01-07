@@ -36,7 +36,7 @@ export default function Seksjon1Hero() {
             {/* CTA */}
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
-                href="/register/login"
+                href="/login"
                 className="rounded-full bg-[#007C80] px-8 py-4 text-white font-medium hover:opacity-90 transition"
               >
                 Logg inn

@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import HeaderFrontpage from "@/app/(marketing)/frontpage/Seksjon/HeaderFrontpage";
+import HeaderFrontpage from "@/app/frontpage/Seksjon/HeaderFrontpage";
 
-export default function EmailSentPage() {
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
+
   return (
     <>
-      {/* Header */}
+      {/* Header – auth variant */}
       <HeaderFrontpage variant="auth" />
 
       {/* PAGE */}
@@ -24,46 +27,53 @@ export default function EmailSentPage() {
 
           {/* ICON */}
           <div className="mx-auto mt-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#E6F3F6] text-3xl">
-            ✅
+            🔐
           </div>
 
           {/* TITLE */}
           <h2 className="mt-6 text-xl font-semibold text-sf-text">
-            E-posten din er bekreftet
+            Glemt passord
           </h2>
 
           {/* TEXT */}
           <p className="mt-3 text-sm text-sf-muted">
-            Kontoen din er nå aktivert.
+            Skriv inn e-postadressen din, så sender vi deg en lenke
+            for å lage nytt passord.
           </p>
 
-          <p className="mt-2 text-sm text-sf-muted">
-            Neste steg er å logge inn og fullføre profilen din, slik at vi kan gi deg riktig
-            oppfølging og tilgang fra start.
-          </p>
+          {/* FORM */}
+          <form className="mt-6 space-y-4">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="E-post"
+              required
+              className="w-full rounded-xl border border-sf-border bg-sf-soft px-4 py-3 text-base outline-none focus:border-[#007C80]"
+            />
 
-          {/* ACTIONS */}
-          <div className="mt-8 flex flex-col gap-3">
-            <Link
-              href="/register/login"
-              className="rounded-full bg-[#007C80] py-3 text-base font-medium text-white hover:opacity-90 transition"
+            <button
+              type="submit"
+              className="w-full rounded-full bg-[#007C80] py-3 text-base font-medium text-white hover:opacity-90 transition"
               style={{ fontFamily: "var(--font-montserrat-alternates)" }}
             >
-              Logg inn
-            </Link>
+              Send reset-lenke
+            </button>
+          </form>
 
+          {/* LINKS */}
+          <div className="mt-6 text-sm">
             <Link
-              href="/"
-              className="rounded-full border border-[#007C80] py-3 text-base font-medium text-[#007C80] hover:bg-[#E6F3F6] transition"
-              style={{ fontFamily: "var(--font-montserrat-alternates)" }}
+              href="/login"
+              className="font-medium text-[#007C80] hover:underline"
             >
-              Til forsiden
+              Tilbake til login
             </Link>
           </div>
 
           {/* HELP */}
           <p className="mt-6 text-xs text-sf-muted">
-            Trenger du hjelp? Kontakt support eller prøv igjen senere.
+            Finner du ikke e-posten? Sjekk søppelpost eller prøv igjen senere.
           </p>
         </div>
       </main>
