@@ -60,17 +60,17 @@ export default function ForgotPasswordPage() {
               Send reset-lenke
             </button>
           </form>
-
-          {/* LINKS */}
-          <div className="mt-6 text-sm">
-            <Link
-              href="/login"
-              className="font-medium text-[#007C80] hover:underline"
-            >
-              Tilbake til login
-            </Link>
-          </div>
-
+{/* LINKS */}
+<div className="mt-6 text-sm">
+  <button
+    onClick={() => {
+      window.location.href = "https://app.smertefri.no/login";
+    }}
+    className="font-medium text-[#007C80] hover:underline"
+  >
+    Tilbake til login
+  </button>
+</div>
           {/* HELP */}
           <p className="mt-6 text-xs text-sf-muted">
             Finner du ikke e-posten? Sjekk søppelpost eller prøv igjen senere.

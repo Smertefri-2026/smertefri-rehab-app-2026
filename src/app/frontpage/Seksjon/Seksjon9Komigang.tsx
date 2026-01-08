@@ -1,8 +1,19 @@
 // src/app/frontpage/Seksjon/Seksjon9Komigang.tsx
-
-import Link from "next/link";
+"use client";
 
 export default function Seksjon9Komigang() {
+  const goToLogin = () => {
+    window.location.href = "https://app.smertefri.no/login";
+  };
+
+  const goToClientRegister = () => {
+    window.location.href = "https://app.smertefri.no/register/client";
+  };
+
+  const goToTrainerRegister = () => {
+    window.location.href = "https://app.smertefri.no/register/trainer";
+  };
+
   return (
     <section
       id="kom-i-gang"
@@ -81,26 +92,26 @@ export default function Seksjon9Komigang() {
         {/* CTA */}
         <div className="mt-16 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
 
-          <Link
-            href="/login"
+          <button
+            onClick={goToLogin}
             className="rounded-full bg-[#007C80] px-10 py-4 text-white font-medium hover:opacity-90 transition"
           >
             Logg inn i appen
-          </Link>
+          </button>
 
-          <Link
-            href="/register/client"
+          <button
+            onClick={goToClientRegister}
             className="rounded-full border border-sf-border bg-white px-10 py-4 font-medium text-slate-800 hover:bg-slate-50 transition"
           >
             Bli kunde
-          </Link>
+          </button>
 
-          <Link
-            href="/register/trainer"
+          <button
+            onClick={goToTrainerRegister}
             className="rounded-full border border-[#007C80] px-10 py-4 font-medium text-[#007C80] hover:bg-[#E6F3F6] transition"
           >
             Bli rehab-trener
-          </Link>
+          </button>
 
         </div>
 

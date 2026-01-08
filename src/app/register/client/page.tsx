@@ -148,11 +148,18 @@ export default function RegisterClientPage() {
             </button>
           </form>
 
-          {/* FOOTER */}
-          <div className="mt-8 text-center text-sm">
-            <Link href="/login" className="text-[#007C80] hover:underline">
-              Logg inn
-            </Link>
+    {/* FOOTER */}
+<div className="mt-8 text-center text-sm">
+  <p className="text-sf-muted">Allerede registrert?</p>
+
+  <button
+    onClick={() => {
+      window.location.href = "https://app.smertefri.no/login";
+    }}
+    className="font-medium text-[#007C80] hover:underline"
+  >
+    Logg inn
+  </button>
           </div>
         </div>
       </main>

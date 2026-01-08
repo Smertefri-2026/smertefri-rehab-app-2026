@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import HeaderFrontpage from "@/app/frontpage/Seksjon/HeaderFrontpage";
 
 export default function EmailSentPage() {
@@ -44,21 +43,25 @@ export default function EmailSentPage() {
 
           {/* ACTIONS */}
           <div className="mt-8 flex flex-col gap-3">
-            <Link
-              href="/login"
+            <button
+              onClick={() => {
+                window.location.href = "https://app.smertefri.no/login";
+              }}
               className="rounded-full bg-[#007C80] py-3 text-base font-medium text-white hover:opacity-90 transition"
               style={{ fontFamily: "var(--font-montserrat-alternates)" }}
             >
               Logg inn
-            </Link>
+            </button>
 
-            <Link
-              href="/"
+            <button
+              onClick={() => {
+                window.location.href = "https://smertefri.no/";
+              }}
               className="rounded-full border border-[#007C80] py-3 text-base font-medium text-[#007C80] hover:bg-[#E6F3F6] transition"
               style={{ fontFamily: "var(--font-montserrat-alternates)" }}
             >
               Til forsiden
-            </Link>
+            </button>
           </div>
 
           {/* HELP */}
