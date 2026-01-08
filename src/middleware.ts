@@ -6,22 +6,20 @@ export function middleware(req: NextRequest) {
   const host = req.headers.get("host") ?? "";
   const { pathname } = req.nextUrl;
 
-  // 🚀 APP-DOMENE
-  if (host.startsWith("app.")) {
-    // Root → login
-    if (pathname === "/") {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
+  const isLocalhost =
+    host.startsWith("localhost") || host.startsWith("127.0.0.1");
 
-    // Blokker marketing-sider på app-domene
-    if (pathname.startsWith("/#") || pathname === "/") {
+  const isAppDomain = host.startsWith("app.");
+
+  // 🚀 APP-DOMENE (kun prod)
+  if (isAppDomain) {
+    if (pathname === "/" || pathname.startsWith("/#")) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
   }
 
-  // 🌍 MARKETING-DOMENE
-  if (!host.startsWith("app.")) {
-    // Ingen tilgang til /dashboard osv
+  // 🌍 MARKETING-DOMENE (kun prod, aldri localhost)
+  if (!isAppDomain && !isLocalhost) {
     if (
       pathname.startsWith("/dashboard") ||
       pathname.startsWith("/calendar") ||

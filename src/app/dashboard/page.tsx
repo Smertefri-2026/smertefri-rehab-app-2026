@@ -14,16 +14,7 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-[#F4FBFA]">
-      <div className="mx-auto max-w-7xl px-6 py-10 space-y-10">
-        {/* Header */}
-        <header>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Oversikt
-          </h1>
-          <p className="text-slate-600 mt-1">
-            Dette er din personlige SmerteFri-oversikt
-          </p>
-        </header>
+      <div className="mx-auto max-w-7xl px-6 py-10 space-y-10"> 
 
         {/* Felles – alle roller */}
         <Section1Alerts />
