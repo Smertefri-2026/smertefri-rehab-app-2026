@@ -1,3 +1,6 @@
+// src/app/(app)/layout.tsx
+"use client";
+
 import Sidebar from "@/components/navigation/Sidebar";
 import TabBar from "@/components/navigation/TabBar";
 import { RoleProvider } from "@/providers/RoleProvider";
@@ -9,13 +12,25 @@ export default function AppLayout({
 }) {
   return (
     <RoleProvider>
-      <div className="flex min-h-screen bg-sf-bg">
+      <div className="relative flex min-h-screen bg-sf-bg">
+
+        {/* 🖥 Desktop sidebar */}
         <Sidebar />
 
-        <div className="flex-1 pb-16 lg:pb-0">
+        {/* 📱 App-innhold */}
+        <div
+          className="
+            flex-1
+            relative
+            pb-16        /* 👈 plass til TabBar på mobil */
+            md:pb-0     /* 👈 fjern padding på desktop */
+            overflow-hidden
+          "
+        >
           {children}
         </div>
 
+        {/* 📱 Mobil TabBar */}
         <TabBar />
       </div>
     </RoleProvider>
