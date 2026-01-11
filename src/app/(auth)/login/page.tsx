@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import HeaderFrontpage from "@/app/(public)/frontpage/Seksjon/HeaderFrontpage";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,7 +42,6 @@ export default function LoginPage() {
 
   return (
     <>
-      <HeaderFrontpage variant="auth" />
 
       <main className="flex min-h-[calc(100vh-80px)] items-center justify-center bg-gradient-to-b from-sf-soft to-white px-4">
         <div className="w-full max-w-md rounded-2xl border border-sf-border bg-white p-8 shadow-xl">
