@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "src/app/(app)/dashboard/sections/Section2StatusAndNextSteps.tsx"  ],
   "exclude": ["node_modules"]
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import HeaderFrontpage from "@/app/frontpage/Seksjon/HeaderFrontpage";
+import HeaderFrontpage from "@/app/(public)/frontpage/Seksjon/HeaderFrontpage";
 
 export default function EmailSentPage() {
   return (
