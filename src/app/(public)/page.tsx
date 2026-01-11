@@ -16,7 +16,6 @@ import Seksjon10FPriser from "@/app/(public)/frontpage/Seksjon/Seksjon10FPriser"
 export default function HomePage() {
   return (
     <>
-      <HeaderFrontpage />
 
       <main id="top" className="w-full">
         <Seksjon1Hero />
