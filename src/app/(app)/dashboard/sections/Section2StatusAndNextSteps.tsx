@@ -5,6 +5,8 @@ import {
   AlertTriangle,
   CreditCard,
   CalendarClock,
+  User,
+  Users,
 } from "lucide-react";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 
@@ -18,7 +20,8 @@ export default function Section2StatusAndNextSteps() {
 
   const status = {
     // Felles
-    profileIncomplete: true,
+    clientCardIncomplete: true,
+    trainerCardIncomplete: true,
 
     // Kunde
     client: {
@@ -34,8 +37,9 @@ export default function Section2StatusAndNextSteps() {
 
     // Admin
     admin: {
+      clientsWithIncompleteCards: 4,
+      trainersWithIncompleteCards: 2,
       usersWithoutPayment: 12,
-      profilesIncomplete: 7,
     },
   };
 
@@ -44,19 +48,19 @@ export default function Section2StatusAndNextSteps() {
   -------------------------------- */
 
   const hasClientIssues =
-    status.profileIncomplete ||
+    status.clientCardIncomplete ||
     status.client.paymentMissing ||
     status.client.noUpcomingSession;
 
   const hasTrainerIssues =
-    status.profileIncomplete ||
+    status.trainerCardIncomplete ||
     status.trainer.freeCapacity ||
     status.trainer.clientsWithoutSessions > 0;
 
   const hasAdminIssues =
-    status.profileIncomplete ||
-    status.admin.usersWithoutPayment > 0 ||
-    status.admin.profilesIncomplete > 0;
+    status.admin.clientsWithIncompleteCards > 0 ||
+    status.admin.trainersWithIncompleteCards > 0 ||
+    status.admin.usersWithoutPayment > 0;
 
   const shouldRender =
     (role === "client" && hasClientIssues) ||
@@ -77,43 +81,20 @@ export default function Section2StatusAndNextSteps() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-        {/* ================== FELLES ================== */}
-        {status.profileIncomplete && (
+        {/* ================== KUNDE ================== */}
+        {role === "client" && status.clientCardIncomplete && (
           <DashboardCard
-            title="Profil ikke fullført"
-            icon={<AlertTriangle size={18} />}
+            title="Kundekort ikke fullført"
+            icon={<User size={18} />}
             variant="warning"
           >
-            {role === "client" && (
-              <>
-                <p>Noen viktige felt mangler.</p>
-                <p className="text-sm text-sf-muted">
-                  Fullfør profilen for bedre oppfølging.
-                </p>
-              </>
-            )}
-
-            {role === "trainer" && (
-              <>
-                <p>Profilen din er synlig for kunder.</p>
-                <p className="text-sm text-sf-muted">
-                  Fullfør alle felt for tillit.
-                </p>
-              </>
-            )}
-
-            {role === "admin" && (
-              <>
-                <p>Admin-profilen er ikke komplett.</p>
-                <p className="text-sm text-sf-muted">
-                  Påkrevd for systemansvar.
-                </p>
-              </>
-            )}
+            <p>Vi mangler viktig informasjon.</p>
+            <p className="text-sm text-sf-muted">
+              Fullfør smerte, tester og kosthold.
+            </p>
           </DashboardCard>
         )}
 
-        {/* ================== KUNDE ================== */}
         {role === "client" && status.client.paymentMissing && (
           <DashboardCard
             title="Ingen aktiv betaling"
@@ -135,21 +116,34 @@ export default function Section2StatusAndNextSteps() {
           >
             <p>Fast oppfølging gir bedre progresjon.</p>
             <p className="text-sm text-sf-muted">
-              Finn ledig tid med rehab-trener.
+              Book time med trener.
             </p>
           </DashboardCard>
         )}
 
         {/* ================== TRENER ================== */}
+        {role === "trainer" && status.trainerCardIncomplete && (
+          <DashboardCard
+            title="Trenerprofil ikke fullført"
+            icon={<Users size={18} />}
+            variant="warning"
+          >
+            <p>Profilen din vises for kunder.</p>
+            <p className="text-sm text-sf-muted">
+              Fyll ut trenerkortet for bedre synlighet.
+            </p>
+          </DashboardCard>
+        )}
+
         {role === "trainer" && status.trainer.freeCapacity && (
           <DashboardCard
             title="Ledig kapasitet"
             icon={<CalendarClock size={18} />}
             variant="info"
           >
-            <p>Du har tilgjengelige tider.</p>
+            <p>Du har åpne tider.</p>
             <p className="text-sm text-sf-muted">
-              Åpne for flere bookinger.
+              Gjør deg tilgjengelig for flere kunder.
             </p>
           </DashboardCard>
         )}
@@ -162,16 +156,50 @@ export default function Section2StatusAndNextSteps() {
               variant="warning"
             >
               <p>
-                {status.trainer.clientsWithoutSessions} klienter
-                mangler kommende økt.
+                {status.trainer.clientsWithoutSessions} klienter mangler
+                kommende økt.
               </p>
               <p className="text-sm text-sf-muted">
-                Vurder å følge dem opp.
+                Vurder oppfølging.
               </p>
             </DashboardCard>
           )}
 
         {/* ================== ADMIN ================== */}
+        {role === "admin" &&
+          status.admin.clientsWithIncompleteCards > 0 && (
+            <DashboardCard
+              title="Ufullstendige kundekort"
+              icon={<User size={18} />}
+              variant="warning"
+            >
+              <p>
+                {status.admin.clientsWithIncompleteCards} kunder mangler
+                fullstendig kort.
+              </p>
+              <p className="text-sm text-sf-muted">
+                Følg opp for kvalitet.
+              </p>
+            </DashboardCard>
+          )}
+
+        {role === "admin" &&
+          status.admin.trainersWithIncompleteCards > 0 && (
+            <DashboardCard
+              title="Ufullstendige trenerkort"
+              icon={<Users size={18} />}
+              variant="warning"
+            >
+              <p>
+                {status.admin.trainersWithIncompleteCards} trenere mangler
+                fullført profil.
+              </p>
+              <p className="text-sm text-sf-muted">
+                Påvirker kundetillit.
+              </p>
+            </DashboardCard>
+          )}
+
         {role === "admin" &&
           status.admin.usersWithoutPayment > 0 && (
             <DashboardCard
@@ -181,27 +209,10 @@ export default function Section2StatusAndNextSteps() {
             >
               <p>
                 {status.admin.usersWithoutPayment} brukere mangler
-                aktiv betaling.
+                betaling.
               </p>
               <p className="text-sm text-sf-muted">
                 Gå til betalingsoversikt.
-              </p>
-            </DashboardCard>
-          )}
-
-        {role === "admin" &&
-          status.admin.profilesIncomplete > 0 && (
-            <DashboardCard
-              title="Ufullstendige profiler"
-              icon={<AlertTriangle size={18} />}
-              variant="warning"
-            >
-              <p>
-                {status.admin.profilesIncomplete} brukere har
-                ikke fullført profilen.
-              </p>
-              <p className="text-sm text-sf-muted">
-                Kan påvirke kvalitet.
               </p>
             </DashboardCard>
           )}
