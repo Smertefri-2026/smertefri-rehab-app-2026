@@ -1,60 +1,95 @@
 "use client";
 
-export default function Section2TrainerCard() {
+import Link from "next/link";
+import { selectTrainer } from "@/lib/profile";
+
+export default function Section2TrainerCard({
+  trainer,
+}: {
+  trainer: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    city?: string;
+    avatar_url?: string | null;
+    trainer_bio?: string | null;
+    trainer_specialties?: string[];
+  };
+}) {
+  async function handleSelectTrainer() {
+    try {
+      await selectTrainer(trainer.id);
+      window.location.href = "/profile";
+    } catch (e: any) {
+      console.error("Kunne ikke velge trener", e);
+      alert(e?.message ?? "Kunne ikke velge trener");
+    }
+  }
+
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-4">
 
-        {/* 🧍 Profil */}
         <div className="flex items-center gap-4">
-          {/* Profilbilde */}
-          <div className="h-16 w-16 rounded-full bg-sf-soft flex items-center justify-center text-sf-muted">
-            {/* Placeholder avatar */}
-            <span className="text-lg font-semibold">TR</span>
+          <div className="h-14 w-14 rounded-full bg-sf-soft flex items-center justify-center overflow-hidden">
+            {trainer.avatar_url ? (
+              <img
+                src={trainer.avatar_url}
+                alt={trainer.first_name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-sm font-semibold">
+                {trainer.first_name[0]}
+                {trainer.last_name[0]}
+              </span>
+            )}
           </div>
 
-          {/* Navn + rolle */}
           <div className="flex-1">
-            <p className="text-base font-semibold text-sf-text">
-              Thomas Rehabson
+            <p className="text-base font-semibold">
+              {trainer.first_name} {trainer.last_name}
             </p>
             <p className="text-sm text-sf-muted">
-              Rehab-trener · Styrke & bevegelighet
+              {trainer.city ?? ""}
             </p>
           </div>
-
-          {/* Status */}
-          <div>
-            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
-              Profil komplett
-            </span>
-          </div>
         </div>
 
-        {/* 📝 Kort bio */}
-        <div className="text-sm text-sf-text leading-relaxed">
-          Erfaren rehab-trener med fokus på smertereduksjon, funksjonell styrke
-          og trygg progresjon. Jobber evidensbasert og tett med kundene.
+        {trainer.trainer_bio && (
+          <p className="text-sm text-sf-text line-clamp-4">
+            {trainer.trainer_bio}
+          </p>
+        )}
+
+        {trainer.trainer_specialties?.length ? (
+          <div className="flex flex-wrap gap-2">
+            {trainer.trainer_specialties.map((s) => (
+              <span
+                key={s}
+                className="rounded-full bg-sf-soft px-3 py-1 text-xs"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="flex gap-2 pt-2">
+          <Link
+            href={`/trainers/${trainer.id}`}
+            className="rounded-lg border px-4 py-2 text-xs"
+          >
+            Se profil
+          </Link>
+
+          <button
+            onClick={handleSelectTrainer}
+            className="rounded-lg bg-sf-primary px-4 py-2 text-xs text-white"
+          >
+            Velg trener
+          </button>
         </div>
-
-        {/* 📊 Mini-oppsummering */}
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-xl bg-sf-soft p-3">
-            <p className="text-sm font-semibold text-sf-text">42</p>
-            <p className="text-xs text-sf-muted">Kunder</p>
-          </div>
-
-          <div className="rounded-xl bg-sf-soft p-3">
-            <p className="text-sm font-semibold text-sf-text">8 år</p>
-            <p className="text-xs text-sf-muted">Erfaring</p>
-          </div>
-
-          <div className="rounded-xl bg-sf-soft p-3">
-            <p className="text-sm font-semibold text-sf-text">Rehab</p>
-            <p className="text-xs text-sf-muted">Spesialitet</p>
-          </div>
-        </div>
-
       </div>
     </section>
   );

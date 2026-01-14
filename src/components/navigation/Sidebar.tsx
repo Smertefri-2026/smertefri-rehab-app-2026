@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRole } from "@/providers/RoleProvider";
@@ -68,7 +68,16 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { role, loading } = useRole();
 
-  const [collapsed, setCollapsed] = useState(false);
+  // 🔒 Hent sidebar-state fra localStorage
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("sf_sidebar_collapsed") === "true";
+  });
+
+  // 💾 Lagre endringer
+  useEffect(() => {
+    localStorage.setItem("sf_sidebar_collapsed", String(collapsed));
+  }, [collapsed]);
 
   if (loading || !role) return null;
 
@@ -105,7 +114,7 @@ export default function Sidebar() {
         )}
 
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={() => setCollapsed((v) => !v)}
           className="p-2 rounded-lg hover:bg-sf-soft text-slate-500"
           title={collapsed ? "Åpne meny" : "Lukk meny"}
         >

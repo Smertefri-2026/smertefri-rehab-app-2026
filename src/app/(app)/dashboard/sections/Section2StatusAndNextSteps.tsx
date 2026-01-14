@@ -1,6 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRole } from "@/providers/RoleProvider";
+import { getMyProfile } from "@/lib/profile";
+
 import {
   AlertTriangle,
   CreditCard,
@@ -8,20 +12,19 @@ import {
   User,
   Users,
 } from "lucide-react";
+
 import DashboardCard from "@/components/dashboard/DashboardCard";
 
 export default function Section2StatusAndNextSteps() {
   const { role } = useRole();
 
   /* --------------------------------
-     🔧 DUMMY STATUS (kun for nå)
-     → erstattes senere med ekte data
+     🔧 DUMMY STATUS (beholdes!)
   -------------------------------- */
 
-  const status = {
-    // Felles
-    clientCardIncomplete: true,
-    trainerCardIncomplete: true,
+  const [status, setStatus] = useState({
+    // Profil (ekte sjekk)
+    profileIncomplete: true,
 
     // Kunde
     client: {
@@ -35,25 +38,62 @@ export default function Section2StatusAndNextSteps() {
       clientsWithoutSessions: 3,
     },
 
-    // Admin
+    // Admin (dummy – beholdes)
     admin: {
       clientsWithIncompleteCards: 4,
       trainersWithIncompleteCards: 2,
       usersWithoutPayment: 12,
     },
-  };
+  });
+
+  /* --------------------------------
+     ✅ EKTESJEKK: Profil fullført?
+     (seksjon 1 + 2)
+  -------------------------------- */
+
+  useEffect(() => {
+    async function checkProfile() {
+      if (role !== "client" && role !== "trainer") return;
+
+      try {
+        const profile = await getMyProfile();
+
+        const incomplete =
+          !profile.first_name ||
+          !profile.last_name ||
+          !profile.phone ||
+          !profile.birth_date ||
+          !profile.address ||
+          !profile.postal_code ||
+          !profile.city;
+
+        setStatus((prev) => ({
+          ...prev,
+          profileIncomplete: incomplete,
+        }));
+      } catch {
+        // Fail-safe: vis varsel ved feil
+        setStatus((prev) => ({
+          ...prev,
+          profileIncomplete: true,
+        }));
+      }
+    }
+
+    checkProfile();
+  }, [role]);
 
   /* --------------------------------
      HJELPER: finnes det varsler?
   -------------------------------- */
 
   const hasClientIssues =
-    status.clientCardIncomplete ||
+    status.profileIncomplete ||
     status.client.paymentMissing ||
     status.client.noUpcomingSession;
 
   const hasTrainerIssues =
-    status.trainerCardIncomplete ||
+    status.profileIncomplete ||
     status.trainer.freeCapacity ||
     status.trainer.clientsWithoutSessions > 0;
 
@@ -81,20 +121,32 @@ export default function Section2StatusAndNextSteps() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-        {/* ================== KUNDE ================== */}
-        {role === "client" && status.clientCardIncomplete && (
-          <DashboardCard
-            title="Kundekort ikke fullført"
-            icon={<User size={18} />}
-            variant="warning"
-          >
-            <p>Vi mangler viktig informasjon.</p>
-            <p className="text-sm text-sf-muted">
-              Fullfør smerte, tester og kosthold.
-            </p>
-          </DashboardCard>
-        )}
+        {/* ================== PROFIL – KUNDE & TRENER ================== */}
+        {(role === "client" || role === "trainer") &&
+          status.profileIncomplete && (
+            <Link href="/profile" className="block">
+              <DashboardCard
+                title={
+                  role === "trainer"
+                    ? "Trenerprofil ikke fullført"
+                    : "Kundeprofil ikke fullført"
+                }
+                icon={<User size={18} />}
+                variant="warning"
+              >
+                <p>
+                  {role === "trainer"
+                    ? "Profilen din vises for kunder."
+                    : "Profilen din vises for treneren din."}
+                </p>
+                <p className="text-sm text-sf-muted underline">
+                  Fullfør personopplysninger og adresse
+                </p>
+              </DashboardCard>
+            </Link>
+          )}
 
+        {/* ================== KUNDE ================== */}
         {role === "client" && status.client.paymentMissing && (
           <DashboardCard
             title="Ingen aktiv betaling"
@@ -122,19 +174,6 @@ export default function Section2StatusAndNextSteps() {
         )}
 
         {/* ================== TRENER ================== */}
-        {role === "trainer" && status.trainerCardIncomplete && (
-          <DashboardCard
-            title="Trenerprofil ikke fullført"
-            icon={<Users size={18} />}
-            variant="warning"
-          >
-            <p>Profilen din vises for kunder.</p>
-            <p className="text-sm text-sf-muted">
-              Fyll ut trenerkortet for bedre synlighet.
-            </p>
-          </DashboardCard>
-        )}
-
         {role === "trainer" && status.trainer.freeCapacity && (
           <DashboardCard
             title="Ledig kapasitet"
@@ -165,7 +204,7 @@ export default function Section2StatusAndNextSteps() {
             </DashboardCard>
           )}
 
-        {/* ================== ADMIN ================== */}
+        {/* ================== ADMIN (DUMMY – beholdt) ================== */}
         {role === "admin" &&
           status.admin.clientsWithIncompleteCards > 0 && (
             <DashboardCard
@@ -176,9 +215,6 @@ export default function Section2StatusAndNextSteps() {
               <p>
                 {status.admin.clientsWithIncompleteCards} kunder mangler
                 fullstendig kort.
-              </p>
-              <p className="text-sm text-sf-muted">
-                Følg opp for kvalitet.
               </p>
             </DashboardCard>
           )}
@@ -194,9 +230,6 @@ export default function Section2StatusAndNextSteps() {
                 {status.admin.trainersWithIncompleteCards} trenere mangler
                 fullført profil.
               </p>
-              <p className="text-sm text-sf-muted">
-                Påvirker kundetillit.
-              </p>
             </DashboardCard>
           )}
 
@@ -211,12 +244,8 @@ export default function Section2StatusAndNextSteps() {
                 {status.admin.usersWithoutPayment} brukere mangler
                 betaling.
               </p>
-              <p className="text-sm text-sf-muted">
-                Gå til betalingsoversikt.
-              </p>
             </DashboardCard>
           )}
-
       </div>
     </section>
   );

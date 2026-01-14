@@ -1,8 +1,9 @@
 "use client";
 
 import dayjs, { Dayjs } from "dayjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRole } from "@/providers/RoleProvider";
+import { supabase } from "@/lib/supabaseClient";
 
 import { CalendarView } from "@/types/calendar";
 
@@ -12,14 +13,39 @@ import Section2CalendarView from "./sections/Section2CalendarView";
 import Section3CalendarDialogHost from "./sections/Section3CalendarDialogHost";
 import Section4ClientUpcoming from "./sections/Section4ClientUpcoming";
 import Section5ClientHistory from "./sections/Section5ClientHistory";
-import Section6TrainerAvailability from "./sections/Section6TrainerAvailability";
+import Section6TrainerAvailability, {
+  WeeklyAvailability,
+} from "./sections/Section6TrainerAvailability";
 import Section7AdminSearch from "./sections/Section7AdminSearch";
+
+/* Availability helpers */
+import { loadAvailability, saveAvailability } from "@/lib/availability";
 
 export default function CalendarPage() {
   const { role, loading } = useRole();
 
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
+
+  /* 🔹 Availability (kun trener) */
+  const [availability, setAvailability] =
+    useState<WeeklyAvailability | null>(null);
+  const [trainerId, setTrainerId] = useState<string | null>(null);
+
+  /* 🔹 Last inn bruker + availability */
+  useEffect(() => {
+    if (role !== "trainer") return;
+
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return;
+
+      setTrainerId(data.user.id);
+
+      const loaded = await loadAvailability(data.user.id);
+      setAvailability(loaded);
+    })();
+  }, [role]);
 
   /* ⬅️ Forrige periode */
   const handlePrev = () => {
@@ -47,7 +73,7 @@ export default function CalendarPage() {
     );
   };
 
-  /* ✅ Bytte view = hopp til NÅ (også fra år-visning) */
+  /* ✅ Bytte view = hopp til NÅ */
   const handleViewChange = (nextView: CalendarView) => {
     setView(nextView);
     setCurrentDate(dayjs());
@@ -58,7 +84,6 @@ export default function CalendarPage() {
   return (
     <main className="bg-[#F4FBFA]">
       <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
-
         {/* 1️⃣ Header */}
         <Section1CalendarHeader
           view={view}
@@ -70,13 +95,10 @@ export default function CalendarPage() {
 
         {/* 2️⃣ Kalender */}
         <div className="relative h-[calc(100vh-180px)] overflow-hidden">
-          <Section2CalendarView
-            view={view}
-            currentDate={currentDate}
-          />
+          <Section2CalendarView view={view} currentDate={currentDate} />
         </div>
 
-        {/* 3️⃣ Dialog / handlinger (alle roller – visuell) */}
+        {/* 3️⃣ Dialog / handlinger */}
         <Section3CalendarDialogHost />
 
         {/* 4️⃣ Kunde – kommende timer */}
@@ -86,11 +108,18 @@ export default function CalendarPage() {
         {role === "client" && <Section5ClientHistory />}
 
         {/* 6️⃣ Trener – tilgjengelighet */}
-        {role === "trainer" && <Section6TrainerAvailability />}
+        {role === "trainer" && availability && trainerId && (
+          <Section6TrainerAvailability
+            initialAvailability={availability}
+            onSave={async (updated) => {
+              await saveAvailability(trainerId, updated);
+              setAvailability(updated); // 🔁 holder UI i sync
+            }}
+          />
+        )}
 
         {/* 7️⃣ Admin – søk */}
         {role === "admin" && <Section7AdminSearch />}
-
       </div>
     </main>
   );
