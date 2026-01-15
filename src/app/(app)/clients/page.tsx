@@ -3,38 +3,37 @@
 import { useState, useMemo } from "react";
 import ClientCard from "@/components/client/ClientCard";
 import Section1ClientSearch from "./sections/Section1ClientSearch";
-import { Client } from "@/types/client";
+import { useClients } from "@/stores/clients.store";
 
 export default function ClientsPage() {
   const [query, setQuery] = useState("");
-
-  const clients: Client[] = [
-    {
-      id: "1",
-      first_name: "Ola",
-      last_name: "Nordmann",
-      age: 42,
-      city: "Drammen",
-      status: { nextSession: "I morgen kl. 14:00" },
-    },
-    {
-      id: "2",
-      first_name: "Kari",
-      last_name: "Hansen",
-      age: 35,
-      city: "Oslo",
-      status: { nextSession: "Fredag kl. 10:30" },
-    },
-  ];
+  const { clients, loading, error } = useClients();
 
   const results = useMemo(() => {
     if (!query) return clients;
+
     return clients.filter((c) =>
-      `${c.first_name} ${c.last_name} ${c.city}`
+      `${c.first_name} ${c.last_name} ${c.city ?? ""}`
         .toLowerCase()
         .includes(query.toLowerCase())
     );
   }, [query, clients]);
+
+  if (loading) {
+    return (
+      <p className="p-4 text-sm text-sf-muted">
+        Laster kunder…
+      </p>
+    );
+  }
+
+  if (error) {
+    return (
+      <p className="p-4 text-sm text-red-600">
+        {error}
+      </p>
+    );
+  }
 
   return (
     <main className="bg-[#F4FBFA]">
@@ -51,6 +50,12 @@ export default function ClientsPage() {
             />
           ))}
         </section>
+
+        {results.length === 0 && (
+          <p className="text-sm text-sf-muted">
+            Ingen kunder matcher søket.
+          </p>
+        )}
 
       </div>
     </main>
