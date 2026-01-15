@@ -1,6 +1,10 @@
 import { supabase } from "@/lib/supabaseClient";
 
-type TrainerMini = {
+/* ================================
+   TYPER
+================================ */
+
+export type TrainerMini = {
   id: string;
   first_name: string | null;
   last_name: string | null;
@@ -9,39 +13,41 @@ type TrainerMini = {
   trainer_specialties: string[] | null;
 };
 
-type MyProfileRow = {
+export type MyProfile = {
   id: string;
+
+  // 👤 person
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  avatar_url: string | null;
+
+  // 🏠 adresse
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
+
+  // 🔐 system
   email?: string | null;
   role?: string | null;
 
-  // kobling
+  // 🔗 kobling
   trainer_id?: string | null;
 
-  // trenerfelter
+  // 🧠 trenerfelter
   trainer_bio?: string | null;
   trainer_specialties?: string[] | null;
   trainer_public?: boolean | null;
 
-  // andre felter dere har
-  [key: string]: any;
+  // 👥 trener-relasjon
+  trainer?: TrainerMini | null;
 };
 
-function normalizeErrorMessage(err: any) {
-  if (!err) return "Ukjent feil";
-  if (typeof err === "string") return err;
-  if (typeof err?.message === "string") return err.message;
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err);
-  }
-}
-
 /* ================================
-   HENT INNLOGGET BRUKERS PROFIL
-   (UTEN nested join pga PGRST200)
+   HENT MIN PROFIL
 ================================ */
-export async function getMyProfile() {
+export async function getMyProfile(): Promise<MyProfile> {
   const {
     data: { user },
     error: authError,
@@ -51,25 +57,21 @@ export async function getMyProfile() {
     throw new Error("Ikke innlogget");
   }
 
-  // 1) Hent min profil
-  const { data: me, error: meErr } = await supabase
+  const { data: me, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single<MyProfileRow>();
+    .single<MyProfile>();
 
-  if (meErr) {
-    throw new Error(normalizeErrorMessage(meErr));
-  }
-  if (!me) {
-    throw new Error("Fant ikke profil");
+  if (error || !me) {
+    throw new Error("Kunne ikke hente profil");
   }
 
-  // 2) Hvis jeg har trainer_id → hent trenerprofil separat
+  // Hent trener hvis koblet
   let trainer: TrainerMini | null = null;
 
   if (me.trainer_id) {
-    const { data: t, error: tErr } = await supabase
+    const { data: t } = await supabase
       .from("profiles")
       .select(
         "id, first_name, last_name, avatar_url, city, trainer_specialties"
@@ -77,18 +79,21 @@ export async function getMyProfile() {
       .eq("id", me.trainer_id)
       .single<TrainerMini>();
 
-    if (!tErr) trainer = t ?? null;
-    // Hvis trener ikke finnes / cache-issue → vi lar trainer være null, men me.trainer_id er fortsatt satt.
+    trainer = t ?? null;
   }
 
-  // Returner samme shape som før, inkludert trainer-objekt
-  return { ...me, trainer };
+  return {
+    ...me,
+    trainer,
+  };
 }
 
 /* ================================
    OPPDATER MIN PROFIL
 ================================ */
-export async function updateMyProfile(updates: Record<string, any>) {
+export async function updateMyProfile(
+  updates: Partial<MyProfile>
+) {
   const {
     data: { user },
     error: authError,
@@ -98,14 +103,16 @@ export async function updateMyProfile(updates: Record<string, any>) {
     throw new Error("Ikke innlogget");
   }
 
-  const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
+  const { error } = await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("id", user.id);
 
-  if (error) throw new Error(normalizeErrorMessage(error));
+  if (error) throw error;
 }
 
 /* ================================
    KUNDE → VELG TRENER
-   (returnerer også oppdatert profil)
 ================================ */
 export async function selectTrainer(trainerId: string) {
   const {
@@ -117,14 +124,12 @@ export async function selectTrainer(trainerId: string) {
     throw new Error("Ikke innlogget");
   }
 
-  // Oppdater trainer_id
   const { error } = await supabase
     .from("profiles")
     .update({ trainer_id: trainerId })
     .eq("id", user.id);
 
-  if (error) throw new Error(normalizeErrorMessage(error));
+  if (error) throw error;
 
-  // Returner ny profil (med trener-objekt)
   return await getMyProfile();
 }
