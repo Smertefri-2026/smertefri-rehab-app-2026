@@ -6,24 +6,34 @@ import DashboardCard from "@/components/dashboard/DashboardCard";
 
 export default function Section1Header() {
   const { role } = useRole();
-  const name = "Øistein"; // erstattes senere av profil-data
+  const name = "Øistein"; // 🔧 erstattes senere av profil-data
 
   /* --------------------------------
-     DUMMY DATA (kun for nå)
-     kobles mot ekte data senere
+     🔧 DEV / DUMMY FLAGS
+     (kun under utvikling)
   -------------------------------- */
 
   // Kunde
-  const hasUpcomingSession = true;
+  const hasTrainer = true; // 🔧 kobles mot profile.trainer_id senere
 
-  // Trener
+  // DEV: vi viser BEGGE tilstander samtidig
+  const SHOW_BOTH_CLIENT_STATES_IN_DEV = true;
+
+  // Dummy data – neste økt
+  const nextSession = {
+    date: "Onsdag 31.12",
+    time: "09:00",
+    trainer: "Øistein",
+  };
+
+  // Trener (dummy beholdes)
   const trainerSessionsToday = [
     { time: "09:00", client: "Kunde A" },
     { time: "11:30", client: "Kunde B" },
   ];
   const isTrainerFullyBooked = false;
 
-  // Admin
+  // Admin (dummy beholdes)
   const adminStats = {
     clients: 128,
     trainers: 14,
@@ -47,20 +57,38 @@ export default function Section1Header() {
       </div>
 
       {/* ================= KUNDE ================= */}
-      {role === "client" && hasUpcomingSession && (
+      {role === "client" && hasTrainer && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <DashboardCard
-            title="Neste treningstime"
-            icon={<CalendarClock size={18} />}
-            variant="info"
-          >
-            <p className="font-medium">
-              Onsdag 31.12 · 09:00
-            </p>
-            <p className="text-sm text-sf-muted">
-              Trener: Øistein
-            </p>
-          </DashboardCard>
+
+          {/* ✅ Neste treningstime (DUMMY) */}
+          {(SHOW_BOTH_CLIENT_STATES_IN_DEV || true) && (
+            <DashboardCard
+              title="Neste treningstime"
+              icon={<CalendarClock size={18} />}
+              variant="info"
+            >
+              <p className="font-medium">
+                {nextSession.date} · {nextSession.time}
+              </p>
+              <p className="text-sm text-sf-muted">
+                Trener: {nextSession.trainer}
+              </p>
+            </DashboardCard>
+          )}
+
+          {/* ✅ Ingen kommende avtale */}
+          {(SHOW_BOTH_CLIENT_STATES_IN_DEV || true) && (
+            <DashboardCard
+              title="Ingen kommende avtale"
+              icon={<CalendarClock size={18} />}
+              variant="info"
+            >
+              <p>Du har ingen flere økter planlagt.</p>
+              <p className="text-sm text-sf-muted">
+                Book ny time når det passer deg.
+              </p>
+            </DashboardCard>
+          )}
         </div>
       )}
 

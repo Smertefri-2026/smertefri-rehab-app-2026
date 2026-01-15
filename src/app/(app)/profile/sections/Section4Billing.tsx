@@ -23,7 +23,7 @@ export default function Section4Billing() {
                 Aktivt abonnement
               </p>
               <p className="text-sm text-sf-muted">
-                Rehab Basis · 1 495 kr / mnd
+                Rehab Basis · 0 kr / mnd
               </p>
               <p className="mt-2 text-xs text-sf-muted">
                 Neste betaling: 01.02.2026
@@ -49,7 +49,7 @@ export default function Section4Billing() {
                 Trenerabonnement
               </p>
               <p className="text-sm text-sf-muted">
-                Pro Trener · 999 kr / mnd
+                Pro Trener · 0 kr / mnd
               </p>
             </div>
 
