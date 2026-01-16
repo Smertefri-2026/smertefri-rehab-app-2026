@@ -1,5 +1,3 @@
-// src/types/client.ts
-
 export type ClientStatus = {
   nextSession?: string | null;
   painLevel?: "Lav" | "Moderat" | "Høy" | null;
@@ -17,9 +15,18 @@ export type Client = {
 
   first_name: string;
   last_name: string;
-  age?: number;
-  city?: string;
 
+  // 🧍 Grunninfo (kan komme fra joins / views senere)
+  age?: number;
+
+  // 📞 Profilfelter (profiles-tabellen)
+  phone?: string | null;
+  birth_date?: string | null;
+  address?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+
+  // 📊 Status / notater
   status?: ClientStatus;
   note?: ClientNote;
 };

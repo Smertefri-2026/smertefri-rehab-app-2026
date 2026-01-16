@@ -20,6 +20,10 @@ export async function fetchMyClients(): Promise<Client[]> {
       id,
       first_name,
       last_name,
+      phone,
+      birth_date,
+      address,
+      postal_code,
       city,
       trainer_id
     `)
@@ -30,11 +34,15 @@ export async function fetchMyClients(): Promise<Client[]> {
     throw error;
   }
 
-  // Mapper DB → Client-type
   return (data ?? []).map((row) => ({
     id: row.id,
     first_name: row.first_name,
     last_name: row.last_name,
+
+    phone: row.phone,
+    birth_date: row.birth_date,
+    address: row.address,
+    postal_code: row.postal_code,
     city: row.city,
   }));
 }

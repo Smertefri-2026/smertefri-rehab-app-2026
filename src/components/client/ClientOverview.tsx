@@ -23,7 +23,7 @@ export default function ClientOverview({ clientId }: Props) {
 
         {/* ❤️ Smerter */}
         <Link
-          href={`/clients/${clientId}/pain`}
+          href={`/pain/${clientId}`}
           className="flex items-center justify-between rounded-xl border border-sf-border p-4 transition hover:bg-sf-soft"
         >
           <div className="flex items-center gap-3">
@@ -40,7 +40,7 @@ export default function ClientOverview({ clientId }: Props) {
 
         {/* 📈 Tester */}
         <Link
-          href={`/clients/${clientId}/tests`}
+          href={`/tests/${clientId}`}
           className="flex items-center justify-between rounded-xl border border-sf-border p-4 transition hover:bg-sf-soft"
         >
           <div className="flex items-center gap-3">
@@ -57,7 +57,7 @@ export default function ClientOverview({ clientId }: Props) {
 
         {/* 🍽 Kosthold */}
         <Link
-          href={`/clients/${clientId}/nutrition`}
+          href={`/nutrition/${clientId}`}
           className="flex items-center justify-between rounded-xl border border-sf-border p-4 transition hover:bg-sf-soft"
         >
           <div className="flex items-center gap-3">

@@ -8,7 +8,7 @@ import { useClients } from "@/stores/clients.store";
 import ClientCard from "@/components/client/ClientCard";
 import ClientActions from "@/components/client/ClientActions";
 import ClientOverview from "@/components/client/ClientOverview";
-
+import ClientDetails from "@/components/client/ClientDetails";
 type PageProps = {
   params: Promise<{
     id: string;
@@ -50,6 +50,7 @@ export default function ClientDetailPage({ params }: PageProps) {
         <ClientCard client={client} />
         <ClientActions clientId={clientId} />
         <ClientOverview clientId={clientId} />
+        <ClientDetails client={client} canEdit />
       </div>
     </main>
   );
