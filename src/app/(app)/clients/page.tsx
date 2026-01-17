@@ -14,9 +14,8 @@ export default function ClientsPage() {
   const [query, setQuery] = useState("");
 
   /**
-   * 🔄 Viktig:
-   * Reset søk hver gang brukeren navigerer hit igjen
-   * (spesielt via Sidebar på desktop)
+   * 🔄 Reset søk når brukeren navigerer hit igjen
+   * (viktig for desktop-sidebar)
    */
   useEffect(() => {
     setQuery("");
@@ -30,7 +29,6 @@ export default function ClientsPage() {
 
     const q = query.toLowerCase();
 
-    tell;
     return clients.filter((c) =>
       `${c.first_name} ${c.last_name} ${c.city ?? ""}`
         .toLowerCase()
@@ -85,6 +83,7 @@ export default function ClientsPage() {
             Ingen kunder matcher søket.
           </p>
         )}
+
       </div>
     </main>
   );
