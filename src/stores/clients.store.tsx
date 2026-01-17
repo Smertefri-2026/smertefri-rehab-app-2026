@@ -8,7 +8,8 @@ import {
   ReactNode,
 } from "react";
 import { Client } from "@/types/client";
-import { fetchMyClients } from "@/lib/clients.api";
+import { fetchMyClients, fetchAllClients } from "@/lib/clients.api";
+import { useRole } from "@/providers/RoleProvider";
 
 type ClientsContextType = {
   clients: Client[];
@@ -22,6 +23,8 @@ type ClientsContextType = {
 const ClientsContext = createContext<ClientsContextType | null>(null);
 
 export function ClientsProvider({ children }: { children: ReactNode }) {
+  const { role } = useRole();
+
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +32,12 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
   async function load() {
     try {
       setLoading(true);
-      const data = await fetchMyClients();
+
+      const data =
+        role === "admin"
+          ? await fetchAllClients()
+          : await fetchMyClients();
+
       setClients(data);
     } catch (err: any) {
       setError(err?.message ?? "Kunne ikke hente kunder");
@@ -39,8 +47,8 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    if (role) load();
+  }, [role]);
 
   function getClientById(id: string) {
     return clients.find((c) => c.id === id);

@@ -14,7 +14,7 @@ export default function ClientActions({ clientId }: Props) {
 
         {/* 💬 Meldinger */}
         <Link
-          href={`/messages?client=${clientId}`}
+          href={`/chat?client=${clientId}`}
           className="flex items-center justify-center gap-2 rounded-xl bg-sf-primary px-4 py-3 text-sm font-medium text-white hover:opacity-90"
         >
           <MessageSquare size={18} />

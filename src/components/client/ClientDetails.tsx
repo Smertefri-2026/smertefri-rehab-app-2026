@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Client } from "@/types/client";
 import { supabase } from "@/lib/supabaseClient";
+import { useClients } from "@/stores/clients.store"; // ⭐ NEW
 
 type Props = {
   client: Client;
@@ -13,7 +14,8 @@ export default function ClientDetails({
   client,
   canEdit = true,
 }: Props) {
-  // 🔗 Samme data som kunden redigerer i sin profil (profiles-tabellen)
+  const { refreshClients } = useClients(); // ⭐ NEW
+
   const [form, setForm] = useState({
     phone: client.phone ?? "",
     address: client.address ?? "",
@@ -44,6 +46,7 @@ export default function ClientDetails({
       console.error(error);
       setError("Kunne ikke lagre kundedetaljer.");
     } else {
+      await refreshClients(); // ⭐ AUTO-REFRESH
       setSaved(true);
     }
 
@@ -57,12 +60,9 @@ export default function ClientDetails({
       </h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-        {/* READ-ONLY */}
         <ReadOnlyField label="Fornavn" value={client.first_name} />
         <ReadOnlyField label="Etternavn" value={client.last_name} />
 
-        {/* EDITABLE – samme felt som på profil */}
         <EditableField
           label="Telefon"
           value={form.phone}
@@ -94,9 +94,7 @@ export default function ClientDetails({
 
       {canEdit && (
         <>
-          {error && (
-            <p className="text-xs text-red-500 text-center">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-500 text-center">{error}</p>}
           {saved && (
             <p className="text-xs text-green-600 text-center">
               Lagret ✅
@@ -114,15 +112,10 @@ export default function ClientDetails({
           </div>
         </>
       )}
-
-      {!canEdit && (
-        <p className="text-xs text-sf-muted">
-          Kundedetaljer er skrivebeskyttet.
-        </p>
-      )}
     </section>
   );
 }
+
 
 /* ---------- helpers ---------- */
 
