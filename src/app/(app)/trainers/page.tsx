@@ -1,66 +1,86 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getPublicTrainers } from "@/lib/trainers";
-import Section2TrainerCard from "./sections/Section2TrainerCard";
+import { useState, useMemo, useEffect } from "react";
+import { usePathname } from "next/navigation";
+
+import TrainerCard from "@/components/trainer/TrainerCard";
+import Section1TrainerSearch from "./sections/Section1TrainerSearch";
+import { useTrainers } from "@/stores/trainers.store";
 
 export default function TrainersPage() {
-  const [trainers, setTrainers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
 
+  const { trainers, loading, error } = useTrainers();
+  const [query, setQuery] = useState("");
+
+  /**
+   * 🔄 Reset søk når brukeren navigerer hit igjen
+   */
   useEffect(() => {
-    async function load() {
-      try {
-        const data = await getPublicTrainers();
-        setTrainers(data);
-      } catch (e) {
-        console.error("Kunne ikke hente trenere", e);
-      } finally {
-        setLoading(false);
-      }
-    }
+    setQuery("");
+  }, [pathname]);
 
-    load();
-  }, []);
+  /**
+   * 🔍 Filtrer trenere basert på søk
+   */
+  const results = useMemo(() => {
+    if (!query.trim()) return trainers;
+
+    const q = query.toLowerCase();
+
+    return trainers.filter((t) =>
+      `${t.first_name} ${t.last_name} ${t.city ?? ""}`
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [query, trainers]);
+
+  /* ---------------- STATES ---------------- */
+
+  if (loading) {
+    return (
+      <p className="p-4 text-sm text-sf-muted">
+        Laster trenere…
+      </p>
+    );
+  }
+
+  if (error) {
+    return (
+      <p className="p-4 text-sm text-red-600">
+        {error}
+      </p>
+    );
+  }
+
+  /* ---------------- RENDER ---------------- */
 
   return (
-    <main className="bg-[#F4FBFA] min-h-screen">
+    <main className="bg-[#F4FBFA]">
       <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
 
-        {/* HEADER */}
-        <header className="space-y-2">
-          <h1 className="text-xl font-semibold text-sf-text">
-            Finn trener
-          </h1>
-          <p className="text-sm text-sf-muted">
-            Velg en trener basert på kompetanse og behov.
-          </p>
-        </header>
+        {/* 🔍 Søk */}
+        <Section1TrainerSearch
+          value={query}
+          onChange={setQuery}
+        />
 
-        {/* LOADING */}
-        {loading && (
-          <p className="text-sm text-sf-muted">
-            Laster trenere …
-          </p>
-        )}
+        {/* 👥 Trener-kort */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {results.map((trainer) => (
+            <TrainerCard
+              key={trainer.id}
+              trainer={trainer}
+              href={`/trainers/${trainer.id}`}
+            />
+          ))}
+        </section>
 
-        {/* TOMT */}
-        {!loading && trainers.length === 0 && (
+        {/* 🚫 Ingen treff */}
+        {results.length === 0 && (
           <p className="text-sm text-sf-muted">
-            Ingen trenere tilgjengelig akkurat nå.
+            Ingen trenere matcher søket.
           </p>
-        )}
-
-        {/* LISTE */}
-        {!loading && trainers.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {trainers.map((trainer) => (
-              <Section2TrainerCard
-                key={trainer.id}
-                trainer={trainer}
-              />
-            ))}
-          </div>
         )}
 
       </div>

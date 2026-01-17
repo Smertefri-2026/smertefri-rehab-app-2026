@@ -32,18 +32,39 @@ export default function Section3Role() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  async function reload() {
-    setLoading(true);
-    try {
-      const data = await getMyProfile();
-      setProfile(data);
-    } catch (e: any) {
-      console.error("getMyProfile feilet:", e);
-      alert(e?.message ?? "Kunne ikke hente profil");
-    } finally {
-      setLoading(false);
-    }
+async function handleRemoveTrainer() {
+  if (
+    !confirm(
+      "Vil du fjerne tilknytningen til treneren din? Du kan velge ny trener senere."
+    )
+  ) {
+    return;
   }
+
+  setSaving(true);
+  try {
+    await updateMyProfile({ trainer_id: null });
+    await reload();
+  } catch (e: any) {
+    console.error("Fjern trener feilet:", e);
+    alert(e?.message ?? "Kunne ikke fjerne trener");
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function reload() {
+  setLoading(true);
+  try {
+    const data = await getMyProfile();
+    setProfile(data);
+  } catch (e: any) {
+    console.error("getMyProfile feilet:", e);
+    alert(e?.message ?? "Kunne ikke hente profil");
+  } finally {
+    setLoading(false);
+  }
+}
 
   useEffect(() => {
     reload();
@@ -116,6 +137,14 @@ export default function Section3Role() {
 
                 {/* Handlinger – KUN KNAPPER */}
                 <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <button
+  type="button"
+  onClick={handleRemoveTrainer}
+  disabled={saving}
+  className="rounded-lg border px-4 py-2 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+>
+  {saving ? "Fjerner…" : "Fjern trener"}
+</button>
                   <Link
                     href="/trainers"
                     className="rounded-lg bg-sf-primary px-4 py-2 text-xs text-white"

@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Client } from "@/types/client";
 
 /**
- * Hent kunder for innlogget trener
+ * 👤 Hent kunder for innlogget trener
  */
 export async function fetchMyClients(): Promise<Client[]> {
   const {
@@ -20,11 +20,13 @@ export async function fetchMyClients(): Promise<Client[]> {
       id,
       first_name,
       last_name,
+      avatar_url,
       phone,
       birth_date,
       address,
       postal_code,
-      city
+      city,
+      trainer_id
     `)
     .eq("trainer_id", user.id)
     .eq("role", "client");
@@ -44,6 +46,7 @@ export async function fetchAllClients(): Promise<Client[]> {
       id,
       first_name,
       last_name,
+      avatar_url,
       phone,
       birth_date,
       address,
@@ -52,6 +55,27 @@ export async function fetchAllClients(): Promise<Client[]> {
       trainer_id
     `)
     .eq("role", "client");
+
+  if (error) throw error;
+
+  return data ?? [];
+}
+
+/**
+ * 🔐 Admin – hent ALLE trenere (for bytte trener)
+ */
+export async function fetchAllTrainers(): Promise<
+  { id: string; first_name: string; last_name: string }[]
+> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(`
+      id,
+      first_name,
+      last_name
+    `)
+    .eq("role", "trainer")
+    .order("first_name", { ascending: true });
 
   if (error) throw error;
 

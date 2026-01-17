@@ -1,3 +1,5 @@
+/* ---------------- STATUS ---------------- */
+
 export type ClientStatus = {
   nextSession?: string | null;
   painLevel?: "Lav" | "Moderat" | "Høy" | null;
@@ -5,10 +7,14 @@ export type ClientStatus = {
   nutritionStatus?: string | null;
 };
 
+/* ---------------- NOTATER ---------------- */
+
 export type ClientNote = {
   text: string;
   updatedAt?: string;
 };
+
+/* ---------------- CLIENT ---------------- */
 
 export type Client = {
   id: string;
@@ -16,17 +22,23 @@ export type Client = {
   first_name: string;
   last_name: string;
 
-  // 🧍 Grunninfo (kan komme fra joins / views senere)
+  /* 🔗 RELASJON */
+  trainer_id?: string | null;
+
+  /* 🖼 PROFILBILDE */
+  avatar_url?: string | null;
+
+  /* 🧍 Avledet (beregnes i UI, lagres ikke i DB) */
   age?: number;
 
-  // 📞 Profilfelter (profiles-tabellen)
+  /* 📞 PROFILFELTER (profiles-tabellen) */
   phone?: string | null;
   birth_date?: string | null;
   address?: string | null;
   postal_code?: string | null;
   city?: string | null;
 
-  // 📊 Status / notater
+  /* 📊 UI / STATUS */
   status?: ClientStatus;
   note?: ClientNote;
 };

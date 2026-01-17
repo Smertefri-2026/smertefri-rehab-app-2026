@@ -1,52 +1,37 @@
 "use client";
 
-export default function Section1TrainerSearch() {
+import { Search } from "lucide-react";
+
+type Props = {
+  value: string;
+  onChange: (value: string) => void;
+};
+
+export default function Section1TrainerSearch({ value, onChange }: Props) {
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
-      <div className="space-y-4">
+      <div className="relative">
+        <Search
+          size={18}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-sf-muted"
+        />
 
-        {/* 🔍 Søkefelt */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-sf-text">
-            Søk etter trener
-          </label>
-          <input
-            type="text"
-            placeholder="Navn, spesialitet eller sted"
-            className="
-              w-full rounded-xl border border-sf-border
-              px-4 py-3 text-sm
-              focus:outline-none focus:ring-2 focus:ring-[#007C80]
-            "
-          />
-        </div>
-
-        {/* 🧩 Filtre (dummy) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-
-          <button className="rounded-full border border-sf-border px-4 py-2 text-sm text-sf-text hover:bg-sf-soft">
-            Rehab
-          </button>
-
-          <button className="rounded-full border border-sf-border px-4 py-2 text-sm text-sf-text hover:bg-sf-soft">
-            Styrke
-          </button>
-
-          <button className="rounded-full border border-sf-border px-4 py-2 text-sm text-sf-text hover:bg-sf-soft">
-            Kondisjon
-          </button>
-
-          <button className="rounded-full border border-sf-border px-4 py-2 text-sm text-sf-text hover:bg-sf-soft">
-            Online
-          </button>
-
-        </div>
-
-        {/* 📌 Info-tekst */}
-        <p className="text-xs text-sf-muted">
-          Velg en trener for å se profil, kompetanse og tilgjengelighet.
-        </p>
-
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Søk etter trener (navn, sted)"
+          className="
+            w-full
+            rounded-full
+            border border-sf-border
+            bg-sf-soft
+            py-2.5 pl-11 pr-4
+            text-sm
+            outline-none
+            focus:ring-2 focus:ring-sf-primary/40
+          "
+        />
       </div>
     </section>
   );

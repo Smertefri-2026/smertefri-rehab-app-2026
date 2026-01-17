@@ -1,8 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { User, Calendar, HeartPulse, Activity, Utensils } from "lucide-react";
+import {
+  Calendar,
+  HeartPulse,
+  Activity,
+  Utensils,
+} from "lucide-react";
 import { Client } from "@/types/client";
+
+/* ---------------- HELPERS ---------------- */
+
+function calculateAge(birthDate?: string | null): number | null {
+  if (!birthDate) return null;
+
+  const birth = new Date(birthDate);
+  if (isNaN(birth.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+
+  const hasHadBirthdayThisYear =
+    today.getMonth() > birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() &&
+      today.getDate() >= birth.getDate());
+
+  if (!hasHadBirthdayThisYear) age--;
+
+  return age;
+}
+
+/* ---------------- COMPONENT ---------------- */
 
 type Props = {
   client: Client;
@@ -11,15 +39,29 @@ type Props = {
 
 export default function ClientCard({ client, href }: Props) {
   const status = client.status;
+  const age = calculateAge(client.birth_date);
+
+  const initials =
+    `${client.first_name?.[0] ?? ""}${client.last_name?.[0] ?? ""}`.toUpperCase();
 
   const content = (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm hover:shadow-md transition">
       <div className="space-y-4">
 
-        {/* 🧍 Kundeinfo */}
+        {/* 👤 Kundeinfo */}
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-sf-soft">
-            <User className="text-sf-primary" />
+          <div className="h-14 w-14 rounded-full bg-sf-soft flex items-center justify-center overflow-hidden">
+            {client.avatar_url ? (
+              <img
+                src={client.avatar_url}
+                alt={`${client.first_name} ${client.last_name}`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-sm font-semibold text-sf-primary">
+                {initials || "—"}
+              </span>
+            )}
           </div>
 
           <div>
@@ -27,7 +69,7 @@ export default function ClientCard({ client, href }: Props) {
               {client.first_name} {client.last_name}
             </p>
             <p className="text-sm text-sf-muted">
-              {client.age} år • {client.city}
+              {age !== null ? `${age} år` : "—"} • {client.city ?? "—"}
             </p>
           </div>
         </div>

@@ -1,20 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Client } from "@/types/client";
 import { supabase } from "@/lib/supabaseClient";
-import { useClients } from "@/stores/clients.store"; // ⭐ NEW
+import { useClients } from "@/stores/clients.store";
+import { useRole } from "@/providers/RoleProvider";
+import { fetchAllTrainers } from "@/lib/clients.api";
+
+type Trainer = {
+  id: string;
+  first_name: string;
+  last_name: string;
+};
 
 type Props = {
   client: Client;
-  canEdit?: boolean; // trainer/admin
+  canEdit?: boolean;
 };
 
 export default function ClientDetails({
   client,
   canEdit = true,
 }: Props) {
-  const { refreshClients } = useClients(); // ⭐ NEW
+  const { role } = useRole();
+  const { refreshClients } = useClients();
+
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [trainerId, setTrainerId] = useState<string | null>(
+    (client as any).trainer_id ?? null
+  );
 
   const [form, setForm] = useState({
     phone: client.phone ?? "",
@@ -27,31 +41,86 @@ export default function ClientDetails({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSave() {
+  /* ---------------- ADMIN: hent trenere ---------------- */
+
+  useEffect(() => {
+    if (role === "admin") {
+      fetchAllTrainers()
+        .then(setTrainers)
+        .catch((err) => {
+          console.error("Kunne ikke hente trenere", err);
+        });
+    }
+  }, [role]);
+
+  /* ---------------- ADMIN: FJERN TRENER ---------------- */
+
+  async function handleRemoveTrainer() {
+    if (
+      !confirm(
+        "Er du sikker på at du vil fjerne treneren fra denne kunden?"
+      )
+    ) {
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setSaved(false);
 
     const { error } = await supabase
       .from("profiles")
-      .update({
-        phone: form.phone || null,
-        address: form.address || null,
-        postal_code: form.postal_code || null,
-        city: form.city || null,
-      })
+      .update({ trainer_id: null })
+      .eq("id", client.id);
+
+    if (error) {
+      console.error(error);
+      setError("Kunne ikke fjerne trener.");
+    } else {
+      setTrainerId(null);
+      await refreshClients();
+      setSaved(true);
+    }
+
+    setSaving(false);
+  }
+
+  /* ---------------- SAVE ---------------- */
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+
+    const updateData: any = {
+      phone: form.phone || null,
+      address: form.address || null,
+      postal_code: form.postal_code || null,
+      city: form.city || null,
+    };
+
+    // 🔐 Kun admin kan bytte trener
+    if (role === "admin") {
+      updateData.trainer_id = trainerId;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update(updateData)
       .eq("id", client.id);
 
     if (error) {
       console.error(error);
       setError("Kunne ikke lagre kundedetaljer.");
     } else {
-      await refreshClients(); // ⭐ AUTO-REFRESH
+      await refreshClients();
       setSaved(true);
     }
 
     setSaving(false);
   }
+
+  /* ---------------- RENDER ---------------- */
 
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm space-y-6">
@@ -80,7 +149,9 @@ export default function ClientDetails({
         <EditableField
           label="Postnummer"
           value={form.postal_code}
-          onChange={(v) => setForm({ ...form, postal_code: v })}
+          onChange={(v) =>
+            setForm({ ...form, postal_code: v })
+          }
           disabled={!canEdit}
         />
 
@@ -90,11 +161,48 @@ export default function ClientDetails({
           onChange={(v) => setForm({ ...form, city: v })}
           disabled={!canEdit}
         />
+
+        {/* 🔐 ADMIN: BYTT / FJERN TRENER */}
+        {role === "admin" && (
+          <div className="sm:col-span-2 space-y-2">
+            <label className="text-xs text-sf-muted">Trener</label>
+
+            <select
+              value={trainerId ?? ""}
+              onChange={(e) =>
+                setTrainerId(e.target.value || null)
+              }
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+            >
+              <option value="">— Ingen trener —</option>
+              {trainers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.first_name} {t.last_name}
+                </option>
+              ))}
+            </select>
+
+            {trainerId && (
+              <button
+                type="button"
+                onClick={handleRemoveTrainer}
+                disabled={saving}
+                className="mt-2 rounded-lg border px-4 py-2 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                {saving ? "Fjerner trener…" : "Fjern trener"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {canEdit && (
         <>
-          {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+          {error && (
+            <p className="text-xs text-red-500 text-center">
+              {error}
+            </p>
+          )}
           {saved && (
             <p className="text-xs text-green-600 text-center">
               Lagret ✅
@@ -115,7 +223,6 @@ export default function ClientDetails({
     </section>
   );
 }
-
 
 /* ---------- helpers ---------- */
 
