@@ -8,6 +8,7 @@ import AuthGuard from "@/components/auth/AuthGuard";
 import { RoleProvider } from "@/providers/RoleProvider";
 import { ClientsProvider } from "@/stores/clients.store";
 import { TrainersProvider } from "@/stores/trainers.store";
+import { BookingsProvider } from "@/stores/bookings.store";
 
 export default function AppLayout({
   children,
@@ -19,27 +20,29 @@ export default function AppLayout({
       <AuthGuard>
         <ClientsProvider>
           <TrainersProvider>
-            <div className="relative flex min-h-screen bg-sf-bg">
+            <BookingsProvider>
+              <div className="relative flex min-h-screen bg-sf-bg">
 
-              {/* 🖥 Desktop sidebar */}
-              <Sidebar />
+                {/* 🖥 Desktop sidebar */}
+                <Sidebar />
 
-              {/* 📱 App-innhold */}
-              <div
-                className="
-                  flex-1
-                  relative
-                  pb-16        /* 👈 plass til TabBar på mobil */
-                  md:pb-0     /* 👈 fjern padding på desktop */
-                  overflow-hidden
-                "
-              >
-                {children}
+                {/* 📱 App-innhold */}
+                <div
+                  className="
+                    flex-1
+                    relative
+                    pb-16        /* 👈 plass til TabBar på mobil */
+                    md:pb-0     /* 👈 fjern padding på desktop */
+                    overflow-hidden
+                  "
+                >
+                  {children}
+                </div>
+
+                {/* 📱 Mobil TabBar */}
+                <TabBar />
               </div>
-
-              {/* 📱 Mobil TabBar */}
-              <TabBar />
-            </div>
+            </BookingsProvider>
           </TrainersProvider>
         </ClientsProvider>
       </AuthGuard>

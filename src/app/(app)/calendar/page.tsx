@@ -6,6 +6,8 @@ import { useRole } from "@/providers/RoleProvider";
 import { supabase } from "@/lib/supabaseClient";
 
 import { CalendarView } from "@/types/calendar";
+import { useBookings } from "@/stores/bookings.store";
+import { mapBookingsToEvents } from "@/lib/calendarEvents";
 
 /* Seksjoner */
 import Section1CalendarHeader from "./sections/Section1CalendarHeader";
@@ -46,6 +48,8 @@ export default function CalendarPage() {
       setAvailability(loaded);
     })();
   }, [role]);
+  const { bookings, loading: bookingsLoading } = useBookings();
+  const calendarEvents = mapBookingsToEvents(bookings);
 
   /* ⬅️ Forrige periode */
   const handlePrev = () => {
@@ -95,8 +99,17 @@ export default function CalendarPage() {
 
         {/* 2️⃣ Kalender */}
         <div className="relative h-[calc(100vh-180px)] overflow-hidden">
-          <Section2CalendarView view={view} currentDate={currentDate} />
-        </div>
+{bookingsLoading ? (
+  <p className="text-sm text-sf-muted text-center">
+    Laster bookinger …
+  </p>
+) : (
+  <Section2CalendarView
+    view={view}
+    currentDate={currentDate}
+    events={calendarEvents}
+  />
+)}      </div>
 
         {/* 3️⃣ Dialog / handlinger */}
         <Section3CalendarDialogHost />

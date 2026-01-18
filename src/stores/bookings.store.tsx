@@ -49,9 +49,7 @@ type BookingsContextType = {
    CONTEXT
 ============================ */
 
-const BookingsContext = createContext<BookingsContextType | null>(
-  null
-);
+const BookingsContext = createContext<BookingsContextType | null>(null);
 
 /* ============================
    PROVIDER
@@ -62,7 +60,7 @@ export function BookingsProvider({
 }: {
   children: ReactNode;
 }) {
-  const { role, userId } = useRole();
+  const { role, userId, loading: roleLoading } = useRole();
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,23 +69,44 @@ export function BookingsProvider({
   /* -------- LOAD -------- */
 
   async function load() {
-    if (!role || !userId) return;
+    // ⛔️ Vent til RoleProvider er ferdig
+    if (roleLoading) return;
+
+    // ⛔️ Ikke-innlogget (AuthGuard skal normalt stoppe dette)
+    if (!role) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
 
-      const data =
-        role === "admin"
-          ? await fetchAllBookings()
-          : role === "trainer"
-          ? await fetchBookingsForTrainer(userId)
-          : await fetchBookingsForClient(userId);
+      let data: Booking[] = [];
 
-      setBookings(data);
+      if (role === "admin") {
+        data = await fetchAllBookings();
+      } else if (role === "trainer") {
+        if (!userId) throw new Error("Mangler trainerId");
+        data = await fetchBookingsForTrainer(userId);
+      } else {
+        if (!userId) throw new Error("Mangler clientId");
+        data = await fetchBookingsForClient(userId);
+      }
+
+      console.log("📦 BOOKINGS LOADED:", data);
+
+      setBookings(data ?? []);
     } catch (err: any) {
-      console.error("Bookings load failed:", err);
-      setError(err?.message ?? "Kunne ikke hente bookinger");
+      console.error("❌ BOOKINGS LOAD FAILED (FULL ERROR):", err);
+
+      setError(
+        err?.message ??
+          "Kunne ikke hente bookinger (se console for detaljer)"
+      );
+
+      setBookings([]);
     } finally {
       setLoading(false);
     }
@@ -96,7 +115,7 @@ export function BookingsProvider({
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, userId]);
+  }, [role, userId, roleLoading]);
 
   /* -------- HELPERS -------- */
 
@@ -110,6 +129,7 @@ export function BookingsProvider({
     input: Parameters<typeof createBooking>[0]
   ) {
     const booking = await createBooking(input);
+
     setBookings((prev) =>
       [...prev, booking].sort(
         (a, b) =>
@@ -117,6 +137,7 @@ export function BookingsProvider({
           new Date(b.start_time).getTime()
       )
     );
+
     return booking;
   }
 
@@ -125,14 +146,17 @@ export function BookingsProvider({
     updates: Parameters<typeof updateBooking>[1]
   ) {
     const updated = await updateBooking(bookingId, updates);
+
     setBookings((prev) =>
       prev.map((b) => (b.id === bookingId ? updated : b))
     );
+
     return updated;
   }
 
   async function removeBooking(bookingId: string) {
     await cancelBooking(bookingId);
+
     setBookings((prev) =>
       prev.map((b) =>
         b.id === bookingId
@@ -168,10 +192,12 @@ export function BookingsProvider({
 
 export function useBookings() {
   const ctx = useContext(BookingsContext);
+
   if (!ctx) {
     throw new Error(
       "useBookings må brukes innenfor BookingsProvider"
     );
   }
+
   return ctx;
 }
