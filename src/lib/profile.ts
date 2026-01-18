@@ -133,3 +133,24 @@ export async function selectTrainer(trainerId: string) {
 
   return await getMyProfile();
 }
+// ✅ Batch: hent navn for flere profiler (brukes til kalender-event titler)
+export type ProfileNameRow = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+export async function getProfilesByIds(ids: string[]): Promise<ProfileNameRow[]> {
+  const clean = Array.from(new Set(ids)).filter(Boolean);
+
+  if (clean.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name")
+    .in("id", clean);
+
+  if (error) throw error;
+
+  return (data ?? []) as ProfileNameRow[];
+}

@@ -1,14 +1,16 @@
 "use client";
 
-import { Dispatch, SetStateAction } from "react";
 import { CalendarView } from "@/types/calendar";
 
 type Props = {
   view: CalendarView;
-  onViewChange: (view: CalendarView) => void; // ← VIKTIG ENDRING
+  onViewChange: (view: CalendarView) => void;
   onPrev: () => void;
   onNext: () => void;
   role?: "client" | "trainer" | "admin" | null;
+
+  // ✅ NY: åpne wizard-dialog
+  onAddBooking?: () => void;
 };
 
 export default function Section1CalendarHeader({
@@ -17,12 +19,12 @@ export default function Section1CalendarHeader({
   onPrev,
   onNext,
   role,
+  onAddBooking,
 }: Props) {
   return (
     <section className="w-full">
       <div className="mx-auto max-w-7xl px-4">
         <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
-
           {/* RAD 1 – navigasjon / view */}
           <div className="flex items-center justify-center gap-3">
             <button
@@ -66,28 +68,29 @@ export default function Section1CalendarHeader({
             </button>
           </div>
 
-          {/* RAD 2 – handlinger (dummy / rollebasert) */}
-          {(role === "client" || role === "admin") && (
+          {/* RAD 2 – handlinger */}
+          {(role === "client" || role === "trainer" || role === "admin") && (
             <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-
-              {/* Kunde – legg til time */}
-              {role === "client" && (
+              {/* + Legg til time (wizard) */}
+              {(role === "client" || role === "trainer" || role === "admin") && (
                 <button
-                  className="rounded-full bg-[#007C80] px-5 py-2 text-sm font-medium text-white hover:opacity-90"
+                  onClick={onAddBooking}
+                  disabled={!onAddBooking}
+                  className="rounded-full bg-[#007C80] px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                 >
                   + Legg til time
                 </button>
               )}
 
-{/* Admin – søk (dummy) */}
-{role === "admin" && (
-  <input
-    type="text"
-    disabled
-    placeholder="Søk etter kunder eller trenere"
-    className="w-full max-w-xs rounded-full border border-sf-border bg-sf-soft px-4 py-2 text-sm text-sf-muted outline-none"
-  />
-)}            
+              {/* Admin – søk (dummy) */}
+              {role === "admin" && (
+                <input
+                  type="text"
+                  disabled
+                  placeholder="Søk etter kunder eller trenere"
+                  className="w-full max-w-xs rounded-full border border-sf-border bg-sf-soft px-4 py-2 text-sm text-sf-muted outline-none"
+                />
+              )}
             </div>
           )}
         </div>

@@ -3,7 +3,7 @@
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 
 import dayjs, { Dayjs } from "dayjs";
@@ -19,12 +19,18 @@ type Props = {
   view: CalendarView;
   currentDate: Dayjs;
   events?: any[];
+
+  /* 🔔 callbacks */
+  onCreate?: (start: Date) => void;
+  onEdit?: (bookingId: string) => void;
 };
 
 export default function Section2CalendarView({
   view,
   currentDate,
   events = [],
+  onCreate,
+  onEdit,
 }: Props) {
   const calendarRef = useRef<FullCalendar | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -62,12 +68,22 @@ export default function Section2CalendarView({
     if (api) api.gotoDate(currentDate.toDate());
   }, [currentDate]);
 
+  /* ➕ Klikk på tomt tidspunkt */
+  const handleDateClick = (arg: DateClickArg) => {
+    onCreate?.(arg.date);
+  };
+
+  /* ✏️ Klikk på eksisterende booking */
+  // NB: Typen varierer mellom FullCalendar-versjoner, så vi bruker minimal typing
+  const handleEventClick = (arg: any) => {
+    const bookingId = arg?.event?.id;
+    if (bookingId) onEdit?.(bookingId);
+  };
+
   return (
     <section className="w-full">
       <div className="mx-auto max-w-7xl px-4">
-        {/* ✅ Samme kort som Section 1 */}
         <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
-          {/* 📅 Sticky periode-tittel */}
           <div className="sticky top-0 z-10 bg-white border-b border-sf-border py-2 flex justify-center">
             <h2 className="text-sm font-semibold text-center">
               {view === "day" && currentDate.format("dddd D. MMMM")}
@@ -80,7 +96,6 @@ export default function Section2CalendarView({
             </h2>
           </div>
 
-          {/* Scroll-container */}
           <div className="relative h-[calc(100vh-190px)] overflow-y-auto">
             <FullCalendar
               ref={calendarRef}
@@ -94,33 +109,27 @@ export default function Section2CalendarView({
               initialView={effectiveView}
               initialDate={currentDate.toDate()}
               headerToolbar={false}
-
-              /* Layout */
               height="auto"
               expandRows
               stickyHeaderDates
-
-              /* Kalender-oppsett */
               firstDay={1}
               nowIndicator
               allDaySlot={false}
               selectable={false}
               editable={false}
               events={events}
-
+              /* ✅ KLIKK */
+              dateClick={handleDateClick}
+              eventClick={handleEventClick}
               /* ✅ UKENUMMER */
               weekNumbers={true}
               weekNumberCalculation="ISO"
               weekText=""
-
-              /* ✅ Tid-format (FIXER 06 -> 06:00) */
               slotLabelFormat={{
                 hour: "2-digit",
                 minute: "2-digit",
                 hour12: false,
               }}
-
-              /* Views */
               views={{
                 timeGridDay: {
                   slotMinTime: "06:00:00",
@@ -131,12 +140,8 @@ export default function Section2CalendarView({
                     minute: "2-digit",
                     hour12: false,
                   },
-                  dayHeaderFormat: {
-                    weekday: "short",
-                    day: "numeric",
-                  },
+                  dayHeaderFormat: { weekday: "short", day: "numeric" },
                 },
-
                 timeGridWeek: {
                   slotMinTime: "06:00:00",
                   slotMaxTime: "22:00:00",
@@ -146,12 +151,8 @@ export default function Section2CalendarView({
                     minute: "2-digit",
                     hour12: false,
                   },
-                  dayHeaderFormat: {
-                    weekday: "short",
-                    day: "numeric",
-                  },
+                  dayHeaderFormat: { weekday: "short", day: "numeric" },
                 },
-
                 timeGridTwoDay: {
                   type: "timeGrid",
                   duration: { days: 2 },
@@ -163,23 +164,15 @@ export default function Section2CalendarView({
                     minute: "2-digit",
                     hour12: false,
                   },
-                  dayHeaderFormat: {
-                    weekday: "short",
-                    day: "numeric",
-                  },
+                  dayHeaderFormat: { weekday: "short", day: "numeric" },
                 },
-
-                dayGridMonth: {
-                  fixedWeekCount: false,
-                },
-
+                dayGridMonth: { fixedWeekCount: false },
                 multiMonthYear: {
                   type: "multiMonth",
                   duration: { months: 12 },
                   multiMonthMaxColumns: isMobile ? 1 : 4,
                 },
               }}
-
               eventColor="#007C80"
               eventTextColor="#ffffff"
               dayMaxEvents
