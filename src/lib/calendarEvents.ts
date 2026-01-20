@@ -1,19 +1,42 @@
+// src/lib/calendarEvents.ts
 import { Booking } from "@/types/booking";
 
-export function mapBookingsToEvents(bookings: Booking[], opts?: { role?: "client"|"trainer"|"admin"|null; trainerName?: string; clientNamesById?: Record<string,string> }) {
+type Opts = {
+  role?: "client" | "trainer" | "admin" | null;
+
+  // gamle fallback (behold)
+  trainerName?: string;
+  clientNamesById?: Record<string, string>;
+
+  // ny cache
+  namesById?: Record<string, string>;
+};
+
+export function mapBookingsToEvents(bookings: Booking[], opts?: Opts) {
   const role = opts?.role ?? null;
-  const trainerName = opts?.trainerName ?? "PT";
+  const trainerName = opts?.trainerName ?? "";
   const clientNamesById = opts?.clientNamesById ?? {};
+  const namesById = opts?.namesById ?? {};
+
+  const nameOf = (id?: string | null) => (id ? namesById[id] : "") || "";
 
   return (bookings ?? [])
-    .filter((b) => b.status !== "cancelled") // ✅ viktig
+    .filter((b) => b.status !== "cancelled")
     .map((b) => {
-      let title = "Booket";
+      let title = "Booking";
 
-      // Hvis du senere sender inn navn:
-      if (role === "client") title = `PT med ${trainerName}`;
-      if (role === "trainer") title = clientNamesById[b.client_id] ?? "Kunde";
-      if (role === "admin") title = "Booking";
+      if (role === "client") {
+        title = nameOf(b.trainer_id) || trainerName || "Trener";
+      } else if (role === "trainer") {
+        title =
+          nameOf(b.client_id) ||
+          clientNamesById[b.client_id] ||
+          "Kunde";
+      } else if (role === "admin") {
+        const c = nameOf(b.client_id) || clientNamesById[b.client_id] || "Kunde";
+        const t = nameOf(b.trainer_id) || trainerName || "Trener";
+        title = `${c} · ${t}`;
+      }
 
       return {
         id: b.id,

@@ -1,3 +1,4 @@
+// /src/app/(app)/trainers/[id]/page.tsx
 "use client";
 
 import { notFound } from "next/navigation";
@@ -6,10 +7,11 @@ import { useRole } from "@/providers/RoleProvider";
 import { useTrainers } from "@/stores/trainers.store";
 
 import TrainerCard from "@/components/trainer/TrainerCard";
-import TrainerActions from "@/components/trainer/TrainerActions";
-import TrainerOverview from "@/components/trainer/TrainerOverview";
 import TrainerDetails from "@/components/trainer/TrainerDetails";
 import TrainerClients from "@/components/trainer/TrainerClients";
+
+// ✅ NY: actions-seksjonen som har riktige linker (chat + calendar med trainerId)
+import Section3TrainerActions from "../sections/Section3TrainerActions";
 
 type PageProps = {
   params: Promise<{
@@ -33,9 +35,7 @@ export default function TrainerDetailPage({ params }: PageProps) {
     return (
       <main className="bg-[#F4FBFA]">
         <div className="mx-auto max-w-7xl px-4 py-6">
-          <p className="text-sm text-sf-muted">
-            Laster trener …
-          </p>
+          <p className="text-sm text-sf-muted">Laster trener …</p>
         </div>
       </main>
     );
@@ -51,20 +51,17 @@ export default function TrainerDetailPage({ params }: PageProps) {
   return (
     <main className="bg-[#F4FBFA]">
       <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
-
         {/* 1️⃣ Toppkort */}
         <TrainerCard trainer={trainer} />
 
         {/* 2️⃣ Handlinger */}
-        <TrainerActions trainerId={trainerId} />
-
+        <Section3TrainerActions trainerId={trainerId} />
 
         {/* 4️⃣ Detaljer */}
         <TrainerDetails trainer={trainer} canEdit />
 
         {/* 5️⃣ Kunder knyttet til trener */}
         <TrainerClients trainerId={trainerId} />
-
       </div>
     </main>
   );

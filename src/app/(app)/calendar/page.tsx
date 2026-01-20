@@ -1,292 +1,367 @@
 // src/app/(app)/calendar/page.tsx
 "use client";
 
-import dayjs, { Dayjs } from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useRole } from "@/providers/RoleProvider";
+
 import { supabase } from "@/lib/supabaseClient";
 
-import { CalendarView } from "@/types/calendar";
 import { useBookings } from "@/stores/bookings.store";
 import { mapBookingsToEvents } from "@/lib/calendarEvents";
 import { mapAvailabilityToBackgroundEvents } from "@/lib/availabilityEvents";
 
-/* Seksjoner */
 import Section1CalendarHeader from "./sections/Section1CalendarHeader";
 import Section2CalendarView from "./sections/Section2CalendarView";
 import Section3CalendarDialogHost from "./sections/Section3CalendarDialogHost";
 import Section4ClientUpcoming from "./sections/Section4ClientUpcoming";
 import Section5ClientHistory from "./sections/Section5ClientHistory";
-import Section6TrainerAvailability, {
-  WeeklyAvailability,
-} from "./sections/Section6TrainerAvailability";
+import Section6TrainerAvailability from "./sections/Section6TrainerAvailability";
 import Section7AdminSearch from "./sections/Section7AdminSearch";
 
-/* Availability helpers */
-import { loadAvailability, saveAvailability } from "@/lib/availability";
-import { getMyProfile } from "@/lib/profile";
-import { fetchMyClients } from "@/lib/clients.api";
+import { useCalendarState } from "./hooks/useCalendarState";
+import { useCalendarAvailability } from "./hooks/useCalendarAvailability";
+import { useAdminContext } from "./hooks/useAdminContext";
+
+import { getProfilesByIds } from "@/lib/profile";
 
 export default function CalendarPage() {
   const { role, loading, userId } = useRole();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const { view, currentDate, handlePrev, handleNext, handleViewChange } =
+    useCalendarState();
 
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
 
-  const [view, setView] = useState<CalendarView>("week");
-  const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
-
-  const [availability, setAvailability] = useState<WeeklyAvailability | null>(
-    null
-  );
-  const [trainerId, setTrainerId] = useState<string | null>(null);
-  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
-
-  // ✅ navn som brukes i calendarEvents
-  const [trainerName, setTrainerName] = useState<string | undefined>(undefined);
-
-  // ✅ NB: i calendarEvents.ts heter det "clientNamesById" (med s)
-  const [clientNamesById, setClientNamesById] = useState<Record<string, string>>(
-    {}
-  );
-
   const { bookings, loading: bookingsLoading } = useBookings();
 
-  const availabilityEvents = useMemo(() => {
-    return availability
-      ? mapAvailabilityToBackgroundEvents(availability, currentDate)
-      : [];
-  }, [availability, currentDate]);
+  // klientId når rollen er client
+  const clientId: string | null = role === "client" ? userId ?? null : null;
 
-  const calendarEvents = useMemo(() => {
-    return [
-      ...availabilityEvents,
-      ...mapBookingsToEvents(bookings, {
-        role,
-        trainerName: trainerName ?? undefined,
-        clientNamesById, // ✅ riktig key
-      }),
-    ];
-  }, [availabilityEvents, bookings, role, trainerName, clientNamesById]);
+  // admin-kontekst (valgt kunde/trener)
+  const admin = useAdminContext(role);
 
-  // clientId = userId når rollen er client
-  const clientId: string | null = role === "client" ? (userId ?? null) : null;
+  // ✅ Admin: vi viser IKKE kalender før det er valgt trener/kunde
+  const adminHasSelection = role !== "admin" ? true : Boolean(admin.selected);
 
-  /* ✅ HEADER: "Legg til time" → åpne wizard-dialog (selectedDate = null) */
-  const handleAddBooking = () => {
-    setSelectedDate(null);
-    setSelectedBookingId(null);
-    setDialogMode("create");
-  };
+  // ✅ name-cache: id -> "Fornavn Etternavn"
+  const [namesById, setNamesById] = useState<Record<string, string>>({});
 
-  /* 🔹 Last inn trainerId + availability (trener: auth.uid, kunde: profile.trainer_id) */
+  // ✅ Client: hent min trainer_id (for availability)
+  const [clientTrainerId, setClientTrainerId] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!role) return;
-
-    let cancelled = false;
+    let alive = true;
 
     (async () => {
       try {
-        setAvailabilityError(null);
-
-        const { data: authData } = await supabase.auth.getUser();
-        const authedUserId = authData?.user?.id ?? null;
-
-        let resolvedTrainerId: string | null = null;
-
-        if (role === "trainer") {
-          resolvedTrainerId = authedUserId;
-          if (!cancelled) setTrainerName(undefined);
-        }
-
-        if (role === "client") {
-          const profile = await getMyProfile();
-          resolvedTrainerId = profile?.trainer_id ?? null;
-
-          // ✅ trenernavn til kundevisning
-          const full = `${profile?.trainer?.first_name ?? ""} ${
-            profile?.trainer?.last_name ?? ""
-          }`.trim();
-          if (!cancelled) setTrainerName(full || undefined);
-        }
-
-        if (role === "admin") {
-          if (!cancelled) {
-            setTrainerId(null);
-            setAvailability(null);
-            setTrainerName(undefined);
-          }
+        if (role !== "client" || !userId) {
+          if (alive) setClientTrainerId(null);
           return;
         }
 
-        if (!resolvedTrainerId) {
-          if (!cancelled) {
-            setTrainerId(null);
-            setAvailability(null);
-          }
-          return;
-        }
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("trainer_id")
+          .eq("id", userId)
+          .single();
 
-        if (!cancelled) setTrainerId(resolvedTrainerId);
+        if (error) throw error;
 
-        const loaded = await loadAvailability(resolvedTrainerId);
-
-        if (!cancelled) {
-          setAvailability(loaded);
-        }
+        if (alive) setClientTrainerId((data?.trainer_id as string) ?? null);
       } catch (e: any) {
-        console.error("❌ Availability load failed:", e);
-        if (!cancelled) {
-          setAvailability(null);
-          setAvailabilityError(e?.message ?? "Kunne ikke hente tilgjengelighet");
-        }
+        console.warn("Kunne ikke hente client trainer_id:", e?.message);
+        if (alive) setClientTrainerId(null);
       }
     })();
 
     return () => {
-      cancelled = true;
+      alive = false;
     };
   }, [role, userId]);
 
-  /* ✅ Trener: hent kundeliste → map id→navn */
+  // ✅ FIX: Auto-velg trener/kunde fra URL (admin)
   useEffect(() => {
-    if (role !== "trainer") return;
+    if (role !== "admin") return;
 
+    const trainerFromUrl = searchParams.get("trainer");
+    const clientFromUrl = searchParams.get("client");
+
+    // Trainer deep link
+    if (
+      trainerFromUrl &&
+      trainerFromUrl !== admin.contextTrainerId
+    ) {
+      admin.pickTrainer(trainerFromUrl);
+    }
+
+    // Client deep link
+    if (
+      clientFromUrl &&
+      clientFromUrl !== admin.contextClientId
+    ) {
+      admin.pickClient(clientFromUrl);
+    }
+
+    // Hvis du vil rydde URL etter at den er “consumed”, kan du bruke:
+    // router.replace("/calendar", { scroll: false });
+    // (jeg lar den stå for delbare lenker)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, searchParams]);
+
+  // ✅ resolved trainerId (for availability)
+  const resolvedTrainerId = useMemo(() => {
+    if (role === "admin") return admin.contextTrainerId ?? null;
+    if (role === "trainer") return userId ?? null;
+    if (role === "client") return clientTrainerId ?? null;
+    return null;
+  }, [role, admin.contextTrainerId, userId, clientTrainerId]);
+
+  // ✅ availability (henter kun når vi faktisk har trainerId)
+  const { availability, setAvailability, availabilityError } =
+    useCalendarAvailability(adminHasSelection ? resolvedTrainerId : null);
+
+  // admin skal kunne “se som kunde” eller “se som trener”
+  const eventRole = useMemo(() => {
+    if (role !== "admin") return role;
+    return admin.perspective; // "client" | "trainer"
+  }, [role, admin.perspective]);
+
+  // ✅ Bygg namesById basert på bookings + admin context
+  useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        const clients = await fetchMyClients();
-        const map: Record<string, string> = {};
+        const ids = Array.from(
+          new Set(
+            [
+              ...(bookings ?? []).flatMap((b) => [b.client_id, b.trainer_id]),
+              admin.contextTrainerId,
+              admin.contextClientId,
+            ].filter(Boolean)
+          )
+        ) as string[];
 
-        for (const c of clients as any[]) {
-          const name = `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim();
-          map[c.id] = name || "Kunde";
+        if (!ids.length) return;
+
+        const rows = await getProfilesByIds(ids);
+
+        const map: Record<string, string> = {};
+        for (const r of rows) {
+          const n = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
+          map[r.id] = n || r.id;
         }
 
-        if (!cancelled) setClientNamesById(map);
-      } catch (e: any) {
-        console.warn(
-          "Kunne ikke hente kunder for trener (navn i kalender):",
-          e?.message
-        );
+        if (!cancelled) setNamesById((prev) => ({ ...prev, ...map }));
+      } catch (e) {
+        console.warn("getProfilesByIds failed:", e);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [role]);
+  }, [bookings, admin.contextTrainerId, admin.contextClientId]);
 
-  /* ⬅️ Forrige periode */
-  const handlePrev = () => {
-    setCurrentDate((prev) =>
-      view === "day"
-        ? prev.subtract(1, "day")
-        : view === "week"
-        ? prev.subtract(1, "week")
-        : view === "month"
-        ? prev.subtract(1, "month")
-        : prev.subtract(1, "year")
+  // availability background events
+  const availabilityEvents = useMemo(() => {
+    if (!adminHasSelection) return [];
+    return availability ? mapAvailabilityToBackgroundEvents(availability, currentDate, view) : [];
+  }, [availability, currentDate, view, adminHasSelection]);
+
+  // bookings -> fullcalendar events
+  const calendarEvents = useMemo(() => {
+    if (!adminHasSelection) return [];
+    return [
+      ...availabilityEvents,
+      ...mapBookingsToEvents(bookings, {
+        role: eventRole as any,
+        namesById,
+        trainerName: admin.trainerName,
+        clientNamesById: admin.clientNamesById,
+      }),
+    ];
+  }, [
+    availabilityEvents,
+    bookings,
+    eventRole,
+    namesById,
+    admin.trainerName,
+    admin.clientNamesById,
+    adminHasSelection,
+  ]);
+
+  // Når admin fjerner valg: lukk dialog + nullstill selection-state lokalt
+  useEffect(() => {
+    if (role !== "admin") return;
+    if (adminHasSelection) return;
+
+    setDialogMode(null);
+    setSelectedDate(null);
+    setSelectedBookingId(null);
+  }, [role, adminHasSelection]);
+
+  // ✅ labels til Section7AdminSearch
+  const activeTrainerLabel = useMemo(() => {
+    if (!admin.contextTrainerId) return null;
+    return (
+      namesById[admin.contextTrainerId] ||
+      admin.trainerName ||
+      admin.contextTrainerId
     );
-  };
+  }, [admin.contextTrainerId, namesById, admin.trainerName]);
 
-  /* ➡️ Neste periode */
-  const handleNext = () => {
-    setCurrentDate((prev) =>
-      view === "day"
-        ? prev.add(1, "day")
-        : view === "week"
-        ? prev.add(1, "week")
-        : view === "month"
-        ? prev.add(1, "month")
-        : prev.add(1, "year")
-    );
-  };
-
-  /* 🔁 Endre view */
-  const handleViewChange = (nextView: CalendarView) => {
-    setView(nextView);
-    setCurrentDate(dayjs());
-  };
+  const activeClientLabel = useMemo(() => {
+    if (!admin.contextClientId) return null;
+    return namesById[admin.contextClientId] || admin.contextClientId;
+  }, [admin.contextClientId, namesById]);
 
   if (loading) return null;
 
   return (
     <main className="bg-[#F4FBFA]">
       <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
+        {/* ✅ ADMIN: SØK HELT ØVERST */}
+        {role === "admin" && (
+          <section className="w-full">
+            <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="text-sm text-sf-muted">
+                  {adminHasSelection
+                    ? `Valgt: ${admin.headerLabel}`
+                    : "Admin: Velg en trener eller kunde (søk under)."}
+                </div>
+
+                {admin.selected && (
+                  <button
+                    onClick={() => {
+                      admin.clear();
+                      // hvis du vil “fjerne” deep link i URL også:
+                      // router.replace("/calendar", { scroll: false });
+                    }}
+                    className="rounded-full border border-sf-border px-4 py-2 text-sm hover:bg-sf-soft"
+                  >
+                    Fjern valg
+                  </button>
+                )}
+              </div>
+
+              <Section7AdminSearch
+                onPickTrainer={admin.pickTrainer}
+                onPickClient={admin.pickClient}
+                activeTrainerId={admin.contextTrainerId}
+                activeClientId={admin.contextClientId}
+                activeTrainerLabel={activeTrainerLabel}
+                activeClientLabel={activeClientLabel}
+              />
+            </div>
+          </section>
+        )}
+
+        {/* Header (Dag/Uke/Måned/År + piler) */}
         <Section1CalendarHeader
           view={view}
           onViewChange={handleViewChange}
           onPrev={handlePrev}
           onNext={handleNext}
-          role={role}
-          onAddBooking={handleAddBooking}
         />
 
-        {availabilityError && (
-          <p className="text-xs text-red-600 text-center">
-            Tilgjengelighet: {availabilityError} (sjekk console)
-          </p>
+        {availabilityError && adminHasSelection && (
+          <p className="text-xs text-red-600 text-center">{availabilityError}</p>
         )}
 
-        <div className="relative h-[calc(100vh-180px)] overflow-hidden">
-          {bookingsLoading ? (
-            <p className="text-sm text-sf-muted text-center">Laster bookinger …</p>
-          ) : (
-            <Section2CalendarView
-              view={view}
-              currentDate={currentDate}
-              events={calendarEvents}
-              onCreate={(date) => {
-                setSelectedDate(date);
-                setSelectedBookingId(null);
-                setDialogMode("create");
-              }}
-              onEdit={(bookingId) => {
-                setSelectedBookingId(bookingId);
+        {/* ✅ ADMIN UTEN VALG: INGEN KALENDER */}
+        {role === "admin" && !adminHasSelection ? (
+          <div className="rounded-2xl border border-sf-border bg-white p-6 text-center text-sm text-sf-muted">
+            Velg en trener eller kunde i søket over for å vise kalenderen.
+          </div>
+        ) : (
+          <>
+            {/* ✅ Context-label over kalender */}
+            {role === "admin" && adminHasSelection && (
+              <div className="rounded-2xl border border-sf-border bg-white px-4 py-3 shadow-sm">
+                <div className="text-sm">
+                  <span className="text-sf-muted">Viser:</span>{" "}
+                  <span className="font-semibold">{admin.headerLabel}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="relative h-[calc(100vh-180px)] overflow-hidden">
+              {bookingsLoading ? (
+                <p className="text-sm text-sf-muted text-center">Laster bookinger …</p>
+              ) : (
+                <Section2CalendarView
+                  view={view}
+                  currentDate={currentDate}
+                  events={calendarEvents}
+                  onCreate={(date) => {
+                    if (role === "admin" && !adminHasSelection) return;
+                    setSelectedDate(date);
+                    setSelectedBookingId(null);
+                    setDialogMode("create");
+                  }}
+                  onEdit={(bookingId) => {
+                    if (role === "admin" && !adminHasSelection) return;
+                    setSelectedBookingId(bookingId);
+                    setSelectedDate(null);
+                    setDialogMode("edit");
+                  }}
+                />
+              )}
+            </div>
+
+            <Section3CalendarDialogHost
+              mode={dialogMode}
+              selectedDate={selectedDate}
+              booking={
+                dialogMode === "edit" && selectedBookingId
+                  ? bookings.find((b) => b.id === selectedBookingId) ?? null
+                  : null
+              }
+              onClose={() => {
+                setDialogMode(null);
                 setSelectedDate(null);
-                setDialogMode("edit");
+                setSelectedBookingId(null);
               }}
+              role={role}
+              trainerId={
+                role === "admin"
+                  ? admin.contextTrainerId ?? null
+                  : role === "trainer"
+                  ? userId ?? null
+                  : role === "client"
+                  ? clientTrainerId ?? null
+                  : null
+              }
+              // ✅ admin i Kunde-kontekst må sende valgt kunde
+              clientId={
+                role === "admin"
+                  ? admin.contextClientId ?? null
+                  : clientId ?? null
+              }
+              availability={availability}
+              allBookings={bookings}
             />
-          )}
-        </div>
 
-        <Section3CalendarDialogHost
-          mode={dialogMode}
-          selectedDate={selectedDate}
-          booking={
-            dialogMode === "edit" && selectedBookingId
-              ? bookings.find((b) => b.id === selectedBookingId) ?? null
-              : null
-          }
-          onClose={() => {
-            setDialogMode(null);
-            setSelectedDate(null);
-            setSelectedBookingId(null);
-          }}
-          role={role}
-          trainerId={trainerId ?? null}
-          clientId={clientId ?? null}
-          availability={availability}
-          allBookings={bookings}
-        />
+            {role === "client" && <Section4ClientUpcoming />}
+            {role === "client" && <Section5ClientHistory />}
 
-        {role === "client" && <Section4ClientUpcoming />}
-        {role === "client" && <Section5ClientHistory />}
-
-        {role === "trainer" && availability && trainerId && (
-          <Section6TrainerAvailability
-            initialAvailability={availability}
-            onSave={async (updated) => {
-              await saveAvailability(trainerId, updated);
-              setAvailability(updated);
-            }}
-          />
+            {role === "trainer" && (
+              <Section6TrainerAvailability
+                initialAvailability={(availability ?? null) as any}
+                onSave={async (updated) => {
+                  setAvailability(updated);
+                }}
+              />
+            )}
+          </>
         )}
-
-        {role === "admin" && <Section7AdminSearch />}
       </div>
     </main>
   );

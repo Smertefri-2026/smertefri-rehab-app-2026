@@ -73,9 +73,7 @@ export async function getMyProfile(): Promise<MyProfile> {
   if (me.trainer_id) {
     const { data: t } = await supabase
       .from("profiles")
-      .select(
-        "id, first_name, last_name, avatar_url, city, trainer_specialties"
-      )
+      .select("id, first_name, last_name, avatar_url, city, trainer_specialties")
       .eq("id", me.trainer_id)
       .single<TrainerMini>();
 
@@ -91,9 +89,7 @@ export async function getMyProfile(): Promise<MyProfile> {
 /* ================================
    OPPDATER MIN PROFIL
 ================================ */
-export async function updateMyProfile(
-  updates: Partial<MyProfile>
-) {
+export async function updateMyProfile(updates: Partial<MyProfile>) {
   const {
     data: { user },
     error: authError,
@@ -133,24 +129,27 @@ export async function selectTrainer(trainerId: string) {
 
   return await getMyProfile();
 }
-// ✅ Batch: hent navn for flere profiler (brukes til kalender-event titler)
+
+/* ================================
+   BATCH: HENT NAVN (kalender, labels)
+================================ */
+
 export type ProfileNameRow = {
   id: string;
   first_name: string | null;
   last_name: string | null;
+  email?: string | null;
 };
 
 export async function getProfilesByIds(ids: string[]): Promise<ProfileNameRow[]> {
   const clean = Array.from(new Set(ids)).filter(Boolean);
-
   if (clean.length === 0) return [];
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name")
+    .select("id, first_name, last_name, email")
     .in("id", clean);
 
   if (error) throw error;
-
   return (data ?? []) as ProfileNameRow[];
 }

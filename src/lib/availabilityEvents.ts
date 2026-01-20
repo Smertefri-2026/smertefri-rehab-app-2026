@@ -1,20 +1,28 @@
-import dayjs from "dayjs";
+// src/lib/availabilityEvents.ts
+import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import { WeeklyAvailability, DayKey } from "@/app/(app)/calendar/sections/Section6TrainerAvailability";
+import type { CalendarView } from "@/types/calendar";
+import type {
+  WeeklyAvailability,
+  DayKey,
+} from "@/app/(app)/calendar/sections/Section6TrainerAvailability";
 
 dayjs.extend(isoWeek);
 
 /**
  * Mapper ukentlig tilgjengelighet til FullCalendar background-events
- * - timeGrid/dayGrid: time-basert grønn bakgrunn (som før)
- * - month/year: allDay-grønn markering på dager som har tilgjengelighet
+ * - week/day: time-slots (ikke allDay)
+ * - month/year: allDay markering på dager som har minst én slot
  */
 export function mapAvailabilityToBackgroundEvents(
   availability: WeeklyAvailability,
-  referenceDate: dayjs.Dayjs
+  referenceDate: Dayjs,
+  view: CalendarView
 ) {
   const startOfWeek = referenceDate.startOf("isoWeek"); // mandag
   const events: any[] = [];
+
+  const showAllDay = view === "month" || view === "year";
 
   const dayMap: Record<DayKey, number> = {
     monday: 0,
@@ -31,14 +39,11 @@ export function mapAvailabilityToBackgroundEvents(
     const dayDate = startOfWeek.add(dayIndex, "day");
     const slots = availability[dayKey] ?? [];
 
-    // ✅ 1) month/year: allDay-markering hvis dagen har minst én slot
-    if (slots.some((s) => s.start && s.end)) {
-      const dayStart = dayDate.startOf("day");
-      const dayEnd = dayDate.endOf("day");
-
+    // ✅ month/year: allDay-markering (kun der)
+    if (showAllDay && slots.some((s) => s.start && s.end)) {
       events.push({
-        start: dayStart.toDate(),
-        end: dayEnd.toDate(),
+        start: dayDate.startOf("day").toDate(),
+        end: dayDate.endOf("day").toDate(),
         allDay: true,
         display: "background",
         backgroundColor: "#E6F4F1",
@@ -47,7 +52,7 @@ export function mapAvailabilityToBackgroundEvents(
       });
     }
 
-    // ✅ 2) week/day/2day: time-slots som før
+    // ✅ week/day: time-slots (dette er det som skal vises grønt i timeGrid)
     for (const slot of slots) {
       if (!slot.start || !slot.end) continue;
 
@@ -57,12 +62,11 @@ export function mapAvailabilityToBackgroundEvents(
       events.push({
         start: start.toDate(),
         end: end.toDate(),
+        allDay: false,
         display: "background",
         backgroundColor: "#E6F4F1",
         overlap: false,
-        extendedProps: {
-          type: "availability",
-        },
+        extendedProps: { type: "availability" },
       });
     }
   }

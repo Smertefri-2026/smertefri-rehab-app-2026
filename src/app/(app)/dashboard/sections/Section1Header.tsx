@@ -1,53 +1,297 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/dashboard/sections/Section1Header.tsx
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useRole } from "@/providers/RoleProvider";
 import { CalendarClock, Users } from "lucide-react";
 import DashboardCard from "@/components/dashboard/DashboardCard";
+import { useBookings } from "@/stores/bookings.store";
+import { getProfilesByIds } from "@/lib/profile";
+import { supabase } from "@/lib/supabaseClient";
+
+type NameMap = Record<string, string>;
+
+function fullNameRow(r: { id: string; first_name: string | null; last_name: string | null }) {
+  const n = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
+  return n || r.id;
+}
+
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfDay(d: Date) {
+  const x = startOfDay(d);
+  x.setDate(x.getDate() + 1);
+  return x;
+}
+
+function formatDateNo(d: Date) {
+  // f.eks. "Onsdag 31.12"
+  const weekday = d.toLocaleDateString("no-NO", { weekday: "long" });
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${dd}.${mm}`;
+}
+
+function formatTimeHHMM(d: Date) {
+  return d.toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" });
+}
 
 export default function Section1Header() {
-  const { role } = useRole();
-  const name = "Øistein"; // 🔧 erstattes senere av profil-data
+  const { role, userId } = useRole();
+  const { bookings } = useBookings();
 
-  /* --------------------------------
-     🔧 DEV / DUMMY FLAGS
-     (kun under utvikling)
-  -------------------------------- */
+  // ===== Min profil (navn + trainer_id for kunde) =====
+  const [myName, setMyName] = useState<string>(""); // fallback vises hvis tom
+  const [myTrainerId, setMyTrainerId] = useState<string | null>(null);
 
-  // Kunde
-  const hasTrainer = true; // 🔧 kobles mot profile.trainer_id senere
+  // ===== Navne-cache for bookings (trainer/client) =====
+  const [namesById, setNamesById] = useState<NameMap>({});
 
-  // DEV: vi viser BEGGE tilstander samtidig
-  const SHOW_BOTH_CLIENT_STATES_IN_DEV = true;
+  // ===== Admin stats =====
+  const [adminCounts, setAdminCounts] = useState<{
+    clients: number;
+    trainers: number;
+  } | null>(null);
 
-  // Dummy data – neste økt
-  const nextSession = {
-    date: "Onsdag 31.12",
-    time: "09:00",
-    trainer: "Øistein",
-  };
+  // 1) Hent min profil (navn + trainer_id hvis kunde)
+  useEffect(() => {
+    let alive = true;
 
-  // Trener (dummy beholdes)
-  const trainerSessionsToday = [
-    { time: "09:00", client: "Kunde A" },
-    { time: "11:30", client: "Kunde B" },
-  ];
-  const isTrainerFullyBooked = false;
+    (async () => {
+      try {
+        if (!userId) return;
 
-  // Admin (dummy beholdes)
-  const adminStats = {
-    clients: 128,
-    trainers: 14,
-    sessionsToday: 36,
-    highActivity: false,
-  };
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, trainer_id")
+          .eq("id", userId)
+          .single();
+
+        if (error) throw error;
+
+        const name = `${data?.first_name ?? ""} ${data?.last_name ?? ""}`.trim();
+        if (alive) setMyName(name || "Hei");
+
+        if (alive) setMyTrainerId((data?.trainer_id as string) ?? null);
+      } catch (e: any) {
+        console.warn("Kunne ikke hente min profil:", e?.message);
+        if (alive) {
+          setMyName("Hei");
+          setMyTrainerId(null);
+        }
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  // 2) Bygg name-cache fra bookings (slik at “Kunde/Trener” blir faktiske navn)
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const ids = Array.from(
+          new Set(
+            (bookings ?? [])
+              .flatMap((b: any) => [b.client_id, b.trainer_id])
+              .filter(Boolean)
+          )
+        ) as string[];
+
+        if (!ids.length) return;
+
+        const rows = await getProfilesByIds(ids);
+
+        const map: NameMap = {};
+        for (const r of rows) map[r.id] = fullNameRow(r);
+
+        if (!cancelled) setNamesById((prev) => ({ ...prev, ...map }));
+      } catch (e) {
+        console.warn("getProfilesByIds failed:", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookings]);
+
+  // 3) Admin: hent counts (kunder + trenere)
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        if (role !== "admin") return;
+
+        const { count: clientCount, error: cErr } = await supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("role", "client");
+
+        if (cErr) throw cErr;
+
+        const { count: trainerCount, error: tErr } = await supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("role", "trainer");
+
+        if (tErr) throw tErr;
+
+        if (alive) {
+          setAdminCounts({
+            clients: clientCount ?? 0,
+            trainers: trainerCount ?? 0,
+          });
+        }
+      } catch (e: any) {
+        console.warn("Kunne ikke hente admin counts:", e?.message);
+        if (alive) setAdminCounts(null);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [role]);
+
+  const todayStart = useMemo(() => startOfDay(new Date()), []);
+  const todayEnd = useMemo(() => endOfDay(new Date()), []);
+
+  // ====== KUNDE: neste time ======
+  const hasTrainer = role === "client" ? Boolean(myTrainerId) : false;
+
+  const nextClientBooking = useMemo(() => {
+    if (role !== "client" || !userId) return null;
+
+    const upcoming = (bookings ?? [])
+      .filter((b: any) => b.status !== "cancelled")
+      .filter((b: any) => b.client_id === userId)
+      .map((b: any) => ({
+        ...b,
+        _start: new Date(b.start_time),
+      }))
+      .filter((b: any) => b._start.getTime() > Date.now())
+      .sort((a: any, b: any) => a._start.getTime() - b._start.getTime());
+
+    return upcoming[0] ?? null;
+  }, [role, userId, bookings]);
+
+  const nextClientSessionView = useMemo(() => {
+    if (!nextClientBooking) return null;
+
+    const start = new Date(nextClientBooking.start_time);
+    const trainerId = nextClientBooking.trainer_id as string;
+    const trainerName = namesById[trainerId] ?? "Trener";
+
+    return {
+      date: formatDateNo(start),
+      time: formatTimeHHMM(start),
+      trainer: trainerName,
+    };
+  }, [nextClientBooking, namesById]);
+
+  // ====== TRENER: dagens timer (eller neste arbeidsdag) ======
+  const trainerSessionsToday = useMemo(() => {
+    if (role !== "trainer" || !userId) return [];
+
+    return (bookings ?? [])
+      .filter((b: any) => b.status !== "cancelled")
+      .filter((b: any) => b.trainer_id === userId)
+      .map((b: any) => {
+        const start = new Date(b.start_time);
+        return {
+          id: b.id,
+          start,
+          time: formatTimeHHMM(start),
+          clientId: b.client_id as string,
+        };
+      })
+      .filter((s) => s.start >= todayStart && s.start < todayEnd)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [role, userId, bookings, todayStart, todayEnd]);
+
+  const trainerNextWorkdaySessions = useMemo(() => {
+    if (role !== "trainer" || !userId) return null;
+    if (trainerSessionsToday.length > 0) return null;
+
+    const future = (bookings ?? [])
+      .filter((b: any) => b.status !== "cancelled")
+      .filter((b: any) => b.trainer_id === userId)
+      .map((b: any) => ({
+        id: b.id,
+        start: new Date(b.start_time),
+        time: formatTimeHHMM(new Date(b.start_time)),
+        clientId: b.client_id as string,
+      }))
+      .filter((s: any) => s.start.getTime() > Date.now())
+      .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
+
+    if (!future.length) return null;
+
+    const firstDay = future[0].start;
+    const sameDayList = future.filter((s: any) => sameDay(s.start, firstDay)).slice(0, 6);
+
+    return {
+      dayLabel: formatDateNo(firstDay),
+      sessions: sameDayList,
+    };
+  }, [role, userId, bookings, trainerSessionsToday.length]);
+
+  // Navn i trener-listene
+  const trainerSessionsTodayView = useMemo(() => {
+    return trainerSessionsToday.map((s) => ({
+      time: s.time,
+      client: namesById[s.clientId] ?? "Kunde",
+    }));
+  }, [trainerSessionsToday, namesById]);
+
+  const trainerNextWorkdayView = useMemo(() => {
+    if (!trainerNextWorkdaySessions) return null;
+    return {
+      dayLabel: trainerNextWorkdaySessions.dayLabel,
+      sessions: trainerNextWorkdaySessions.sessions.map((s) => ({
+        time: s.time,
+        client: namesById[s.clientId] ?? "Kunde",
+      })),
+    };
+  }, [trainerNextWorkdaySessions, namesById]);
+
+  // ====== ADMIN: sessions today + “high activity” ======
+  const adminSessionsTodayCount = useMemo(() => {
+    if (role !== "admin") return 0;
+
+    return (bookings ?? [])
+      .filter((b: any) => b.status !== "cancelled")
+      .map((b: any) => new Date(b.start_time))
+      .filter((d: Date) => d >= todayStart && d < todayEnd).length;
+  }, [role, bookings, todayStart, todayEnd]);
+
+  const highActivity = useMemo(() => {
+    if (role !== "admin") return false;
+    return adminSessionsTodayCount >= 40;
+  }, [role, adminSessionsTodayCount]);
 
   return (
     <section className="space-y-6">
       {/* ================= HEADER ================= */}
       <div>
-        <h1 className="text-xl font-semibold text-sf-text">
-          Hei, {name} 👋
-        </h1>
+        <h1 className="text-xl font-semibold text-sf-text">Hei, {myName || "Hei"} 👋</h1>
 
         <p className="text-sm text-sf-muted mt-1">
           {role === "client" && "Din personlige oversikt"}
@@ -57,36 +301,43 @@ export default function Section1Header() {
       </div>
 
       {/* ================= KUNDE ================= */}
-      {role === "client" && hasTrainer && (
+      {role === "client" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {!hasTrainer && (
+            <DashboardCard
+              title="Ingen trener valgt"
+              icon={<CalendarClock size={18} />}
+              variant="info"
+              href="/trainers"
+            >
+              <p>Du har ikke valgt en trener ennå.</p>
+              <p className="text-sm text-sf-muted">Velg en trener for å kunne booke timer.</p>
+            </DashboardCard>
+          )}
 
-          {/* ✅ Neste treningstime (DUMMY) */}
-          {(SHOW_BOTH_CLIENT_STATES_IN_DEV || true) && (
+          {hasTrainer && nextClientSessionView && (
             <DashboardCard
               title="Neste treningstime"
               icon={<CalendarClock size={18} />}
               variant="info"
+              href="/calendar"
             >
               <p className="font-medium">
-                {nextSession.date} · {nextSession.time}
+                {nextClientSessionView.date} · {nextClientSessionView.time}
               </p>
-              <p className="text-sm text-sf-muted">
-                Trener: {nextSession.trainer}
-              </p>
+              <p className="text-sm text-sf-muted">Trener: {nextClientSessionView.trainer}</p>
             </DashboardCard>
           )}
 
-          {/* ✅ Ingen kommende avtale */}
-          {(SHOW_BOTH_CLIENT_STATES_IN_DEV || true) && (
+          {hasTrainer && !nextClientSessionView && (
             <DashboardCard
               title="Ingen kommende avtale"
               icon={<CalendarClock size={18} />}
               variant="info"
+              href="/calendar"
             >
               <p>Du har ingen flere økter planlagt.</p>
-              <p className="text-sm text-sf-muted">
-                Book ny time når det passer deg.
-              </p>
+              <p className="text-sm text-sf-muted">Book ny time når det passer deg.</p>
             </DashboardCard>
           )}
         </div>
@@ -95,39 +346,44 @@ export default function Section1Header() {
       {/* ================= TRENER ================= */}
       {role === "trainer" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {trainerSessionsToday.length === 0 && (
-            <DashboardCard
-              title="Ingen økter i dag"
-              icon={<CalendarClock size={18} />}
-              variant="info"
-            >
-              <p>Dagen er foreløpig uten bookinger.</p>
-            </DashboardCard>
-          )}
-
-          {trainerSessionsToday.length > 0 && (
+          {trainerSessionsTodayView.length > 0 ? (
             <DashboardCard
               title="Dagens økter"
               icon={<CalendarClock size={18} />}
               variant="info"
+              href="/calendar"
             >
               <ul className="text-sm space-y-1">
-                {trainerSessionsToday.map((s) => (
-                  <li key={s.time}>
+                {trainerSessionsTodayView.slice(0, 8).map((s) => (
+                  <li key={`${s.time}-${s.client}`}>
                     {s.time} – {s.client}
                   </li>
                 ))}
               </ul>
             </DashboardCard>
-          )}
-
-          {isTrainerFullyBooked && (
+          ) : trainerNextWorkdayView ? (
             <DashboardCard
-              title="Fullbooket dag"
+              title={`Ingen økter i dag – neste dag: ${trainerNextWorkdayView.dayLabel}`}
               icon={<CalendarClock size={18} />}
-              variant="warning"
+              variant="info"
+              href="/calendar"
             >
-              <p>Flere økter enn normalt i dag.</p>
+              <ul className="text-sm space-y-1">
+                {trainerNextWorkdayView.sessions.slice(0, 8).map((s) => (
+                  <li key={`${s.time}-${s.client}`}>
+                    {s.time} – {s.client}
+                  </li>
+                ))}
+              </ul>
+            </DashboardCard>
+          ) : (
+            <DashboardCard
+              title="Ingen kommende økter"
+              icon={<CalendarClock size={18} />}
+              variant="info"
+              href="/calendar"
+            >
+              <p>Dagen er tom – og du har ingen bookinger framover.</p>
             </DashboardCard>
           )}
         </div>
@@ -140,21 +396,23 @@ export default function Section1Header() {
             title="Status i dag"
             icon={<Users size={18} />}
             variant="info"
+            href="/calendar"
           >
             <ul className="text-sm space-y-1">
-              <li>Aktive kunder: {adminStats.clients}</li>
-              <li>Rehab-trenere: {adminStats.trainers}</li>
-              <li>Økter i dag: {adminStats.sessionsToday}</li>
+              <li>Aktive kunder: {adminCounts?.clients ?? "—"}</li>
+              <li>Rehab-trenere: {adminCounts?.trainers ?? "—"}</li>
+              <li>Økter i dag: {adminSessionsTodayCount}</li>
             </ul>
           </DashboardCard>
 
-          {adminStats.highActivity && (
+          {highActivity && (
             <DashboardCard
               title="Høy aktivitet"
               icon={<Users size={18} />}
               variant="warning"
+              href="/calendar"
             >
-              <p>Uvanlig mange økter og innlogginger.</p>
+              <p>Uvanlig mange økter i dag.</p>
             </DashboardCard>
           )}
         </div>

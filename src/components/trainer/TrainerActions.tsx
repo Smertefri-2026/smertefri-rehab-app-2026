@@ -1,5 +1,7 @@
+// src/components/trainer/TrainerActions.tsx
 "use client";
 
+import Link from "next/link";
 import { MessageCircle, Calendar } from "lucide-react";
 
 type Props = {
@@ -10,14 +12,11 @@ export default function TrainerActions({ trainerId }: Props) {
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
-        {/* 💬 Send melding */}
-        <a
+        <Link
           href={`/chat?trainer=${trainerId}`}
           className="
             flex items-center justify-center gap-2
-            rounded-full
-            bg-[#007C80]
+            rounded-full bg-[#007C80]
             px-6 py-3
             text-sm font-medium text-white
             hover:opacity-90
@@ -25,15 +24,13 @@ export default function TrainerActions({ trainerId }: Props) {
         >
           <MessageCircle size={18} />
           Send melding
-        </a>
+        </Link>
 
-        {/* 🗓 Åpne kalender */}
-        <a
-          href="/calendar"
+        <Link
+          href={`/calendar?trainer=${trainerId}`}
           className="
             flex items-center justify-center gap-2
-            rounded-full
-            border border-sf-border
+            rounded-full border border-sf-border
             px-6 py-3
             text-sm font-medium text-sf-text
             hover:bg-sf-soft
@@ -41,8 +38,7 @@ export default function TrainerActions({ trainerId }: Props) {
         >
           <Calendar size={18} />
           Åpne kalender
-        </a>
-
+        </Link>
       </div>
     </section>
   );

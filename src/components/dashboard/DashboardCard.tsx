@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ReactNode } from "react";
 
 type DashboardCardProps = {
@@ -9,6 +10,9 @@ type DashboardCardProps = {
   children?: ReactNode;
   variant?: "default" | "warning" | "danger" | "info";
   mode?: "card" | "button";
+
+  // ✅ NYTT: gjør hele kortet klikkbart
+  href?: string;
 };
 
 const variants = {
@@ -25,21 +29,24 @@ export default function DashboardCard({
   children,
   variant = "default",
   mode = "card",
+  href,
 }: DashboardCardProps) {
   const isButton = mode === "button";
 
-  return (
-    <div
-      className={`
-        rounded-2xl border shadow-sm transition
-        ${variants[variant]}
-        ${
-          isButton
-            ? "p-6 flex flex-col items-center justify-center gap-3 min-h-[110px] hover:bg-[#DFF0F6] cursor-pointer"
-            : "p-5"
-        }
-      `}
-    >
+  const cardClassName = `
+    rounded-2xl border shadow-sm transition
+    ${variants[variant]}
+    ${
+      isButton
+        ? "p-6 flex flex-col items-center justify-center gap-3 min-h-[110px]"
+        : "p-5"
+    }
+    ${href ? "cursor-pointer hover:shadow-md hover:-translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-[#007C80]/20" : ""}
+    ${isButton && href ? "hover:bg-[#DFF0F6]" : isButton ? "hover:bg-[#DFF0F6] cursor-pointer" : ""}
+  `;
+
+  const content = (
+    <div className={cardClassName}>
       {(title || icon) && (
         <div
           className={`flex ${
@@ -50,49 +57,42 @@ export default function DashboardCard({
         >
           <div
             className={`flex ${
-              isButton
-                ? "flex-col items-center gap-2"
-                : "items-center gap-2"
+              isButton ? "flex-col items-center gap-2" : "items-center gap-2"
             }`}
           >
             {icon && (
-              <span
-                className={`${
-                  isButton
-                    ? "text-[#007C80]"
-                    : "text-sf-muted"
-                }`}
-              >
+              <span className={`${isButton ? "text-[#007C80]" : "text-sf-muted"}`}>
                 {icon}
               </span>
             )}
 
             {title && (
-              <h3
-                className={`text-sm font-semibold ${
-                  isButton
-                    ? "text-sf-text"
-                    : "text-sf-text"
-                }`}
-              >
+              <h3 className="text-sm font-semibold text-sf-text">
                 {title}
               </h3>
             )}
           </div>
 
           {!isButton && status && (
-            <span className="text-xs text-sf-muted">
-              {status}
-            </span>
+            <span className="text-xs text-sf-muted">{status}</span>
           )}
         </div>
       )}
 
       {!isButton && children && (
-        <div className="text-sm text-sf-muted space-y-2">
-          {children}
-        </div>
+        <div className="text-sm text-sf-muted space-y-2">{children}</div>
       )}
     </div>
   );
+
+  // ✅ Hvis href finnes: gjør kortet til en link
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 }

@@ -1,15 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { MessageCircle, CalendarPlus, Calendar, User } from "lucide-react";
 
-export default function Section3ClientActions() {
+type Props = {
+  clientId: string;
+};
+
+export default function Section2ClientActions({ clientId }: Props) {
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
         {/* 💬 Send melding */}
-        <a
-          href="/chat"
+        <Link
+          href={`/chat?client=${clientId}`}
           className="
             flex items-center justify-center gap-2
             rounded-full
@@ -21,11 +25,11 @@ export default function Section3ClientActions() {
         >
           <MessageCircle size={18} />
           Send melding
-        </a>
+        </Link>
 
         {/* 📅 Book / endre time */}
-        <a
-          href="/calendar"
+        <Link
+          href={`/calendar?client=${clientId}`}
           className="
             flex items-center justify-center gap-2
             rounded-full
@@ -37,11 +41,11 @@ export default function Section3ClientActions() {
         >
           <CalendarPlus size={18} />
           Book / endre time
-        </a>
+        </Link>
 
         {/* 🗓 Åpne kalender */}
-        <a
-          href="/calendar"
+        <Link
+          href={`/calendar?client=${clientId}`}
           className="
             flex items-center justify-center gap-2
             rounded-full
@@ -53,11 +57,11 @@ export default function Section3ClientActions() {
         >
           <Calendar size={18} />
           Åpne kalender
-        </a>
+        </Link>
 
         {/* 👤 Se full kundedetalj */}
-        <a
-          href="/clients"
+        <Link
+          href={`/clients/${clientId}`}
           className="
             flex items-center justify-center gap-2
             rounded-full
@@ -69,8 +73,7 @@ export default function Section3ClientActions() {
         >
           <User size={18} />
           Kundedetaljer
-        </a>
-
+        </Link>
       </div>
     </section>
   );

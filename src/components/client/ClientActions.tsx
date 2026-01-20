@@ -1,3 +1,4 @@
+// src/components/client/ClientActions.tsx
 "use client";
 
 import Link from "next/link";
@@ -11,7 +12,6 @@ export default function ClientActions({ clientId }: Props) {
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
         {/* 💬 Meldinger */}
         <Link
           href={`/chat?client=${clientId}`}
@@ -21,15 +21,14 @@ export default function ClientActions({ clientId }: Props) {
           Send melding
         </Link>
 
-        {/* 📆 Kalender */}
+        {/* 📆 Kalender (admin/trener: åpne med valgt kunde) */}
         <Link
-          href={`/calendar`}
+          href={`/calendar?client=${clientId}`}
           className="flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm hover:bg-sf-soft"
         >
           <Calendar size={18} />
           Åpne kalender
         </Link>
-
       </div>
     </section>
   );
