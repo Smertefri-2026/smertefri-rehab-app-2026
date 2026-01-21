@@ -96,7 +96,7 @@ export default function Sidebar() {
   return (
     <aside
       className={`
-        hidden lg:flex sticky top-0 h-screen flex-col border-r border-sf-border bg-white
+        hidden md:flex sticky top-0 h-screen flex-col border-r border-sf-border bg-white
         transition-all duration-300
         ${collapsed ? "w-20" : "w-64"}
       `}
@@ -126,8 +126,7 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
         {items.map((item) => {
           const isActive =
-            pathname === item.href ||
-            pathname.startsWith(item.href + "/");
+            pathname === item.href || pathname.startsWith(item.href + "/");
 
           const Icon = item.icon;
 
