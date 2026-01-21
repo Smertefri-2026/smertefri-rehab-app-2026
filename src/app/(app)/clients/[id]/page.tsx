@@ -8,8 +8,8 @@ import { useRole } from "@/providers/RoleProvider";
 import { useClients } from "@/stores/clients.store";
 
 import ClientCard from "@/components/client/ClientCard";
-import ClientActions from "@/components/client/ClientActions";
-import ClientOverview from "@/components/client/ClientOverview";
+import Section2ClientActions from "../sections/Section2ClientActions";
+import Section3ClientOverview from "../sections/Section3ClientOverview";
 import ClientDetails from "@/components/client/ClientDetails";
 
 type PageProps = {
@@ -38,8 +38,8 @@ export default function ClientDetailPage({ params }: PageProps) {
   return (
     <AppPage>
       <ClientCard client={client} />
-      <ClientActions clientId={clientId} />
-      <ClientOverview clientId={clientId} />
+<Section2ClientActions clientId={clientId} />
+<Section3ClientOverview clientId={clientId} />
       <ClientDetails client={client} canEdit />
     </AppPage>
   );

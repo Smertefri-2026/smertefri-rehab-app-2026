@@ -9,41 +9,61 @@ import type {
 
 dayjs.extend(isoWeek);
 
-/**
- * Mapper ukentlig tilgjengelighet til FullCalendar background-events
- * - week/day: time-slots (ikke allDay)
- * - month/year: allDay markering på dager som har minst én slot
- */
 export function mapAvailabilityToBackgroundEvents(
   availability: WeeklyAvailability,
   referenceDate: Dayjs,
   view: CalendarView
 ) {
-  const startOfWeek = referenceDate.startOf("isoWeek"); // mandag
   const events: any[] = [];
-
   const showAllDay = view === "month" || view === "year";
+  const today = dayjs().startOf("day");
 
   const dayMap: Record<DayKey, number> = {
-    monday: 0,
-    tuesday: 1,
-    wednesday: 2,
-    thursday: 3,
-    friday: 4,
-    saturday: 5,
-    sunday: 6,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+    sunday: 7,
   };
 
-  for (const dayKey of Object.keys(availability) as DayKey[]) {
-    const dayIndex = dayMap[dayKey];
-    const dayDate = startOfWeek.add(dayIndex, "day");
-    const slots = availability[dayKey] ?? [];
+  // ✅ Velg periode å generere for
+  const rangeStart =
+    view === "year"
+      ? referenceDate.startOf("year").startOf("day")
+      : view === "month"
+      ? referenceDate.startOf("month").startOf("day")
+      : referenceDate.startOf("isoWeek").startOf("day");
 
-    // ✅ month/year: allDay-markering (kun der)
-    if (showAllDay && slots.some((s) => s.start && s.end)) {
+  const rangeEnd =
+    view === "year"
+      ? referenceDate.endOf("year").endOf("day")
+      : view === "month"
+      ? referenceDate.endOf("month").endOf("day")
+      : referenceDate.endOf("isoWeek").endOf("day");
+
+  // ✅ Iterer alle dager i perioden (month/year trenger dette)
+  let d = rangeStart.clone();
+  while (d.isBefore(rangeEnd)) {
+    const iso = d.isoWeekday(); // 1=man ... 7=søn
+    const dayKey = (Object.keys(dayMap) as DayKey[]).find(
+      (k) => dayMap[k] === iso
+    );
+
+    if (!dayKey) {
+      d = d.add(1, "day");
+      continue;
+    }
+
+    const slots = availability[dayKey] ?? [];
+    const hasSlots = slots.some((s) => s.start && s.end);
+
+    // ✅ Month/Year: marker hele dagen (men kun fra i dag og fremover)
+    if (showAllDay && hasSlots && !d.isBefore(today)) {
       events.push({
-        start: dayDate.startOf("day").toDate(),
-        end: dayDate.endOf("day").toDate(),
+        start: d.startOf("day").toDate(),
+        end: d.endOf("day").toDate(),
         allDay: true,
         display: "background",
         backgroundColor: "#E6F4F1",
@@ -52,23 +72,27 @@ export function mapAvailabilityToBackgroundEvents(
       });
     }
 
-    // ✅ week/day: time-slots (dette er det som skal vises grønt i timeGrid)
-    for (const slot of slots) {
-      if (!slot.start || !slot.end) continue;
+    // ✅ Week/Day: legg inn timeslots (kun i week/day)
+    if (!showAllDay) {
+      for (const slot of slots) {
+        if (!slot.start || !slot.end) continue;
 
-      const start = dayjs(`${dayDate.format("YYYY-MM-DD")} ${slot.start}`);
-      const end = dayjs(`${dayDate.format("YYYY-MM-DD")} ${slot.end}`);
+        const start = dayjs(`${d.format("YYYY-MM-DD")} ${slot.start}`);
+        const end = dayjs(`${d.format("YYYY-MM-DD")} ${slot.end}`);
 
-      events.push({
-        start: start.toDate(),
-        end: end.toDate(),
-        allDay: false,
-        display: "background",
-        backgroundColor: "#E6F4F1",
-        overlap: false,
-        extendedProps: { type: "availability" },
-      });
+        events.push({
+          start: start.toDate(),
+          end: end.toDate(),
+          allDay: false,
+          display: "background",
+          backgroundColor: "#E6F4F1",
+          overlap: false,
+          extendedProps: { type: "availability" },
+        });
+      }
     }
+
+    d = d.add(1, "day");
   }
 
   return events;
