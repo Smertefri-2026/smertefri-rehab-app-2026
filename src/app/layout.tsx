@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Montserrat_Alternates } from "next/font/google";
 import "./globals.css";
@@ -18,30 +19,17 @@ const montserratAlternates = Montserrat_Alternates({
   weight: ["400", "500", "600", "700"],
 });
 
-// (valgfritt men nice) – sørger for hvit “top bar”-feel på mobil
-export const viewport: Viewport = {
-  themeColor: "#FFFFFF",
-};
-
 export const metadata: Metadata = {
   title: {
     default: "SmerteFri",
     template: "%s • SmerteFri",
   },
-  applicationName: "SmerteFri",
   description: "SmerteFri Rehab Platform",
 
-  // ✅ PWA / manifest
-  manifest: "/manifest.webmanifest",
+  // ✅ dette påvirker mye av “Add to Home Screen”
+  applicationName: "SmerteFri",
 
-  // ✅ iOS “nettapp”
-  appleWebApp: {
-    capable: true,
-    title: "SmerteFri",
-    statusBarStyle: "default", // evt "black-translucent"
-  },
-
-  // ✅ ikoner (iOS bruker særlig apple-touch-icon)
+  // ✅ ikoner (må finnes på URLene)
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -51,10 +39,18 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 
-  // ✅ viktig: dette påvirker ofte hva iOS foreslår som navn i “legg til”
-  other: {
-    "apple-mobile-web-app-title": "SmerteFri",
+  // ✅ iOS / PWA-ish
+  appleWebApp: {
+    capable: true,
+    title: "SmerteFri",
+    statusBarStyle: "default",
   },
+
+  themeColor: "#FFFFFF",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#FFFFFF",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
