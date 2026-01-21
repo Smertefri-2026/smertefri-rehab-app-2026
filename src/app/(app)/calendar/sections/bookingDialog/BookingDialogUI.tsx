@@ -1,9 +1,10 @@
-// src/app/(app)/calendar/sections/bookingDialog/BookingDialogUI.tsx
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/calendar/sections/bookingDialog/BookingDialogUI.tsx
 "use client";
 
 import { Booking, BookingDuration, BookingRepeat } from "@/types/booking";
 import type { WeeklyAvailability } from "../Section6TrainerAvailability";
 import type { Role } from "./useBookingDialogState";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 type Props = {
   mode: "create" | "edit" | null;
@@ -14,14 +15,12 @@ type Props = {
   isCreate: boolean;
   isEdit: boolean;
 
-  // computed
   effectiveStart: Date | null;
   passes24h: boolean;
   withinAvailability: boolean;
   conflicts: boolean;
   clientEditLocked: boolean;
 
-  // state + setters
   duration: BookingDuration;
   setDuration: (v: BookingDuration) => void;
 
@@ -45,16 +44,13 @@ type Props = {
 
   slotButtons: string[];
 
-  // trainer/admin client picker
   trainerClients: { id: string; first_name: string | null; last_name: string | null }[];
   pickedClientId: string | null;
   setPickedClientId: (v: string | null) => void;
 
-  // error/saving
   saving: boolean;
   error: string | null;
 
-  // handlers
   onClose: () => void;
   onCreate: () => void;
   onUpdate: () => void;
@@ -63,6 +59,16 @@ type Props = {
   createDisabled: boolean;
   updateDisabled: boolean;
 };
+
+function fmtDateTime(d: Date) {
+  return new Intl.DateTimeFormat("nb-NO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
 
 export function BookingDialogUI({
   mode,
@@ -119,6 +125,8 @@ export function BookingDialogUI({
 }: Props) {
   if (!mode) return null;
 
+  const dateLocked = role === "client" && isEdit && clientEditLocked;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3">
       <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl flex flex-col max-h-[85vh]">
@@ -129,7 +137,7 @@ export function BookingDialogUI({
           <div className="mt-2 text-sm text-sf-muted space-y-1">
             <div>
               Valgt tidspunkt:{" "}
-              <strong>{effectiveStart ? effectiveStart.toLocaleString("nb-NO") : "—"}</strong>
+              <strong>{effectiveStart ? fmtDateTime(effectiveStart) : "—"}</strong>
             </div>
 
             <div className="text-xs">
@@ -183,13 +191,13 @@ export function BookingDialogUI({
           {/* Varighet */}
           <div className="rounded-xl border border-sf-border p-3 space-y-2">
             <div className="text-sm font-medium">Varighet</div>
-            <div className="flex gap-2">
+            <div className="flex justify-center flex-wrap gap-2">
               {[15, 25, 50].map((m) => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setDuration(m as BookingDuration)}
-                  className={`rounded-full px-4 py-2 text-sm border ${
+                  className={`min-w-[90px] rounded-full px-4 py-2 text-sm border ${
                     duration === m
                       ? "bg-[#007C80] text-white border-transparent"
                       : "bg-white border-sf-border text-sf-text"
@@ -204,16 +212,18 @@ export function BookingDialogUI({
           {/* Dato/tid */}
           <div className="rounded-xl border border-sf-border p-3 space-y-3">
             <div className="text-sm font-medium">Dato</div>
-            <input
-              type="date"
-              value={pickedDate}
-              onChange={(e) => {
-                setPickedDate(e.target.value);
-                setPickedTime(null);
-              }}
-              className="w-full rounded-lg border border-sf-border px-3 py-2 text-sm"
-              disabled={role === "client" && isEdit && clientEditLocked}
-            />
+
+            {/* ✅ Samme DatePicker som Profil – uten disabled-prop */}
+            <div className={dateLocked ? "opacity-60 pointer-events-none" : ""}>
+              <DatePicker
+                value={pickedDate}
+                onChange={(v) => {
+                  if (dateLocked) return;
+                  setPickedDate(v);
+                  setPickedTime(null);
+                }}
+              />
+            </div>
 
             <div className="text-sm font-medium">Tidspunkt</div>
             {slotButtons.length ? (
@@ -228,6 +238,7 @@ export function BookingDialogUI({
                         ? "bg-[#007C80] text-white border-transparent"
                         : "bg-white border-sf-border"
                     }`}
+                    disabled={dateLocked}
                   >
                     {t}
                   </button>
@@ -242,7 +253,8 @@ export function BookingDialogUI({
           {isCreate && (
             <div className="rounded-xl border border-sf-border p-3 space-y-3">
               <div className="text-sm font-medium">Gjentak</div>
-              <div className="flex gap-2">
+
+              <div className="flex justify-center flex-wrap gap-2">
                 {[
                   { key: "none", label: "Ingen" },
                   { key: "weekly", label: "Ukentlig" },
@@ -252,7 +264,7 @@ export function BookingDialogUI({
                     key={r.key}
                     type="button"
                     onClick={() => setRepeat(r.key as BookingRepeat)}
-                    className={`rounded-full px-4 py-2 text-sm border ${
+                    className={`min-w-[140px] rounded-full px-4 py-2 text-sm border ${
                       repeat === r.key
                         ? "bg-[#007C80] text-white border-transparent"
                         : "bg-white border-sf-border text-sf-text"
@@ -265,16 +277,17 @@ export function BookingDialogUI({
 
               {repeat !== "none" && (
                 <div className="space-y-2">
-                  <div className="text-xs text-sf-muted">
+                  <div className="text-xs text-sf-muted text-center">
                     Hvor lenge? (fra valgt dag – trykk endrer)
                   </div>
-                  <div className="flex gap-2">
+
+                  <div className="flex justify-center flex-wrap gap-2">
                     {[3, 6, 12].map((m) => (
                       <button
                         key={m}
                         type="button"
                         onClick={() => setRepeatMonths(m as 3 | 6 | 12)}
-                        className={`rounded-full px-4 py-2 text-sm border ${
+                        className={`min-w-[110px] rounded-full px-4 py-2 text-sm border ${
                           repeatMonths === m
                             ? "bg-[#007C80] text-white border-transparent"
                             : "bg-white border-sf-border text-sf-text"
@@ -286,11 +299,12 @@ export function BookingDialogUI({
                   </div>
 
                   {plannedFirst && (
-                    <div className="text-xs text-sf-muted pt-1">
-                      Første: <strong>{plannedFirst.toLocaleString("nb-NO")}</strong>
+                    <div className="text-xs text-sf-muted pt-1 text-center">
+                      Første: <strong>{fmtDateTime(plannedFirst)}</strong>
                       {plannedLast ? (
                         <>
-                          {" "}• Siste: <strong>{plannedLast.toLocaleString("nb-NO")}</strong>
+                          {" "}
+                          • Siste: <strong>{fmtDateTime(plannedLast)}</strong>
                         </>
                       ) : null}
                     </div>
@@ -325,8 +339,13 @@ export function BookingDialogUI({
             <>
               <button
                 onClick={onCancel}
-                disabled={saving || !booking || booking.status === "cancelled" || (role === "client" && clientEditLocked)}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+                disabled={
+                  saving ||
+                  !booking ||
+                  booking.status === "cancelled" ||
+                  (role === "client" && clientEditLocked)
+                }
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saving ? "Jobber…" : "Slett / avlys"}
               </button>
@@ -334,7 +353,7 @@ export function BookingDialogUI({
               <button
                 onClick={onUpdate}
                 disabled={updateDisabled}
-                className="rounded-lg bg-sf-primary px-4 py-2 text-sm text-white disabled:opacity-50"
+                className="rounded-lg bg-sf-primary px-4 py-2 text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saving ? "Lagrer…" : "Lagre endring"}
               </button>
@@ -343,7 +362,7 @@ export function BookingDialogUI({
             <button
               onClick={onCreate}
               disabled={createDisabled}
-              className="rounded-lg bg-sf-primary px-4 py-2 text-sm text-white disabled:opacity-50"
+              className="rounded-lg bg-sf-primary px-4 py-2 text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {saving ? "Lagrer…" : "Lagre booking"}
             </button>
