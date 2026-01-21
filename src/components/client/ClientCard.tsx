@@ -14,16 +14,21 @@ import { Client } from "@/types/client";
 function calculateAge(birthDate?: string | null): number | null {
   if (!birthDate) return null;
 
-  const birth = new Date(birthDate);
-  if (isNaN(birth.getTime())) return null;
+  // Støtter både YYYY-MM-DD og ISO
+  const parts = birthDate.split("T")[0].split("-");
+  if (parts.length !== 3) return null;
+
+  const [y, m, d] = parts.map(Number);
+  if (!y || !m || !d) return null;
 
   const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
+  let age = today.getFullYear() - y;
+
+  const month = today.getMonth() + 1;
+  const day = today.getDate();
 
   const hasHadBirthdayThisYear =
-    today.getMonth() > birth.getMonth() ||
-    (today.getMonth() === birth.getMonth() &&
-      today.getDate() >= birth.getDate());
+    month > m || (month === m && day >= d);
 
   if (!hasHadBirthdayThisYear) age--;
 

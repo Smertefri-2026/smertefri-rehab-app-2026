@@ -36,7 +36,7 @@ type QuickActionItem = {
 
 const clientActions: QuickActionItem[] = [
   { label: "Kalender", href: "/calendar", icon: Calendar },
-  { label: "Smerte", href: "/pain", icon: HeartPulse, variant: "info" }, // ❤️ Fokus
+  { label: "Smerte", href: "/pain", icon: HeartPulse }, // samme stil som de andre
   { label: "Tester", href: "/tests", icon: Activity },
   { label: "Kosthold", href: "/nutrition", icon: Utensils },
   { label: "Meldinger", href: "/chat", icon: MessageCircle },

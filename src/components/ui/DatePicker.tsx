@@ -15,10 +15,13 @@ type Props = {
 };
 
 export function DatePicker({ value, onChange }: Props) {
+  const [open, setOpen] = React.useState(false);
+
+  // value forventes å være "yyyy-MM-dd" (det du allerede setter i onSelect)
   const selected = value ? new Date(value) : undefined;
 
   return (
-    <Popover.Root>
+    <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
         <button
           type="button"
@@ -34,14 +37,18 @@ export function DatePicker({ value, onChange }: Props) {
       <Popover.Content
         className="z-50 rounded-xl border bg-white p-3 shadow-lg"
         sideOffset={8}
+        align="start"
       >
         <DayPicker
           mode="single"
           selected={selected}
           onSelect={(date) => {
-            if (date) {
-              onChange(format(date, "yyyy-MM-dd"));
-            }
+            if (!date) return;
+
+            onChange(format(date, "yyyy-MM-dd"));
+
+            // ✅ dette fikser problemet ditt:
+            setOpen(false);
           }}
           fromYear={1900}
           toYear={new Date().getFullYear()}

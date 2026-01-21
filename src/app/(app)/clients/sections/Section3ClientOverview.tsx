@@ -1,30 +1,27 @@
 "use client";
 
-import {
-  HeartPulse,
-  Activity,
-  Utensils,
-  ChevronRight,
-} from "lucide-react";
+import Link from "next/link";
+import { HeartPulse, Activity, Utensils, ChevronRight } from "lucide-react";
 
-export default function Section4ClientOverview() {
+type Props = {
+  clientId: string;
+};
+
+export default function Section3ClientOverview({ clientId }: Props) {
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold text-sf-muted">
+      <h3 className="mb-4 text-sm font-semibold text-sf-text">
         Kundeoversikt
       </h3>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-
         {/* ❤️ Smerter */}
-        <a
-          href="/pain"
+        <Link
+          href={`/pain/${clientId}`}
           className="
             flex items-center justify-between
             rounded-xl border border-sf-border
-            p-4
-            hover:bg-sf-soft
-            transition
+            p-4 hover:bg-sf-soft transition
           "
         >
           <div className="flex items-center gap-3">
@@ -37,17 +34,15 @@ export default function Section4ClientOverview() {
             </div>
           </div>
           <ChevronRight size={18} className="text-sf-muted" />
-        </a>
+        </Link>
 
         {/* 🧪 Tester */}
-        <a
-          href="/tests"
+        <Link
+          href={`/tests/${clientId}`}
           className="
             flex items-center justify-between
             rounded-xl border border-sf-border
-            p-4
-            hover:bg-sf-soft
-            transition
+            p-4 hover:bg-sf-soft transition
           "
         >
           <div className="flex items-center gap-3">
@@ -60,17 +55,15 @@ export default function Section4ClientOverview() {
             </div>
           </div>
           <ChevronRight size={18} className="text-sf-muted" />
-        </a>
+        </Link>
 
         {/* 🥗 Kosthold */}
-        <a
-          href="/nutrition"
+        <Link
+          href={`/nutrition/${clientId}`}
           className="
             flex items-center justify-between
             rounded-xl border border-sf-border
-            p-4
-            hover:bg-sf-soft
-            transition
+            p-4 hover:bg-sf-soft transition
           "
         >
           <div className="flex items-center gap-3">
@@ -83,8 +76,7 @@ export default function Section4ClientOverview() {
             </div>
           </div>
           <ChevronRight size={18} className="text-sf-muted" />
-        </a>
-
+        </Link>
       </div>
     </section>
   );

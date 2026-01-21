@@ -2,6 +2,7 @@
 "use client";
 
 import { useRole } from "@/providers/RoleProvider";
+import AppPage from "@/components/layout/AppPage";
 
 // DASHBOARD-SEKSJONER (NY, REN STRUKTUR)
 import Section1Header from "./sections/Section1Header";
@@ -17,36 +18,32 @@ export default function DashboardPage() {
   const { role } = useRole();
 
   return (
-    <main className="min-h-screen bg-[#F4FBFA]">
-      <div className="mx-auto max-w-7xl px-6 py-10 space-y-10">
+    <AppPage spacing="roomy">
+      {/* 👋 HEADER + MEDLEMSKAP */}
+      <Section1Header />
 
-        {/* 👋 HEADER + MEDLEMSKAP */}
-        <Section1Header />
+      {/* 🔔 STATUS + NESTE STEG */}
+      <Section2StatusAndNextSteps />
 
-        {/* 🔔 STATUS + NESTE STEG */}
-        <Section2StatusAndNextSteps />
+      {/* ⚡ HURTIGHANDLINGER */}
+      <Section3QuickActions />
 
-        {/* ⚡ HURTIGHANDLINGER */}
-        <Section3QuickActions />
+      {/* 📊 TESTER */}
+      <Section4Tests />
 
-        {/* 📊 TESTER */}
-        <Section4Tests />
+      {/* ❤️ SMERTE */}
+      <Section5Pain />
 
-        {/* ❤️ SMERTE */}
-        <Section5Pain />
+      {/* 🍽 KOSTHOLD */}
+      <Section6Nutrition />
 
-        {/* 🍽 KOSTHOLD */}
-        <Section6Nutrition />
-
-        {/* 🛠 ADMIN */}
-        {role === "admin" && (
-          <>
-            <Section7AdminStats />
-            <Section8Analytics />
-          </>
-        )}
-
-      </div>
-    </main>
+      {/* 🛠 ADMIN */}
+      {role === "admin" && (
+        <>
+          <Section7AdminStats />
+          <Section8Analytics />
+        </>
+      )}
+    </AppPage>
   );
 }

@@ -47,16 +47,15 @@ export default function Section4ClientUpcoming({ onEditBooking }: Props) {
   const visible = upcoming.slice(0, visibleCount);
   const hasMore = upcoming.length > visibleCount;
 
-  return (
-    <section className="w-full">
-      <div className="mx-auto max-w-7xl px-4">
-        <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-sf-text">Kommende timer</h3>
-            <span className="text-xs text-sf-muted whitespace-nowrap">
-              {upcoming.length ? `${upcoming.length} totalt` : "Ingen planlagte"}
-            </span>
-          </div>
+return (
+  <section className="w-full">
+    <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-sf-text">Kommende timer</h3>
+        <span className="text-xs text-sf-muted whitespace-nowrap">
+          {upcoming.length ? `${upcoming.length} totalt` : "Ingen planlagte"}
+        </span>
+      </div>
 
           <div className="space-y-3">
             {visible.map((b) => {
@@ -136,7 +135,6 @@ export default function Section4ClientUpcoming({ onEditBooking }: Props) {
             ) : null}
           </div>
         </div>
-      </div>
     </section>
   );
 }

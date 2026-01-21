@@ -193,7 +193,6 @@ export default function Section6TrainerAvailability({
 
   return (
     <section className="w-full">
-      <div className="mx-auto max-w-7xl px-4">
         <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -292,7 +291,6 @@ export default function Section6TrainerAvailability({
             Kun dager med tider er bookbare. Endringer gjelder kun fremtidige bookinger.
           </p>
         </div>
-      </div>
     </section>
   );
 }

@@ -16,10 +16,8 @@ export default function Section2ClientActions({ clientId }: Props) {
           href={`/chat?client=${clientId}`}
           className="
             flex items-center justify-center gap-2
-            rounded-full
-            bg-[#007C80]
-            px-6 py-3
-            text-sm font-medium text-white
+            rounded-full bg-[#007C80]
+            px-6 py-3 text-sm font-medium text-white
             hover:opacity-90
           "
         >
@@ -29,13 +27,11 @@ export default function Section2ClientActions({ clientId }: Props) {
 
         {/* 📅 Book / endre time */}
         <Link
-          href={`/calendar?client=${clientId}`}
+          href={`/calendar?client=${clientId}&mode=book`}
           className="
             flex items-center justify-center gap-2
-            rounded-full
-            border border-sf-border
-            px-6 py-3
-            text-sm font-medium text-sf-text
+            rounded-full border border-sf-border
+            px-6 py-3 text-sm font-medium text-sf-text
             hover:bg-sf-soft
           "
         >
@@ -48,10 +44,8 @@ export default function Section2ClientActions({ clientId }: Props) {
           href={`/calendar?client=${clientId}`}
           className="
             flex items-center justify-center gap-2
-            rounded-full
-            border border-sf-border
-            px-6 py-3
-            text-sm font-medium text-sf-text
+            rounded-full border border-sf-border
+            px-6 py-3 text-sm font-medium text-sf-text
             hover:bg-sf-soft
           "
         >
@@ -64,10 +58,8 @@ export default function Section2ClientActions({ clientId }: Props) {
           href={`/clients/${clientId}`}
           className="
             flex items-center justify-center gap-2
-            rounded-full
-            border border-sf-border
-            px-6 py-3
-            text-sm font-medium text-sf-text
+            rounded-full border border-sf-border
+            px-6 py-3 text-sm font-medium text-sf-text
             hover:bg-sf-soft
           "
         >

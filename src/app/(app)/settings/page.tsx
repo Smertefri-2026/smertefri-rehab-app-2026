@@ -1,4 +1,7 @@
+// src/app/(app)/settings/page.tsx
 "use client";
+
+import AppPage from "@/components/layout/AppPage";
 
 import Section1SettingsHeader from "./sections/Section1SettingsHeader";
 import Section2SystemStatus from "./sections/Section2SystemStatus";
@@ -10,31 +13,31 @@ import Section7DangerZone from "./sections/Section7DangerZone";
 
 export default function SettingsPage() {
   return (
-    <main className="bg-[#F4FBFA] min-h-screen">
-      <div className="mx-auto max-w-7xl px-4 py-6 space-y-8">
+    <div className="bg-[#F4FBFA] min-h-screen">
+      <AppPage>
+        <div className="space-y-8">
+          {/* ⚙️ Header */}
+          <Section1SettingsHeader />
 
-        {/* ⚙️ Header */}
-        <Section1SettingsHeader />
+          {/* 🖥 Systemstatus */}
+          <Section2SystemStatus />
 
-        {/* 🖥 Systemstatus */}
-        <Section2SystemStatus />
+          {/* 👥 Brukeradministrasjon */}
+          <Section3UserManagement />
 
-        {/* 👥 Brukeradministrasjon */}
-        <Section3UserManagement />
+          {/* 🔐 Sikkerhet & tilgang */}
+          <Section4SecurityAndAccess />
 
-        {/* 🔐 Sikkerhet & tilgang */}
-        <Section4SecurityAndAccess />
+          {/* 🔌 Integrasjoner */}
+          <Section5Integrations />
 
-        {/* 🔌 Integrasjoner */}
-        <Section5Integrations />
+          {/* 💳 Abonnement & betaling */}
+          <Section6BillingAndPlans />
 
-        {/* 💳 Abonnement & betaling */}
-        <Section6BillingAndPlans />
-
-        {/* ⚠️ Danger zone */}
-        <Section7DangerZone />
-
-      </div>
-    </main>
+          {/* ⚠️ Danger zone */}
+          <Section7DangerZone />
+        </div>
+      </AppPage>
+    </div>
   );
 }

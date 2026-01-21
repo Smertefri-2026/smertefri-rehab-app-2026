@@ -54,7 +54,6 @@ export default function Section5ClientHistory({ onEditBooking }: Props) {
 
   return (
     <section className="w-full">
-      <div className="mx-auto max-w-7xl px-4">
         <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-sf-text">Tidligere timer</h3>
@@ -133,7 +132,6 @@ export default function Section5ClientHistory({ onEditBooking }: Props) {
             ) : null}
           </div>
         </div>
-      </div>
     </section>
   );
 }
