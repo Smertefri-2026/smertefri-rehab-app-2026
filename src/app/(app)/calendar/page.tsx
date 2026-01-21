@@ -1,10 +1,9 @@
- // src/app/(app)/calendar/page.tsx
+// src/app/(app)/calendar/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRole } from "@/providers/RoleProvider";
-import { useBookings } from "@/stores/bookings.store";
 
 import Section1CalendarHeader from "./sections/Section1CalendarHeader";
 import Section2CalendarView from "./sections/Section2CalendarView";
@@ -25,6 +24,7 @@ import { useRealtimeBookings } from "./hooks/useRealtimeBookings";
 
 // DB helpers
 import { loadAvailability, saveAvailability } from "@/lib/availability";
+import { useBookings } from "@/stores/bookings.store";
 
 export default function CalendarPage() {
   const { role, loading, userId } = useRole();
@@ -103,7 +103,7 @@ export default function CalendarPage() {
     eventRole: eventRole as any,
     namesById,
     adminExtras: {
-      trainerName: admin.trainerName,
+      trainerName: admin.trainerName ?? undefined, // 👈 viktig (ikke null)
       clientNamesById: admin.clientNamesById,
     },
   });
@@ -276,18 +276,26 @@ export default function CalendarPage() {
               allBookings={bookings}
             />
 
-            {/* ✅ CLIENT: upcoming (med edit/avlys) + historikk (kun visning) */}
+            {/* ✅ CLIENT: upcoming + history kan åpne samme edit-dialog */}
             {role === "client" && (
-              <Section4ClientUpcoming
-                onEditBooking={(bookingId: string) => {
-                  setSelectedBookingId(bookingId);
-                  setSelectedDate(null);
-                  setDialogMode("edit");
-                }}
-              />
-            )}
+              <>
+                <Section4ClientUpcoming
+                  onEditBooking={(bookingId: string) => {
+                    setSelectedBookingId(bookingId);
+                    setSelectedDate(null);
+                    setDialogMode("edit");
+                  }}
+                />
 
-            {role === "client" && <Section5ClientHistory />}
+                <Section5ClientHistory
+                  onEditBooking={(bookingId: string) => {
+                    setSelectedBookingId(bookingId);
+                    setSelectedDate(null);
+                    setDialogMode("edit");
+                  }}
+                />
+              </>
+            )}
 
             {/* ✅ TRAINER: availability editor */}
             {role === "trainer" && (
@@ -298,7 +306,6 @@ export default function CalendarPage() {
 
                   await saveAvailability(resolvedTrainerId, updated);
 
-                  // les tilbake fra DB (viser alltid det som faktisk ligger lagret)
                   const fresh = await loadAvailability(resolvedTrainerId);
                   setAvailability(fresh);
                 }}
