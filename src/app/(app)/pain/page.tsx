@@ -1,3 +1,4 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/pain/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -66,9 +67,14 @@ export default function PainPage() {
             clientId={clientId ?? ""}
             selectedArea={selected}
             onClearSelected={() => setSelected(null)}
+            onPickArea={setSelected}
           />
 
-          <Section3PainHistory clientId={clientId ?? ""} />
+          {/* ✅ FIX: send areaKey */}
+          <Section3PainHistory
+            clientId={clientId ?? ""}
+            areaKey={selected?.key ?? null}
+          />
         </div>
       </AppPage>
     </main>
