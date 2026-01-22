@@ -1,4 +1,4 @@
-// src/app/(app)/pain/sections/Section1PainSelector.tsx
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/pain/sections/Section1PainSelector.tsx
 "use client";
 
 import { ChevronDown } from "lucide-react";
@@ -12,11 +12,28 @@ type Props = {
   onSelect: (area: Area | null) => void;
 };
 
-export default function Section1PainSelector({ areas, selectedKey, onSelect }: Props) {
+export default function Section1PainSelector({
+  areas,
+  selectedKey,
+  onSelect,
+}: Props) {
   const selected = useMemo(
     () => areas.find((a) => a.key === selectedKey) ?? null,
     [areas, selectedKey]
   );
+
+  // ✅ Tving state-update selv om samme område velges igjen
+  const pick = (area: Area) => {
+    onSelect({ ...area }); // ny referanse hver gang
+  };
+
+  // ✅ Mobil: hvis de allerede har valgt området, kan de trykke “Registrer i dag”
+  // Dette håndterer at <select> ikke trigger onChange når du velger samme verdi igjen
+  const forceReopenSelected = () => {
+    if (!selected) return;
+    onSelect(null);
+    requestAnimationFrame(() => pick(selected));
+  };
 
   return (
     <section className="w-full">
@@ -41,14 +58,14 @@ export default function Section1PainSelector({ areas, selectedKey, onSelect }: P
         </div>
 
         {/* 📱 Mobil: dropdown */}
-        <div className="md:hidden">
+        <div className="md:hidden space-y-3">
           <div className="relative">
             <select
               value={selectedKey ?? ""}
               onChange={(e) => {
                 const key = e.target.value;
                 const a = areas.find((x) => x.key === key) ?? null;
-                onSelect(a);
+                onSelect(a ? { ...a } : null);
               }}
               className="w-full appearance-none rounded-xl border border-sf-border bg-white px-4 py-3 text-sm"
             >
@@ -59,8 +76,21 @@ export default function Section1PainSelector({ areas, selectedKey, onSelect }: P
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60" size={18} />
+            <ChevronDown
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60"
+              size={18}
+            />
           </div>
+
+          {selected ? (
+            <button
+              type="button"
+              onClick={forceReopenSelected}
+              className="w-full rounded-xl bg-sf-primary px-4 py-3 text-sm font-medium text-white"
+            >
+              Registrer i dag for {selected.label}
+            </button>
+          ) : null}
         </div>
 
         {/* 🖥️ Desktop: knapper */}
@@ -71,7 +101,7 @@ export default function Section1PainSelector({ areas, selectedKey, onSelect }: P
               <button
                 key={area.key}
                 type="button"
-                onClick={() => onSelect(area)}
+                onClick={() => pick(area)}
                 className={[
                   "flex items-center justify-between rounded-full border px-5 py-3 text-sm font-medium transition",
                   active

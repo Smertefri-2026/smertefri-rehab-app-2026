@@ -2,17 +2,17 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import { use, useMemo, useState } from "react";
+import { use, useState } from "react";
 import AppPage from "@/components/layout/AppPage";
 import { useRole } from "@/providers/RoleProvider";
 import { useClients } from "@/stores/clients.store";
+
+import { PAIN_AREAS, type PainArea } from "../painAreas";
 
 import Section0PainHeader from "../sections/Section0PainHeader";
 import Section1PainSelector from "../sections/Section1PainSelector";
 import Section2PainActive from "../sections/Section2PainActive";
 import Section3PainHistory from "../sections/Section3PainHistory";
-
-type Area = { key: string; label: string };
 
 export default function PainClientPage({
   params,
@@ -23,23 +23,7 @@ export default function PainClientPage({
   const { getClientById, loading } = useClients();
   const { id: clientId } = use(params);
 
-  const [selected, setSelected] = useState<Area | null>(null);
-
-  const areas = useMemo<Area[]>(
-    () => [
-      { key: "neck", label: "Nakke" },
-      { key: "shoulders", label: "Skuldre" },
-      { key: "elbow", label: "Albue" },
-      { key: "wrist", label: "Håndledd" },
-      { key: "upper_back", label: "Øvre rygg" },
-      { key: "back", label: "Rygg" },
-      { key: "lower_back", label: "Nedre rygg" },
-      { key: "hips", label: "Hofter" },
-      { key: "knee", label: "Kne" },
-      { key: "ankle_foot", label: "Ankel / Fot" },
-    ],
-    []
-  );
+  const [selected, setSelected] = useState<PainArea | null>(null);
 
   // 🔐 Kun admin/trener
   if (role !== "trainer" && role !== "admin") notFound();
@@ -66,7 +50,7 @@ export default function PainClientPage({
           />
 
           <Section1PainSelector
-            areas={areas}
+            areas={PAIN_AREAS}
             selectedKey={selected?.key ?? null}
             onSelect={setSelected}
           />
@@ -75,13 +59,10 @@ export default function PainClientPage({
             clientId={clientId}
             selectedArea={selected}
             onClearSelected={() => setSelected(null)}
-            onPickArea={setSelected} // ✅ NY
+            onPickArea={setSelected}
           />
 
-          <Section3PainHistory
-            clientId={clientId}
-            areaKey={selected?.key ?? null}
-          />
+          <Section3PainHistory clientId={clientId} areaKey={selected?.key ?? null} />
         </div>
       </AppPage>
     </main>

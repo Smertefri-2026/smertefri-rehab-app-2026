@@ -8,8 +8,8 @@ import AppPage from "@/components/layout/AppPage";
 import Section1Header from "./sections/Section1Header";
 import Section2StatusAndNextSteps from "./sections/Section2StatusAndNextSteps";
 import Section3QuickActions from "./sections/Section3QuickActions";
-import Section4Tests from "./sections/Section4Tests";
-import Section5Pain from "./sections/Section5Pain";
+import Section4Pain from "./sections/Section4Pain";
+import Section5Tests from "./sections/Section5Tests";
 import Section6Nutrition from "./sections/Section6Nutrition";
 import Section7AdminStats from "./sections/Section7AdminStats";
 import Section8Analytics from "./sections/Section8Analytics";
@@ -28,11 +28,11 @@ export default function DashboardPage() {
       {/* ⚡ HURTIGHANDLINGER */}
       <Section3QuickActions />
 
-      {/* 📊 TESTER */}
-      <Section4Tests />
-
       {/* ❤️ SMERTE */}
-      <Section5Pain />
+      <Section4Pain />
+
+      {/* 📊 TESTER */}
+      <Section5Tests />
 
       {/* 🍽 KOSTHOLD */}
       <Section6Nutrition />

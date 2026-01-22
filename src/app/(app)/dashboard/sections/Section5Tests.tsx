@@ -11,7 +11,7 @@ import {
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
 
-export default function Section4Tests() {
+export default function Section5Tests() {
   const { role } = useRole();
 
   return (

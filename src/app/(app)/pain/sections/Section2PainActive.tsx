@@ -1,8 +1,8 @@
 // /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/pain/sections/Section2PainActive.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Trash2, Save } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Trash2, Save, AlertTriangle } from "lucide-react";
 import { usePain } from "@/stores/pain.store";
 import type { PainPattern, PainQuality } from "@/types/pain";
 
@@ -51,6 +51,45 @@ function todayISO() {
 // ✅ Enkel UUID-sjekk (hindrer "invalid input syntax for type uuid: ''")
 function isUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
+
+function dateISOFromEntry(e: any) {
+  const raw = (e?.entry_date ?? e?.created_at ?? "") as string;
+  return raw ? raw.slice(0, 10) : "";
+}
+
+function daysBetweenISO(aISO: string, bISO: string) {
+  const a = new Date(`${aISO}T00:00:00`);
+  const b = new Date(`${bISO}T00:00:00`);
+  const diff = a.getTime() - b.getTime();
+  return Math.round(diff / (1000 * 60 * 60 * 24));
+}
+
+function relativeDayLabel(entryISO: string, todayISOValue: string) {
+  if (!entryISO) return "ukjent";
+  const diff = daysBetweenISO(todayISOValue, entryISO);
+  if (diff === 0) return "i dag";
+  if (diff === 1) return "i går";
+  if (diff > 1) return `${diff} dager siden`;
+  if (diff === -1) return "i morgen";
+  return `${Math.abs(diff)} dager frem`;
+}
+
+function formatHHMM(iso?: string | null) {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return null;
+  }
+}
+
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-sf-border bg-sf-soft/40 px-2.5 py-1 text-xs text-sf-text">
+      {children}
+    </span>
+  );
 }
 
 export default function Section2PainActive({
@@ -111,6 +150,14 @@ export default function Section2PainActive({
   const [note, setNote] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
+  // ✅ overskriv-varsel (kun når det allerede finnes entry for i dag)
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+
+  // Reset confirm når man bytter område / åpner på nytt
+  useEffect(() => {
+    setConfirmOverwrite(false);
+  }, [selectedArea?.key, seed?.id]);
+
   // ✅ Prefill når område velges / entries endres
   useEffect(() => {
     if (!selectedArea) return;
@@ -127,10 +174,9 @@ export default function Section2PainActive({
     seed?.intensity,
     seed?.note,
     seed?.function_note,
-    // arrays: trigger via seed?.id is enough
   ]);
 
-  async function handleSave() {
+  async function performSave() {
     if (!selectedArea) return;
     if (!clientIdReady) return;
 
@@ -146,7 +192,7 @@ export default function Section2PainActive({
         provokes,
         function_note: functionNote,
         note,
-        // entry_date default = i dag i store
+        // entry_date default = i dag i store (upsert)
       });
       onClearSelected();
     } finally {
@@ -154,7 +200,21 @@ export default function Section2PainActive({
     }
   }
 
+  async function handleSave() {
+    if (!selectedArea) return;
+    if (!clientIdReady) return;
+
+    // ✅ Hvis det finnes dagens entry: krev bekreftelse før overskriv
+    if (hasTodayEntry && !confirmOverwrite) {
+      setConfirmOverwrite(true);
+      return;
+    }
+
+    await performSave();
+  }
+
   const saveLabel = hasTodayEntry ? "Oppdater (i dag)" : "Lagre (i dag)";
+  const lastSavedTime = formatHHMM((todayEntry?.updated_at ?? todayEntry?.created_at) as string | undefined);
 
   return (
     <section className="w-full">
@@ -183,6 +243,44 @@ export default function Section2PainActive({
                 Lukk
               </button>
             </div>
+
+            {/* ✅ Info/varsel om dagens logg */}
+            {hasTodayEntry ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 text-amber-700" size={18} />
+                  <div className="text-sm text-amber-900">
+                    Du har allerede en logg for <strong>i dag</strong>
+                    {lastSavedTime ? <> (sist oppdatert kl. <strong>{lastSavedTime}</strong>)</> : null}.
+                    <div className="text-amber-800 mt-1">
+                      Hvis du lagrer på nytt, blir dagens logg oppdatert (overskrevet).
+                    </div>
+                  </div>
+                </div>
+
+                {confirmOverwrite ? (
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmOverwrite(false)}
+                      className="rounded-xl border border-sf-border bg-white px-4 py-2 text-sm hover:bg-sf-soft"
+                      disabled={saving}
+                    >
+                      Avbryt
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      className="rounded-xl bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
+                      disabled={saving}
+                    >
+                      Ja, overskriv dagens logg
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             {/* Intensitet */}
             <div className="rounded-xl border border-sf-border bg-white p-4 space-y-2">
@@ -308,8 +406,9 @@ export default function Section2PainActive({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || !clientIdReady}
+                disabled={saving || !clientIdReady || (hasTodayEntry && confirmOverwrite)}
                 className="inline-flex items-center gap-2 rounded-xl bg-sf-primary px-5 py-3 text-sm font-medium text-white disabled:opacity-50"
+                title={hasTodayEntry && confirmOverwrite ? "Bekreft overskriving først" : undefined}
               >
                 <Save size={18} />
                 {saving ? "Lagrer…" : saveLabel}
@@ -325,44 +424,78 @@ export default function Section2PainActive({
           ) : activeLatest.length === 0 ? (
             <p className="text-sm text-sf-muted">Ingen aktive smerter registrert enda.</p>
           ) : (
-            activeLatest.map((e) => (
-              <div
-                key={e.id}
-                className="flex items-center justify-between rounded-2xl border border-sf-border px-5 py-4"
-              >
-                <button
-                  type="button"
-                  className="text-left flex-1 pr-4"
-                  onClick={() => {
-                    onPickArea?.({ key: e.area_key, label: e.area_label });
-                  }}
+            activeLatest.map((e: any) => {
+              const lastISO = dateISOFromEntry(e);
+              const lastLabel = relativeDayLabel(lastISO, today);
+
+              const q = Array.isArray(e?.quality) ? (e.quality as string[]) : [];
+              const p = Array.isArray(e?.pattern) ? (e.pattern as string[]) : [];
+              const pr = Array.isArray(e?.provokes) ? (e.provokes as string[]) : [];
+
+              const qText = q.slice(0, 2).join(", ");
+              const pText = p.slice(0, 2).join(", ");
+
+              return (
+                <div
+                  key={e.id}
+                  className="flex items-start justify-between gap-4 rounded-2xl border border-sf-border px-5 py-4"
                 >
-                  <p className="font-medium">{e.area_label}</p>
-                  <p className="text-sm text-sf-muted">Intensitet: {e.intensity}/10</p>
-                </button>
-
-                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setActive(e.id, false)}
-                    className="rounded-lg border px-3 py-2 text-xs hover:bg-sf-soft"
-                    disabled={loading}
+                    className="text-left flex-1"
+                    onClick={() => {
+                      onPickArea?.({ key: e.area_key, label: e.area_label });
+                    }}
                   >
-                    Deaktiver
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium">{e.area_label}</p>
+                      <span className="text-xs text-sf-muted">
+                        Sist: <span className="font-medium text-sf-text">{lastLabel}</span>
+                      </span>
+                    </div>
+
+                    <p className="mt-1 text-sm text-sf-muted">Intensitet: {e.intensity}/10</p>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {q.length ? (
+                        <Chip>
+                          Type: {qText}
+                          {q.length > 2 ? "…" : ""}
+                        </Chip>
+                      ) : null}
+                      {p.length ? (
+                        <Chip>
+                          Mønster: {pText}
+                          {p.length > 2 ? "…" : ""}
+                        </Chip>
+                      ) : null}
+                      {pr.length ? <Chip>Verre ved: {pr.length}</Chip> : null}
+                    </div>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => remove(e.id)}
-                    className="text-red-500 hover:opacity-80 transition disabled:opacity-50"
-                    aria-label="Fjern smerte"
-                    disabled={loading}
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setActive(e.id, false)}
+                      className="rounded-lg border px-3 py-2 text-xs hover:bg-sf-soft"
+                      disabled={loading}
+                    >
+                      Deaktiver
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => remove(e.id)}
+                      className="text-red-500 hover:opacity-80 transition disabled:opacity-50"
+                      aria-label="Fjern smerte"
+                      disabled={loading}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 

@@ -6,7 +6,7 @@ import { usePain } from "@/stores/pain.store";
 
 type Props = {
   clientId: string;
-  areaKey?: string | null; // ✅ optional (fikser Vercel-build hvis areaKey mangler)
+  areaKey?: string | null; // ✅ optional
 };
 
 type RangeKey = "7" | "30" | "90";
@@ -24,9 +24,41 @@ function toISODate(d: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function dateISOFromEntry(e: any) {
+  const raw = (e?.entry_date ?? e?.created_at ?? "") as string;
+  return raw ? raw.slice(0, 10) : "";
+}
+
+function daysBetweenISO(aISO: string, bISO: string) {
+  const a = new Date(`${aISO}T00:00:00`);
+  const b = new Date(`${bISO}T00:00:00`);
+  const diff = a.getTime() - b.getTime();
+  return Math.round(diff / (1000 * 60 * 60 * 24));
+}
+
+function relativeDayLabel(entryISO: string, todayISOValue: string) {
+  if (!entryISO) return "ukjent";
+  const diff = daysBetweenISO(todayISOValue, entryISO);
+  if (diff === 0) return "i dag";
+  if (diff === 1) return "i går";
+  if (diff > 1) return `${diff} dager siden`;
+  if (diff === -1) return "i morgen";
+  return `${Math.abs(diff)} dager frem`;
+}
+
+function StatPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-sf-border bg-sf-soft/30 px-3 py-2">
+      <div className="text-[11px] uppercase tracking-wide text-sf-muted">{label}</div>
+      <div className="text-sm font-semibold text-sf-text">{value}</div>
+    </div>
+  );
+}
+
 export default function Section3PainHistory({ clientId, areaKey }: Props) {
   const { entries } = usePain();
   const [range, setRange] = useState<RangeKey>("30");
+  const todayISOValue = useMemo(() => toISODate(new Date()), []);
 
   const activeAreaKey = useMemo(() => {
     if (areaKey) return areaKey;
@@ -34,20 +66,39 @@ export default function Section3PainHistory({ clientId, areaKey }: Props) {
     return firstActive?.area_key ?? null;
   }, [areaKey, entries]);
 
-  const points = useMemo(() => {
-    if (!activeAreaKey) return [];
+  const label = useMemo(() => {
+    if (!activeAreaKey) return "Utvikling";
+    const e = entries.find((x) => x.area_key === activeAreaKey);
+    return e?.area_label ?? "Utvikling";
+  }, [entries, activeAreaKey]);
+
+  const { points, lastEntryISO, stats } = useMemo(() => {
+    if (!activeAreaKey) {
+      return {
+        points: [] as { date: string; value: number | null }[],
+        lastEntryISO: "" as string,
+        stats: {
+          count: 0,
+          avg: null as number | null,
+          min: null as number | null,
+          max: null as number | null,
+        },
+      };
+    }
 
     const from = daysAgo(Number(range) - 1);
     const fromISO = toISODate(from);
 
     const relevant = entries
       .filter((e) => e.client_id === clientId && e.area_key === activeAreaKey)
-      .filter((e) => (e.entry_date ?? "").slice(0, 10) >= fromISO);
+      // ✅ bruk entry_date eller created_at for filtrering
+      .filter((e) => dateISOFromEntry(e) >= fromISO);
 
     // én verdi per dag: ta siste som finnes den dagen
     const byDay = new Map<string, number>();
     for (const e of relevant) {
-      const d = (e.entry_date ?? e.created_at).slice(0, 10);
+      const d = dateISOFromEntry(e);
+      if (!d) continue;
       byDay.set(d, e.intensity);
     }
 
@@ -58,14 +109,36 @@ export default function Section3PainHistory({ clientId, areaKey }: Props) {
       const iso = toISODate(d);
       out.push({ date: iso, value: byDay.get(iso) ?? null });
     }
-    return out;
+
+    // stats kun på registrerte dager
+    const values = out.map((p) => p.value).filter((v): v is number => typeof v === "number");
+    const count = values.length;
+
+    const min = count ? Math.min(...values) : null;
+    const max = count ? Math.max(...values) : null;
+    const avg = count ? values.reduce((a, b) => a + b, 0) / count : null;
+
+    // sist registrert (seneste dato med verdi)
+    const last = [...byDay.keys()].sort().at(-1) ?? "";
+
+    return {
+      points: out,
+      lastEntryISO: last,
+      stats: { count, avg, min, max },
+    };
   }, [entries, clientId, activeAreaKey, range]);
 
-  const label = useMemo(() => {
-    if (!activeAreaKey) return "Utvikling";
-    const e = entries.find((x) => x.area_key === activeAreaKey);
-    return e?.area_label ?? "Utvikling";
-  }, [entries, activeAreaKey]);
+  const hasAnyPoints = points.some((p) => p.value != null);
+
+  const lastLabel = useMemo(() => {
+    if (!lastEntryISO) return "—";
+    return `${relativeDayLabel(lastEntryISO, todayISOValue)} (${lastEntryISO})`;
+  }, [lastEntryISO, todayISOValue]);
+
+  const avgText = stats.avg == null ? "—" : `${stats.avg.toFixed(1)}/10`;
+  const minText = stats.min == null ? "—" : `${stats.min}/10`;
+  const maxText = stats.max == null ? "—" : `${stats.max}/10`;
+  const countText = `${stats.count}/${range}`;
 
   return (
     <section className="w-full">
@@ -74,9 +147,7 @@ export default function Section3PainHistory({ clientId, areaKey }: Props) {
           <div>
             <h3 className="text-lg font-semibold">Utvikling over tid</h3>
             <p className="text-sm text-sf-muted">
-              {activeAreaKey
-                ? `Område: ${label}`
-                : "Velg et område for å se historikk."}
+              {activeAreaKey ? `Område: ${label}` : "Velg et område for å se historikk."}
             </p>
           </div>
 
@@ -88,9 +159,7 @@ export default function Section3PainHistory({ clientId, areaKey }: Props) {
                 onClick={() => setRange(k)}
                 className={[
                   "rounded-full px-4 py-2 text-sm border transition",
-                  range === k
-                    ? "bg-[#007C80] text-white border-transparent"
-                    : "border-sf-border hover:bg-sf-soft",
+                  range === k ? "bg-[#007C80] text-white border-transparent" : "border-sf-border hover:bg-sf-soft",
                 ].join(" ")}
               >
                 {k} d
@@ -101,12 +170,20 @@ export default function Section3PainHistory({ clientId, areaKey }: Props) {
 
         {!activeAreaKey ? (
           <p className="text-sm text-sf-muted">Ingen data enda.</p>
-        ) : points.every((p) => p.value == null) ? (
-          <p className="text-sm text-sf-muted">
-            Ingen registreringer i valgt periode.
-          </p>
+        ) : !hasAnyPoints ? (
+          <p className="text-sm text-sf-muted">Ingen registreringer i valgt periode.</p>
         ) : (
-          <MiniLineChart points={points} />
+          <>
+            {/* ✅ mini-stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <StatPill label="Sist registrert" value={lastLabel} />
+              <StatPill label="Snitt" value={avgText} />
+              <StatPill label="Min / Maks" value={`${minText} • ${maxText}`} />
+              <StatPill label="Dager registrert" value={countText} />
+            </div>
+
+            <MiniLineChart points={points} />
+          </>
         )}
       </div>
     </section>
@@ -126,9 +203,7 @@ function MiniLineChart({
   const usableW = w - pad * 2;
   const usableH = h - pad * 2;
 
-  const xs = points.map(
-    (_, i) => pad + (i * usableW) / Math.max(1, points.length - 1)
-  );
+  const xs = points.map((_, i) => pad + (i * usableW) / Math.max(1, points.length - 1));
 
   const ys = points.map((p) => {
     if (p.value == null) return null;
@@ -136,7 +211,7 @@ function MiniLineChart({
     return pad + (1 - v / 10) * usableH;
   });
 
-  // ✅ Bygg path som alltid starter med "M" på første gyldige punkt
+  // ✅ Path starter med "M" på første gyldige punkt
   let started = false;
   const d = xs
     .map((x, i) => {
@@ -168,20 +243,20 @@ function MiniLineChart({
         {/* line */}
         {d ? <path d={d} fill="none" stroke="#007C80" strokeWidth="3" /> : null}
 
-        {/* points */}
+        {/* points (med tooltip) */}
         {xs.map((x, i) => {
           const y = ys[i];
+          const p = points[i];
           if (y == null) return null;
+
           return (
-            <circle
-              key={i}
-              cx={x}
-              cy={y}
-              r="4.5"
-              fill="#ffffff"
-              stroke="#007C80"
-              strokeWidth="2"
-            />
+            <g key={i}>
+              <circle cx={x} cy={y} r="4.5" fill="#ffffff" stroke="#007C80" strokeWidth="2" />
+              {/* ✅ Native tooltip */}
+              <title>
+                {p.date} – {p.value}/10
+              </title>
+            </g>
           );
         })}
       </svg>
