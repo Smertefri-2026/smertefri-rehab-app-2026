@@ -1,6 +1,7 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/components/navigation/Sidebar.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRole } from "@/providers/RoleProvider";
@@ -27,10 +28,6 @@ type SidebarItem = {
   href: string;
   icon: React.ElementType;
 };
-
-/* -------------------------
-   MENYER PER ROLLE
-------------------------- */
 
 const clientItems: SidebarItem[] = [
   { label: "Hjem", href: "/dashboard", icon: LayoutDashboard },
@@ -60,38 +57,112 @@ const adminItems: SidebarItem[] = [
   { label: "Innstillinger", href: "/settings", icon: Settings },
 ];
 
-/* -------------------------
-   KOMPONENT
-------------------------- */
+async function fetchUnreadThreadCount(): Promise<number> {
+  // Viktig: hvis session ikke finnes enda => auth.uid() blir null i DB
+  const { data: s } = await supabase.auth.getSession();
+  if (!s.session) return 0;
+
+  const { data, error } = await supabase.rpc("chat_unread_thread_count");
+
+  if (error) {
+    console.error("chat_unread_thread_count RPC error:", error);
+    return 0;
+  }
+
+  return typeof data === "number" ? data : 0;
+}
+
+function DotBadge({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <span
+      className="
+        ml-auto
+        h-2.5 w-2.5
+        rounded-full bg-[#D45151]
+      "
+      aria-label="Uleste meldinger"
+    />
+  );
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { role, loading } = useRole();
 
-  // 🔒 Hent sidebar-state fra localStorage
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("sf_sidebar_collapsed") === "true";
   });
 
-  // 💾 Lagre endringer
+  const [unreadCount, setUnreadCount] = useState(0);
+
   useEffect(() => {
     localStorage.setItem("sf_sidebar_collapsed", String(collapsed));
   }, [collapsed]);
 
+  useEffect(() => {
+    if (loading) return;
+
+    let alive = true;
+
+    const refresh = async () => {
+      const n = await fetchUnreadThreadCount();
+      if (alive) setUnreadCount(n);
+    };
+
+    // Første fetch
+    refresh();
+
+    // Fokus/visibility
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+
+    // Manuell signal (fra markRead / threadlist click)
+    const onUnreadChanged = () => refresh();
+    window.addEventListener("chat-unread-changed", onUnreadChanged);
+
+    // Realtime triggers
+    const channel = supabase
+      .channel("nav-unread-sidebar")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, () =>
+        refresh()
+      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_thread_reads" }, () =>
+        refresh()
+      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_thread_reads" }, () =>
+        refresh()
+      )
+      .subscribe();
+
+    // ✅ Fallback polling (mobil/webview kan “misse” realtime uten interaksjon)
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, 1500);
+
+    return () => {
+      alive = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("chat-unread-changed", onUnreadChanged);
+      supabase.removeChannel(channel);
+    };
+  }, [loading]);
+
   if (loading || !role) return null;
 
   const items =
-    role === "client"
-      ? clientItems
-      : role === "trainer"
-      ? trainerItems
-      : adminItems;
+    role === "client" ? clientItems : role === "trainer" ? trainerItems : adminItems;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = "/";
   };
+
+  const hasUnread = unreadCount > 0;
 
   return (
     <aside
@@ -125,10 +196,9 @@ export default function Sidebar() {
       {/* NAV */}
       <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
         {items.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
-
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
+          const isChat = item.href === "/chat";
 
           return (
             <Link
@@ -146,8 +216,28 @@ export default function Sidebar() {
                 ${collapsed ? "justify-center" : ""}
               `}
             >
-              <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
-              {!collapsed && <span>{item.label}</span>}
+              <span className="relative">
+                <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
+                {/* prikk på ikonet når collapsed */}
+                {collapsed && isChat && hasUnread && (
+                  <span
+                    className="
+                      absolute -top-1 -right-1
+                      h-2.5 w-2.5 rounded-full bg-[#D45151]
+                      border-2 border-white
+                    "
+                    aria-label="Uleste meldinger"
+                  />
+                )}
+              </span>
+
+              {!collapsed && (
+                <>
+                  <span>{item.label}</span>
+                  {/* prikk til høyre når expanded */}
+                  {isChat && <DotBadge show={hasUnread} />}
+                </>
+              )}
             </Link>
           );
         })}

@@ -1,9 +1,11 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/components/navigation/TabBar.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRole } from "@/providers/RoleProvider";
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 import {
   Home,
@@ -24,20 +26,16 @@ type TabItem = {
   icon: React.ElementType;
 };
 
-/* ---------------------------------
-   TABBAR – 5 VALG (KUN KUNDE)
----------------------------------- */
-
-// 🔹 KUNDE – 5 tabs (Smerte i midten)
+// 🔹 KUNDE
 const clientTabs: TabItem[] = [
   { label: "Hjem", href: "/dashboard", icon: Home },
   { label: "Kalender", href: "/calendar", icon: Calendar },
-  { label: "Smerte", href: "/pain", icon: HeartPulse }, // ❤️ MIDTEN
+  { label: "Smerte", href: "/pain", icon: HeartPulse },
   { label: "Meldinger", href: "/chat", icon: MessageCircle },
   { label: "Profil", href: "/profile", icon: User },
 ];
 
-// Trener
+// 🔹 Trener
 const trainerTabs: TabItem[] = [
   { label: "Hjem", href: "/dashboard", icon: Home },
   { label: "Kalender", href: "/calendar", icon: Calendar },
@@ -46,7 +44,7 @@ const trainerTabs: TabItem[] = [
   { label: "Profil", href: "/profile", icon: User },
 ];
 
-// Admin
+// 🔹 Admin
 const adminTabs: TabItem[] = [
   { label: "Admin", href: "/dashboard", icon: Shield },
   { label: "Kalender", href: "/calendar", icon: Calendar },
@@ -57,19 +55,98 @@ const adminTabs: TabItem[] = [
   { label: "Innst.", href: "/settings", icon: Settings },
 ];
 
+async function fetchUnreadThreadCount(): Promise<number> {
+  // Viktig: hvis session ikke finnes enda => auth.uid() blir null i DB
+  const { data: s } = await supabase.auth.getSession();
+  if (!s.session) return 0;
+
+  const { data, error } = await supabase.rpc("chat_unread_thread_count");
+
+  if (error) {
+    console.error("chat_unread_thread_count RPC error:", error);
+    return 0;
+  }
+
+  return typeof data === "number" ? data : 0;
+}
+
+function DotBadge({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <span
+      className="
+        absolute -top-1 -right-1
+        h-2.5 w-2.5
+        rounded-full bg-[#D45151]
+        border-2 border-white
+      "
+      aria-label="Uleste meldinger"
+    />
+  );
+}
+
 export default function TabBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, loading } = useRole();
 
   const [showPainMenu, setShowPainMenu] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // ✅ Stabil timer + “long-press skjedde” flag
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedRef = useRef(false);
-
-  // Litt romsligere long-press (så tap ikke blir “uhell”)
   const LONG_PRESS_MS = 700;
+
+  useEffect(() => {
+    if (loading) return;
+
+    let alive = true;
+
+    const refresh = async () => {
+      const n = await fetchUnreadThreadCount();
+      if (alive) setUnreadCount(n);
+    };
+
+    // Første fetch
+    refresh();
+
+    // Fokus/visibility (mobil!)
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+
+    // Manuell signal (fra markRead / threadlist click)
+    const onUnreadChanged = () => refresh();
+    window.addEventListener("chat-unread-changed", onUnreadChanged);
+
+    // Realtime triggers
+    const channel = supabase
+      .channel("nav-unread-tabbar")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, () =>
+        refresh()
+      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_thread_reads" }, () =>
+        refresh()
+      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_thread_reads" }, () =>
+        refresh()
+      )
+      .subscribe();
+
+    // ✅ Fallback polling
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, 1500);
+
+    return () => {
+      alive = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("chat-unread-changed", onUnreadChanged);
+      supabase.removeChannel(channel);
+    };
+  }, [loading]);
 
   if (loading || !role) return null;
 
@@ -86,44 +163,30 @@ export default function TabBar() {
   const handlePainPressStart = () => {
     longPressedRef.current = false;
     clearPressTimer();
-
     pressTimerRef.current = setTimeout(() => {
-      longPressedRef.current = true; // ✅ marker at long-press faktisk skjedde
+      longPressedRef.current = true;
       setShowPainMenu(true);
     }, LONG_PRESS_MS);
   };
 
-  const handlePainPressEnd = () => {
-    // Hvis user bare tapper: vi rydder timer før den fyrer
-    clearPressTimer();
-  };
-
-  // Hvis menyen er åpen og du navigerer, lukk den
-  useEffect(() => {
-    if (!showPainMenu) return;
-    // Optional: lukk om route endres
-  }, [showPainMenu]);
+  const handlePainPressEnd = () => clearPressTimer();
 
   return (
     <>
-      {/* ---------------- TABBAR ---------------- */}
       <nav
         className="
           fixed bottom-0 left-0 right-0 z-50 md:hidden
           border-t border-sf-border bg-white/95 backdrop-blur
           pb-[env(safe-area-inset-bottom)]
         "
-        style={{
-          // Litt mer “FB-feel” i høyde/touch-area
-          // (ul + li har også padding)
-          minHeight: 72,
-        }}
+        style={{ minHeight: 72 }}
       >
         <ul className="flex items-stretch justify-between px-2">
           {items.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             const isPainTab = role === "client" && item.href === "/pain";
+            const isChatTab = item.href === "/chat";
 
             const baseClass = `flex w-full flex-col items-center justify-center
               py-3 gap-1 transition select-none
@@ -134,14 +197,12 @@ export default function TabBar() {
                 <li key={item.href} className="flex-1">
                   <button
                     type="button"
-                    // ✅ Pointer events dekker både touch + mouse ryddig
                     onPointerDown={handlePainPressStart}
                     onPointerUp={handlePainPressEnd}
                     onPointerCancel={handlePainPressEnd}
                     onPointerLeave={handlePainPressEnd}
-                    onPointerMove={handlePainPressEnd} // hvis du drar litt – cancel long-press
+                    onPointerMove={handlePainPressEnd}
                     onClick={() => {
-                      // ✅ Hvis long-press åpnet meny: ikke naviger på click
                       if (longPressedRef.current) {
                         longPressedRef.current = false;
                         return;
@@ -160,7 +221,10 @@ export default function TabBar() {
             return (
               <li key={item.href} className="flex-1">
                 <Link href={item.href} className={baseClass}>
-                  <Icon size={22} strokeWidth={isActive ? 2.4 : 1.8} />
+                  <span className="relative">
+                    <Icon size={22} strokeWidth={isActive ? 2.4 : 1.8} />
+                    {isChatTab && <DotBadge show={unreadCount > 0} />}
+                  </span>
                   <span className="text-[11px] leading-none">{item.label}</span>
                 </Link>
               </li>
@@ -169,7 +233,7 @@ export default function TabBar() {
         </ul>
       </nav>
 
-      {/* --------- LONG-PRESS MENY (KUNDE) --------- */}
+      {/* LONG PRESS MENY */}
       {role === "client" && showPainMenu && (
         <div
           className="fixed inset-0 z-[60] flex items-end justify-center bg-black/30"
