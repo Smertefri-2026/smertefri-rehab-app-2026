@@ -1,40 +1,512 @@
 "use client";
 
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+
 import AppPage from "@/components/layout/AppPage";
-import { notFound } from "next/navigation";
-import { use } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
 import { useClients } from "@/stores/clients.store";
 
-type PageProps = {
-  params: Promise<{ id: string }>;
+type Category = "bodyweight" | "strength" | "cardio";
+const CATEGORIES: Category[] = ["bodyweight", "strength", "cardio"];
+
+type TestSession = {
+  id: string;
+  client_id: string;
+  category: Category;
+  created_at: string;
 };
 
-export default function ClientTestsPage({ params }: PageProps) {
-  const { role } = useRole();
-  const { getClientById, loading } = useClients();
-  const { id } = use(params);
+type TestEntry = {
+  id: string;
+  session_id: string;
+  metric_key: string;
+  value: number;
+  unit: string | null;
+  sort: number;
+};
 
-  if (role !== "trainer" && role !== "admin") notFound();
+const CATEGORY_CONFIG: Record<
+  Category,
+  {
+    title: string;
+    subtitle: string;
+    unitLabel: string;
+    metrics: { key: string; label: string; sort: number }[];
+  }
+> = {
+  bodyweight: {
+    title: "Egenvekt",
+    subtitle: "Repetisjoner på 4 minutter",
+    unitLabel: "reps",
+    metrics: [
+      { key: "knebøy", label: "Knebøy", sort: 1 },
+      { key: "pushups", label: "Pushups", sort: 2 },
+      { key: "situps", label: "Situps", sort: 3 },
+    ],
+  },
+  strength: {
+    title: "Styrke",
+    subtitle: "1RM progresjon",
+    unitLabel: "kg",
+    metrics: [
+      { key: "benkpress", label: "Benkpress", sort: 1 },
+      { key: "markløft", label: "Markløft", sort: 2 },
+      { key: "knebøy", label: "Knebøy", sort: 3 },
+    ],
+  },
+  cardio: {
+    title: "Kondisjon",
+    subtitle: "4-min testers total distanse",
+    unitLabel: "m",
+    metrics: [
+      { key: "sykkel", label: "Sykkel", sort: 1 },
+      { key: "roing", label: "Roing", sort: 2 },
+      { key: "ski", label: "Ski", sort: 3 },
+      { key: "mølle", label: "Mølle", sort: 4 },
+    ],
+  },
+};
 
-  if (loading) {
-    return <p className="p-4 text-sm text-sf-muted">Laster tester …</p>;
+function formatShort(ts: string) {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("no-NO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
+}
+
+function pct(baseline: number | null, v: number | null) {
+  if (baseline == null || v == null) return null;
+  if (baseline === 0) return null;
+  return ((v - baseline) / baseline) * 100;
+}
+
+function MiniLineChart({
+  labels,
+  series,
+  focusKey,
+  onFocus,
+}: {
+  labels: string[];
+  series: { key: string; label: string; values: number[] }[];
+  focusKey: string | null;
+  onFocus: (k: string | null) => void;
+}) {
+  const W = 820;
+  const H = 260;
+  const PAD = 28;
+
+  const visible = focusKey ? series.filter((s) => s.key === focusKey) : series;
+  const all = visible.flatMap((s) => s.values);
+  const maxY = Math.max(1, ...all);
+  const minY = Math.min(0, ...all);
+
+  const xCount = Math.max(2, labels.length);
+  const xStep = (W - PAD * 2) / (xCount - 1);
+
+  const yScale = (y: number) => {
+    const span = maxY - minY || 1;
+    const t = (y - minY) / span;
+    return H - PAD - t * (H - PAD * 2);
+  };
+
+  const xScale = (i: number) => PAD + i * xStep;
+
+  return (
+    <div className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm">
+      <div className="mb-3">
+        <div className="text-sm font-semibold text-sf-text">Progresjon (%)</div>
+        <div className="text-xs text-sf-muted">Trykk på en øvelse for å fokusere.</div>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center justify-center gap-4">
+        {series.map((s) => {
+          const active = focusKey ? focusKey === s.key : true;
+          return (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => onFocus(focusKey === s.key ? null : s.key)}
+              className={`flex items-center gap-2 text-sm ${
+                active ? "text-sf-text" : "text-sf-muted"
+              }`}
+            >
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-sf-muted" />
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[640px]">
+          <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#94a3b8" />
+          <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="#94a3b8" />
+
+          {labels.map((lab, i) => (
+            <text
+              key={lab + i}
+              x={xScale(i)}
+              y={H - 8}
+              textAnchor="middle"
+              fontSize="12"
+              fill="#64748b"
+            >
+              {lab}
+            </text>
+          ))}
+
+          {visible.map((s) => {
+            const pts = s.values.map((v, i) => `${xScale(i)},${yScale(v)}`).join(" ");
+            return (
+              <g key={s.key}>
+                <polyline fill="none" stroke="#64748b" strokeWidth="3" points={pts} />
+                {s.values.map((v, i) => (
+                  <circle
+                    key={s.key + i}
+                    cx={xScale(i)}
+                    cy={yScale(v)}
+                    r="5"
+                    fill="white"
+                    stroke="#64748b"
+                    strokeWidth="2.5"
+                  />
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+export default function TestsIdPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
+
+  const { userId, role, loading } = useRole();
+  const { getClientById, loading: clientsLoading } = useClients();
+
+  const isCategory = CATEGORIES.includes(id as Category);
+
+  // =========================
+  // A) Kunde / Self category
+  // =========================
+  const category = (isCategory ? (id as Category) : null) as Category | null;
+  const cfg = category ? CATEGORY_CONFIG[category] : null;
+
+  const [sessions, setSessions] = useState<TestSession[]>([]);
+  const [entriesBySession, setEntriesBySession] = useState<Record<string, TestEntry[]>>({});
+  const [err, setErr] = useState<string | null>(null);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isCategory) return;
+    if (loading || !userId) return;
+    if (!cfg || !category) return;
+
+    // kun kunder (self)
+    if (role && role !== "client") return;
+
+    let alive = true;
+
+    (async () => {
+      setErr(null);
+      setSessions([]);
+      setEntriesBySession({});
+
+      const { data: s, error: sErr } = await supabase
+        .from("test_sessions")
+        .select("id, client_id, category, created_at")
+        .eq("client_id", userId)
+        .eq("category", category)
+        .order("created_at", { ascending: true });
+
+      if (!alive) return;
+      if (sErr) return setErr(sErr.message);
+
+      const list = (s ?? []) as TestSession[];
+      setSessions(list);
+
+      if (list.length === 0) return;
+
+      const ids = list.map((x) => x.id);
+
+      const { data: e, error: eErr } = await supabase
+        .from("test_entries")
+        .select("id, session_id, metric_key, value, unit, sort")
+        .in("session_id", ids)
+        .order("sort", { ascending: true });
+
+      if (!alive) return;
+      if (eErr) return setErr(eErr.message);
+
+      const map: Record<string, TestEntry[]> = {};
+      for (const row of (e ?? []) as any[]) {
+        const sid = row.session_id as string;
+        if (!map[sid]) map[sid] = [];
+        map[sid].push({
+          id: row.id,
+          session_id: row.session_id,
+          metric_key: row.metric_key,
+          value: Number(row.value),
+          unit: row.unit ?? null,
+          sort: Number(row.sort ?? 0),
+        });
+      }
+      setEntriesBySession(map);
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [isCategory, loading, userId, role, category, cfg]);
+
+  const ui = useMemo(() => {
+    if (!cfg) return { labels: [], series: [], history: [] as any[] };
+
+    const ordered = [...sessions];
+    const labels = ordered.map((s) => formatShort(s.created_at));
+
+    const baselineSession = ordered[0];
+    const baselineEntries = baselineSession ? entriesBySession[baselineSession.id] ?? [] : [];
+
+    const baselineMap: Record<string, number | null> = {};
+    for (const m of cfg.metrics) {
+      const e = baselineEntries.find((x) => x.metric_key === m.key);
+      baselineMap[m.key] = e ? Number(e.value) : null;
+    }
+
+    const series = cfg.metrics.map((m) => {
+      const values = ordered.map((sess) => {
+        const ents = entriesBySession[sess.id] ?? [];
+        const e = ents.find((x) => x.metric_key === m.key);
+        const v = e ? Number(e.value) : null;
+        const p = pct(baselineMap[m.key] ?? null, v);
+        return Number.isFinite(p ?? NaN) ? Number(p) : 0;
+      });
+      return { key: m.key, label: m.label, values };
+    });
+
+    const history = [...ordered].reverse().map((sess, idx) => {
+      const ents = entriesBySession[sess.id] ?? [];
+      const rows = cfg.metrics.map((m) => {
+        const e = ents.find((x) => x.metric_key === m.key);
+        const v = e ? Number(e.value) : null;
+        const base = baselineMap[m.key] ?? null;
+        const p = pct(base, v);
+        const delta = base != null && v != null ? v - base : null;
+        return { ...m, value: v, pct: p, delta };
+      });
+
+      return {
+        id: sess.id,
+        at: sess.created_at,
+        isBaseline: idx === ordered.length - 1,
+        rows,
+      };
+    });
+
+    return { labels, series, history };
+  }, [sessions, entriesBySession, cfg]);
+
+  // =========================
+  // B) Trainer/Admin client overview
+  // =========================
+  const clientId = !isCategory ? id : null;
+  const client = clientId ? getClientById(clientId) : null;
+  const clientName = client
+    ? `${client.first_name ?? ""} ${client.last_name ?? ""}`.trim()
+    : "Klient";
+
+  if (loading || clientsLoading) return null;
+
+  // --------- Render A: Self category ----------
+  if (isCategory) {
+    if (!cfg || !category) {
+      return (
+        <main className="bg-[#F4FBFA]">
+          <AppPage>
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              Ugyldig kategori.
+            </div>
+          </AppPage>
+        </main>
+      );
+    }
+
+    // Trenere/admin skal ikke inn her
+    if (role && role !== "client") {
+      return (
+        <main className="bg-[#F4FBFA]">
+          <AppPage>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              Trenere/admin: bruk klient-URL <span className="font-mono">/tests/&lt;clientId&gt;</span>.
+            </div>
+          </AppPage>
+        </main>
+      );
+    }
+
+    return (
+      <main className="bg-[#F4FBFA]">
+        <AppPage>
+          <div className="mx-auto w-full max-w-5xl space-y-5">
+            <div className="flex items-center gap-3">
+              <Link
+                href="/tests"
+                className="inline-flex items-center justify-center rounded-full border border-sf-border bg-white px-3 py-2 text-sm hover:bg-sf-soft"
+                title="Tilbake"
+              >
+                ←
+              </Link>
+              <div>
+                <h1 className="text-2xl font-semibold text-sf-text">{cfg.title}</h1>
+                <p className="text-sm text-sf-muted">{cfg.subtitle}</p>
+              </div>
+            </div>
+
+            {err && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {err}
+              </div>
+            )}
+
+            <MiniLineChart
+              labels={ui.labels}
+              series={ui.series}
+              focusKey={focusKey}
+              onFocus={setFocusKey}
+            />
+
+            <div className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm">
+              <div className="mb-4 text-sm font-semibold text-sf-text">Historikk</div>
+
+              {ui.history.length === 0 ? (
+                <div className="text-sm text-sf-muted">Ingen tester registrert enda.</div>
+              ) : (
+                <div className="space-y-3">
+                  {ui.history.map((h: any) => (
+                    <div key={h.id} className="rounded-2xl border border-sf-border bg-white p-4">
+                      <div className="mb-2 flex items-center gap-3">
+                        <div className="text-sm font-semibold">{formatShort(h.at)}</div>
+                        {h.isBaseline && (
+                          <span className="rounded-full bg-sf-soft px-3 py-1 text-xs text-sf-muted">
+                            Baseline
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1 text-sm">
+                        {h.rows.map((r: any) => (
+                          <div key={r.key} className="flex items-center justify-between gap-4">
+                            <div className="text-sf-text">
+                              <span className="font-medium">{r.label}:</span> {r.value ?? "—"}{" "}
+                              {cfg.unitLabel}
+                            </div>
+
+                            <div className="text-right text-sf-muted">
+                              {r.delta != null && r.pct != null ? (
+                                <span className="text-[#2F6B4F]">
+                                  (+{Math.round(r.delta)} {cfg.unitLabel} · +{Math.round(r.pct)}%)
+                                </span>
+                              ) : (
+                                <span />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </AppPage>
+      </main>
+    );
   }
 
-  const client = getClientById(id);
-  if (!client) notFound();
+  // --------- Render B: Client overview ----------
+  if (role && role !== "trainer" && role !== "admin") {
+    return (
+      <main className="bg-[#F4FBFA]">
+        <AppPage>
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            Ingen tilgang.
+          </div>
+        </AppPage>
+      </main>
+    );
+  }
+
+  if (!clientId) {
+    return (
+      <main className="bg-[#F4FBFA]">
+        <AppPage>
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            Mangler klient-id i URL.
+          </div>
+        </AppPage>
+      </main>
+    );
+  }
 
   return (
     <main className="bg-[#F4FBFA]">
       <AppPage>
-        <div className="mx-auto w-full max-w-4xl space-y-4">
-          <h1 className="text-lg font-semibold">
-            Tester – {client.first_name} {client.last_name}
-          </h1>
+        <div className="mx-auto w-full max-w-4xl space-y-5">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/tests"
+              className="inline-flex items-center justify-center rounded-full border border-sf-border bg-white px-3 py-2 text-sm hover:bg-sf-soft"
+              title="Tilbake"
+            >
+              ←
+            </Link>
 
-          <p className="text-sm text-sf-muted">
-            Her kommer testresultater og progresjon.
-          </p>
+            <div>
+              <h1 className="text-2xl font-semibold text-sf-text">Tester — {clientName}</h1>
+              <p className="text-sm text-sf-muted">Velg kategori for å se historikk.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => router.push(`/tests/${encodeURIComponent(clientId)}/bodyweight`)}
+              className="rounded-2xl border border-sf-border bg-white p-5 text-left shadow-sm hover:bg-sf-soft"
+            >
+              <div className="text-sm font-semibold text-sf-text">Egenvekt</div>
+              <div className="text-xs text-sf-muted">Reps på 4 minutter</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push(`/tests/${encodeURIComponent(clientId)}/strength`)}
+              className="rounded-2xl border border-sf-border bg-white p-5 text-left shadow-sm hover:bg-sf-soft"
+            >
+              <div className="text-sm font-semibold text-sf-text">Styrke</div>
+              <div className="text-xs text-sf-muted">1RM progresjon</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push(`/tests/${encodeURIComponent(clientId)}/cardio`)}
+              className="rounded-2xl border border-sf-border bg-white p-5 text-left shadow-sm hover:bg-sf-soft"
+            >
+              <div className="text-sm font-semibold text-sf-text">Kondis</div>
+              <div className="text-xs text-sf-muted">4-min distanse</div>
+            </button>
+          </div>
         </div>
       </AppPage>
     </main>

@@ -29,7 +29,7 @@ export default function Section3ClientOverview({ clientId }: Props) {
         </Link>
 
         <Link
-          href={`/tests/${clientId}`}
+href={`/tests/${clientId}`}
           className="flex items-center justify-between rounded-xl border border-sf-border p-4 transition hover:bg-sf-soft"
         >
           <div className="flex items-center gap-3">

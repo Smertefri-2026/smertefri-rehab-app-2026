@@ -2,10 +2,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ElementType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRole } from "@/providers/RoleProvider";
-import { supabase } from "@/lib/supabaseClient";
+
+import { useChatUnread } from "@/stores/chatUnread.store";
 
 import {
   LayoutDashboard,
@@ -26,7 +28,7 @@ import {
 type SidebarItem = {
   label: string;
   href: string;
-  icon: React.ElementType;
+  icon: ElementType;
 };
 
 const clientItems: SidebarItem[] = [
@@ -57,21 +59,6 @@ const adminItems: SidebarItem[] = [
   { label: "Innstillinger", href: "/settings", icon: Settings },
 ];
 
-async function fetchUnreadThreadCount(): Promise<number> {
-  // Viktig: hvis session ikke finnes enda => auth.uid() blir null i DB
-  const { data: s } = await supabase.auth.getSession();
-  if (!s.session) return 0;
-
-  const { data, error } = await supabase.rpc("chat_unread_thread_count");
-
-  if (error) {
-    console.error("chat_unread_thread_count RPC error:", error);
-    return 0;
-  }
-
-  return typeof data === "number" ? data : 0;
-}
-
 function DotBadge({ show }: { show: boolean }) {
   if (!show) return null;
   return (
@@ -90,79 +77,32 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { role, loading } = useRole();
 
+  // ✅ Kun leser fra global store (ingen supabase her)
+  const unreadCount = useChatUnread((s) => s.unreadCount);
+
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("sf_sidebar_collapsed") === "true";
   });
 
-  const [unreadCount, setUnreadCount] = useState(0);
-
   useEffect(() => {
     localStorage.setItem("sf_sidebar_collapsed", String(collapsed));
   }, [collapsed]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    let alive = true;
-
-    const refresh = async () => {
-      const n = await fetchUnreadThreadCount();
-      if (alive) setUnreadCount(n);
-    };
-
-    // Første fetch
-    refresh();
-
-    // Fokus/visibility
-    const onFocus = () => refresh();
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-
-    // Manuell signal (fra markRead / threadlist click)
-    const onUnreadChanged = () => refresh();
-    window.addEventListener("chat-unread-changed", onUnreadChanged);
-
-    // Realtime triggers
-    const channel = supabase
-      .channel("nav-unread-sidebar")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, () =>
-        refresh()
-      )
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_thread_reads" }, () =>
-        refresh()
-      )
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_thread_reads" }, () =>
-        refresh()
-      )
-      .subscribe();
-
-    // ✅ Fallback polling (mobil/webview kan “misse” realtime uten interaksjon)
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") refresh();
-    }, 1500);
-
-    return () => {
-      alive = false;
-      window.clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-      window.removeEventListener("chat-unread-changed", onUnreadChanged);
-      supabase.removeChannel(channel);
-    };
-  }, [loading]);
 
   if (loading || !role) return null;
 
   const items =
     role === "client" ? clientItems : role === "trainer" ? trainerItems : adminItems;
 
+  const hasUnread = unreadCount > 0;
+
   const handleLogout = async () => {
+    // Beholder samme oppførsel som før (du hadde signOut her).
+    // Hvis du vil gjøre Sidebar helt “supabase-free”, flytter vi signOut til en Auth-hook.
+    const { supabase } = await import("@/lib/supabaseClient");
     await supabase.auth.signOut();
     window.location.href = "/";
   };
-
-  const hasUnread = unreadCount > 0;
 
   return (
     <aside

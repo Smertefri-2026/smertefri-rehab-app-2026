@@ -4,8 +4,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRole } from "@/providers/RoleProvider";
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useRef, useState } from "react";
+import type { ElementType } from "react";
+
+import { useChatUnread } from "@/stores/chatUnread.store";
 
 import {
   Home,
@@ -23,7 +25,7 @@ import {
 type TabItem = {
   label: string;
   href: string;
-  icon: React.ElementType;
+  icon: ElementType;
 };
 
 // 🔹 KUNDE
@@ -55,21 +57,6 @@ const adminTabs: TabItem[] = [
   { label: "Innst.", href: "/settings", icon: Settings },
 ];
 
-async function fetchUnreadThreadCount(): Promise<number> {
-  // Viktig: hvis session ikke finnes enda => auth.uid() blir null i DB
-  const { data: s } = await supabase.auth.getSession();
-  if (!s.session) return 0;
-
-  const { data, error } = await supabase.rpc("chat_unread_thread_count");
-
-  if (error) {
-    console.error("chat_unread_thread_count RPC error:", error);
-    return 0;
-  }
-
-  return typeof data === "number" ? data : 0;
-}
-
 function DotBadge({ show }: { show: boolean }) {
   if (!show) return null;
   return (
@@ -90,63 +77,14 @@ export default function TabBar() {
   const router = useRouter();
   const { role, loading } = useRole();
 
+  // ✅ Kun leser fra global store (ingen supabase her)
+  const unreadCount = useChatUnread((s) => s.unreadCount);
+
   const [showPainMenu, setShowPainMenu] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedRef = useRef(false);
   const LONG_PRESS_MS = 700;
-
-  useEffect(() => {
-    if (loading) return;
-
-    let alive = true;
-
-    const refresh = async () => {
-      const n = await fetchUnreadThreadCount();
-      if (alive) setUnreadCount(n);
-    };
-
-    // Første fetch
-    refresh();
-
-    // Fokus/visibility (mobil!)
-    const onFocus = () => refresh();
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-
-    // Manuell signal (fra markRead / threadlist click)
-    const onUnreadChanged = () => refresh();
-    window.addEventListener("chat-unread-changed", onUnreadChanged);
-
-    // Realtime triggers
-    const channel = supabase
-      .channel("nav-unread-tabbar")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, () =>
-        refresh()
-      )
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_thread_reads" }, () =>
-        refresh()
-      )
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_thread_reads" }, () =>
-        refresh()
-      )
-      .subscribe();
-
-    // ✅ Fallback polling
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") refresh();
-    }, 1500);
-
-    return () => {
-      alive = false;
-      window.clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-      window.removeEventListener("chat-unread-changed", onUnreadChanged);
-      supabase.removeChannel(channel);
-    };
-  }, [loading]);
 
   if (loading || !role) return null;
 
