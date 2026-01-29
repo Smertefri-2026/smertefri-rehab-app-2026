@@ -3,23 +3,26 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 
+type DashboardVariant = "default" | "warning" | "danger" | "info" | "success";
+
 type DashboardCardProps = {
   title?: string;
   icon?: ReactNode;
   status?: string;
   children?: ReactNode;
-  variant?: "default" | "warning" | "danger" | "info";
+  variant?: DashboardVariant;
   mode?: "card" | "button";
 
-  // ✅ NYTT: gjør hele kortet klikkbart
+  // ✅ gjør hele kortet klikkbart
   href?: string;
 };
 
-const variants = {
+const variants: Record<DashboardVariant, string> = {
   default: "border-sf-border bg-white",
   warning: "border-yellow-300 bg-yellow-50",
   danger: "border-red-300 bg-red-50",
   info: "border-[#BEE6F0] bg-[#E6F3F6]",
+  success: "border-emerald-300 bg-emerald-50", // ✅ NY
 };
 
 export default function DashboardCard({
@@ -33,16 +36,29 @@ export default function DashboardCard({
 }: DashboardCardProps) {
   const isButton = mode === "button";
 
+  // ✅ ekstra safe: om noe rart kommer inn, fall tilbake til default
+  const variantClass = variants[variant] ?? variants.default;
+
   const cardClassName = `
     rounded-2xl border shadow-sm transition
-    ${variants[variant]}
+    ${variantClass}
     ${
       isButton
         ? "p-6 flex flex-col items-center justify-center gap-3 min-h-[110px]"
         : "p-5"
     }
-    ${href ? "cursor-pointer hover:shadow-md hover:-translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-[#007C80]/20" : ""}
-    ${isButton && href ? "hover:bg-[#DFF0F6]" : isButton ? "hover:bg-[#DFF0F6] cursor-pointer" : ""}
+    ${
+      href
+        ? "cursor-pointer hover:shadow-md hover:-translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-[#007C80]/20"
+        : ""
+    }
+    ${
+      isButton && href
+        ? "hover:bg-[#DFF0F6]"
+        : isButton
+        ? "hover:bg-[#DFF0F6] cursor-pointer"
+        : ""
+    }
   `;
 
   const content = (
@@ -66,22 +82,14 @@ export default function DashboardCard({
               </span>
             )}
 
-            {title && (
-              <h3 className="text-sm font-semibold text-sf-text">
-                {title}
-              </h3>
-            )}
+            {title && <h3 className="text-sm font-semibold text-sf-text">{title}</h3>}
           </div>
 
-          {!isButton && status && (
-            <span className="text-xs text-sf-muted">{status}</span>
-          )}
+          {!isButton && status && <span className="text-xs text-sf-muted">{status}</span>}
         </div>
       )}
 
-      {!isButton && children && (
-        <div className="text-sm text-sf-muted space-y-2">{children}</div>
-      )}
+      {!isButton && children && <div className="text-sm text-sf-muted space-y-2">{children}</div>}
     </div>
   );
 
