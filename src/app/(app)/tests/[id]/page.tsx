@@ -1,3 +1,4 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/tests/[id]/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -28,33 +29,37 @@ type TestEntry = {
   sort: number;
 };
 
+type Metric = { key: string; label: string; sort: number; unit?: string };
+
 const CATEGORY_CONFIG: Record<
   Category,
   {
     title: string;
     subtitle: string;
     unitLabel: string;
-    metrics: { key: string; label: string; sort: number }[];
+    metrics: Metric[];
   }
 > = {
   bodyweight: {
     title: "Egenvekt",
-    subtitle: "Repetisjoner på 4 minutter",
+    subtitle: "4 minutter per øvelse",
     unitLabel: "reps",
     metrics: [
-      { key: "knebøy", label: "Knebøy", sort: 1 },
-      { key: "pushups", label: "Pushups", sort: 2 },
-      { key: "situps", label: "Situps", sort: 3 },
+      { key: "knebøy", label: "Knebøy", sort: 1, unit: "reps" },
+      { key: "pushups", label: "Armhevinger", sort: 2, unit: "reps" },
+      { key: "situps", label: "Situps", sort: 3, unit: "reps" },
+      { key: "plank_time", label: "Planke – tid", sort: 4, unit: "sek" },
+      { key: "plank_breaks", label: "Planke – pauser", sort: 5, unit: "antall" },
     ],
   },
   strength: {
     title: "Styrke",
-    subtitle: "1RM progresjon",
+    subtitle: "1RM progresjon i baseøvelser",
     unitLabel: "kg",
     metrics: [
-      { key: "benkpress", label: "Benkpress", sort: 1 },
-      { key: "markløft", label: "Markløft", sort: 2 },
-      { key: "knebøy", label: "Knebøy", sort: 3 },
+      { key: "knebøy", label: "Knebøy", sort: 1, unit: "kg" },
+      { key: "markløft", label: "Markløft", sort: 2, unit: "kg" },
+      { key: "benkpress", label: "Benkpress", sort: 3, unit: "kg" },
     ],
   },
   cardio: {
@@ -62,10 +67,10 @@ const CATEGORY_CONFIG: Record<
     subtitle: "4-min testers total distanse",
     unitLabel: "m",
     metrics: [
-      { key: "sykkel", label: "Sykkel", sort: 1 },
-      { key: "roing", label: "Roing", sort: 2 },
-      { key: "ski", label: "Ski", sort: 3 },
-      { key: "mølle", label: "Mølle", sort: 4 },
+      { key: "mølle", label: "Mølle", sort: 1, unit: "m" },
+      { key: "roing", label: "Roing", sort: 2, unit: "m" },
+      { key: "ski", label: "Ski", sort: 3, unit: "m" },
+      { key: "sykkel", label: "Sykkel", sort: 4, unit: "m" },
     ],
   },
 };
@@ -405,24 +410,27 @@ export default function TestsIdPage() {
                       </div>
 
                       <div className="space-y-1 text-sm">
-                        {h.rows.map((r: any) => (
-                          <div key={r.key} className="flex items-center justify-between gap-4">
-                            <div className="text-sf-text">
-                              <span className="font-medium">{r.label}:</span> {r.value ?? "—"}{" "}
-                              {cfg.unitLabel}
-                            </div>
+                        {h.rows.map((r: any) => {
+                          const unit = r.unit ?? cfg.unitLabel;
 
-                            <div className="text-right text-sf-muted">
-                              {r.delta != null && r.pct != null ? (
-                                <span className="text-[#2F6B4F]">
-                                  (+{Math.round(r.delta)} {cfg.unitLabel} · +{Math.round(r.pct)}%)
-                                </span>
-                              ) : (
-                                <span />
-                              )}
+                          return (
+                            <div key={r.key} className="flex items-center justify-between gap-4">
+                              <div className="text-sf-text">
+                                <span className="font-medium">{r.label}:</span> {r.value ?? "—"} {unit}
+                              </div>
+
+                              <div className="text-right text-sf-muted">
+                                {r.delta != null && r.pct != null ? (
+                                  <span className="text-[#2F6B4F]">
+                                    (+{Math.round(r.delta)} {unit} · +{Math.round(r.pct)}%)
+                                  </span>
+                                ) : (
+                                  <span />
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -486,7 +494,7 @@ export default function TestsIdPage() {
               className="rounded-2xl border border-sf-border bg-white p-5 text-left shadow-sm hover:bg-sf-soft"
             >
               <div className="text-sm font-semibold text-sf-text">Egenvekt</div>
-              <div className="text-xs text-sf-muted">Reps på 4 minutter</div>
+              <div className="text-xs text-sf-muted">4 minutter per øvelse</div>
             </button>
 
             <button
@@ -495,7 +503,7 @@ export default function TestsIdPage() {
               className="rounded-2xl border border-sf-border bg-white p-5 text-left shadow-sm hover:bg-sf-soft"
             >
               <div className="text-sm font-semibold text-sf-text">Styrke</div>
-              <div className="text-xs text-sf-muted">1RM progresjon</div>
+              <div className="text-xs text-sf-muted">1RM progresjon i baseøvelser</div>
             </button>
 
             <button

@@ -1,17 +1,12 @@
 "use client";
 
-export default function Section3AddMealAction() {
+export default function Section3AddMealAction({ onAddMeal }: { onAddMeal: () => void }) {
   return (
-    <section>
-      <button
-        disabled
-        className="
-          w-full rounded-2xl border border-dashed border-sf-border
-          bg-white py-3 text-sm font-medium text-sf-muted
-        "
-      >
-        ➕ Legg til måltid
-      </button>
-    </section>
+    <button
+      onClick={onAddMeal}
+      className="w-full rounded-2xl border border-dashed border-sf-border bg-white px-6 py-4 text-sm font-medium text-sf-text hover:bg-sf-soft"
+    >
+      + Legg til måltid
+    </button>
   );
 }

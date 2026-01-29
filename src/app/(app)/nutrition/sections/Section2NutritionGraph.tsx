@@ -1,12 +1,23 @@
-// src/app/(app)/nutrition/sections/Section2NutritionGraph.tsx
 "use client";
+
+import Link from "next/link";
 
 export default function Section2NutritionGraph() {
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm space-y-5">
       {/* 🔹 Header + tabs */}
       <div className="space-y-3">
-        <h2 className="text-base font-semibold text-sf-text">Oversikt</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-sf-text">Oversikt</h2>
+
+          {/* 👉 Byttet ut en "disabled"-knapp med Link */}
+          <Link
+            href="/nutrition/history"
+            className="rounded-full border border-sf-border px-4 py-1.5 text-sm text-sf-text hover:bg-sf-soft"
+          >
+            Historikk
+          </Link>
+        </div>
 
         {/* Tabs (kun visning) */}
         <div className="flex gap-2">
