@@ -17,7 +17,7 @@ export default function Section3NutritionActions() {
           href="/nutrition/profile"
           className="flex items-center justify-center gap-2 rounded-full border border-sf-border bg-white px-4 py-2.5 text-sm font-medium text-sf-text hover:bg-sf-soft"
         >
-          ⚙️ Profil
+          ⚙️ Grunnlag Profil
         </Link>
 
         <Link

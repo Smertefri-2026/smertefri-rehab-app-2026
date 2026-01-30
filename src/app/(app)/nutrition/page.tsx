@@ -12,10 +12,10 @@ export default function NutritionPage() {
     <div className="bg-[#F4FBFA]">
       <AppPage>
         <div className="space-y-6">
-          {/* 🍽 Seksjon 1 – I dag */}
+          {/* 🍽 Seksjon 1 – Intro / forklaring */}
           <Section1NutritionToday />
 
-          {/* 📊 Seksjon 2 – Historikk (uke / måned / år) */}
+          {/* 📊 Seksjon 2 – Oversikt */}
           <Section2NutritionGraph />
 
           {/* ⚙️ Seksjon 3 – Handlinger */}
