@@ -7,7 +7,6 @@ import { useRole } from "@/providers/RoleProvider";
 import { useClients } from "@/stores/clients.store";
 
 import Section2NutritionGraph from "../sections/Section2NutritionGraph";
-import Section3NutritionActions from "../sections/Section3NutritionActions";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -36,6 +35,7 @@ export default function ClientNutritionPage({ params }: PageProps) {
     <AppPage
       title={`Kosthold – ${client.first_name} ${client.last_name}`}
       subtitle="Oversikt, trend og dagsbehov (hentes fra database)."
+      actionsAlign="left"
       actions={
         <button
           type="button"
@@ -49,19 +49,6 @@ export default function ClientNutritionPage({ params }: PageProps) {
       <div className="space-y-6">
         {/* ✅ Kundens graf (Supabase) */}
         <Section2NutritionGraph userId={id} />
-
-        {/* Handlinger (foreløpig generiske – kan senere gjøres klient-spesifikke) */}
-        <Section3NutritionActions />
-
-        {/* Info */}
-        <div className="rounded-2xl border border-sf-border bg-[#F9FEFD] p-4 text-sm text-sf-muted">
-          <div className="font-semibold text-sf-text">Hva ser jeg her?</div>
-          <div className="mt-1">
-            Grafen viser kundens logg fra <span className="font-medium text-sf-text">Supabase</span>.
-            Stiplet linje = beregnet dagsbehov (targets). Hvis du mangler dagsbehov, be kunden oppdatere
-            profilen sin eller lagre targets via dagens logg.
-          </div>
-        </div>
       </div>
     </AppPage>
   );

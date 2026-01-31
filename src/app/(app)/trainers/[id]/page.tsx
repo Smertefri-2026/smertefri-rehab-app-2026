@@ -10,7 +10,6 @@ import { useTrainers } from "@/stores/trainers.store";
 import TrainerCard from "@/components/trainer/TrainerCard";
 import TrainerDetails from "@/components/trainer/TrainerDetails";
 import TrainerClients from "@/components/trainer/TrainerClients";
-
 import TrainerActions from "@/components/trainer/TrainerActions";
 
 type PageProps = {
@@ -18,14 +17,12 @@ type PageProps = {
 };
 
 export default function TrainerDetailPage({ params }: PageProps) {
-  const { role } = useRole();
+  const { role, userId } = useRole();
   const { getTrainerById, loading } = useTrainers();
 
   const { id: trainerId } = use(params);
 
-  if (role !== "admin") notFound();
-
-  if (loading) {
+  if (loading || !role) {
     return (
       <AppPage>
         <p className="text-sm text-sf-muted">Laster trener …</p>
@@ -36,15 +33,19 @@ export default function TrainerDetailPage({ params }: PageProps) {
   const trainer = getTrainerById(trainerId);
   if (!trainer) notFound();
 
+  const isAdmin = role === "admin";
+  const isTrainerSelf = role === "trainer" && userId === trainerId;
+
+  const canEdit = isAdmin; // fortsatt kun admin redigerer her
+  const canSeeClients = isAdmin || isTrainerSelf;
+
   return (
     <AppPage>
       <TrainerCard trainer={trainer} />
+      <TrainerActions trainerId={trainerId} />
+      <TrainerDetails trainer={trainer} canEdit={canEdit} />
 
-<TrainerActions trainerId={trainerId} />
-
-      <TrainerDetails trainer={trainer} canEdit />
-
-      <TrainerClients trainerId={trainerId} />
+      {canSeeClients && <TrainerClients trainerId={trainerId} />}
     </AppPage>
   );
 }

@@ -11,10 +11,7 @@ type Props = {
   canEdit?: boolean;
 };
 
-export default function TrainerDetails({
-  trainer,
-  canEdit = true,
-}: Props) {
+export default function TrainerDetails({ trainer, canEdit = true }: Props) {
   const { role } = useRole();
   const { refreshTrainers } = useTrainers();
 
@@ -32,6 +29,8 @@ export default function TrainerDetails({
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
+    if (!canEdit) return;
+
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -61,61 +60,82 @@ export default function TrainerDetails({
     setSaving(false);
   }
 
+  const readOnlyMode = !canEdit;
+
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm space-y-6">
-      <h2 className="text-sm font-semibold text-sf-muted">
-        Trenerdetaljer
-      </h2>
+      <h2 className="text-sm font-semibold text-sf-muted">Trenerdetaljer</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-        {/* READ ONLY */}
+        {/* READ ONLY (alltid) */}
         <ReadOnlyField label="Fornavn" value={trainer.first_name} />
         <ReadOnlyField label="Etternavn" value={trainer.last_name} />
         <ReadOnlyField label="E-post" value={trainer.email} />
 
-        {/* EDITABLE */}
-        <EditableField
-          label="Telefon"
-          value={form.phone}
-          onChange={(v) => setForm({ ...form, phone: v })}
-        />
+        {/* Telefon */}
+        {readOnlyMode ? (
+          <ReadOnlyField label="Telefon" value={trainer.phone ?? "—"} />
+        ) : (
+          <EditableField
+            label="Telefon"
+            value={form.phone}
+            onChange={(v) => setForm({ ...form, phone: v })}
+          />
+        )}
 
-        <EditableField
-          label="Adresse"
-          value={form.address}
-          onChange={(v) => setForm({ ...form, address: v })}
-        />
+        {/* Adresse */}
+        {readOnlyMode ? (
+          <ReadOnlyField label="Adresse" value={trainer.address ?? "—"} />
+        ) : (
+          <EditableField
+            label="Adresse"
+            value={form.address}
+            onChange={(v) => setForm({ ...form, address: v })}
+          />
+        )}
 
-        <EditableField
-          label="Postnummer"
-          value={form.postal_code}
-          onChange={(v) =>
-            setForm({ ...form, postal_code: v })
-          }
-        />
+        {/* Postnummer */}
+        {readOnlyMode ? (
+          <ReadOnlyField label="Postnummer" value={trainer.postal_code ?? "—"} />
+        ) : (
+          <EditableField
+            label="Postnummer"
+            value={form.postal_code}
+            onChange={(v) => setForm({ ...form, postal_code: v })}
+          />
+        )}
 
-        <EditableField
-          label="Sted"
-          value={form.city}
-          onChange={(v) => setForm({ ...form, city: v })}
-        />
+        {/* Sted */}
+        {readOnlyMode ? (
+          <ReadOnlyField label="Sted" value={trainer.city ?? "—"} />
+        ) : (
+          <EditableField
+            label="Sted"
+            value={form.city}
+            onChange={(v) => setForm({ ...form, city: v })}
+          />
+        )}
 
-        {/* 🧠 BIO */}
+        {/* BIO */}
         <div className="sm:col-span-2">
           <label className="text-xs text-sf-muted">Bio</label>
-          <textarea
-            value={form.trainer_bio}
-            onChange={(e) =>
-              setForm({ ...form, trainer_bio: e.target.value })
-            }
-            rows={4}
-            className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-          />
+
+          {readOnlyMode ? (
+            <p className="mt-1 rounded-lg border bg-sf-soft px-3 py-2 text-sm whitespace-pre-wrap">
+              {trainer.trainer_bio ?? "—"}
+            </p>
+          ) : (
+            <textarea
+              value={form.trainer_bio}
+              onChange={(e) => setForm({ ...form, trainer_bio: e.target.value })}
+              rows={4}
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+            />
+          )}
         </div>
 
-        {/* 👁 ADMIN: SYNLIGHET */}
-        {role === "admin" && (
+        {/* 👁 ADMIN: SYNLIGHET (kun når man kan redigere) */}
+        {canEdit && role === "admin" && (
           <div className="sm:col-span-2 space-y-2">
             <label className="text-xs text-sf-muted">Synlighet</label>
             <label className="flex items-center gap-2 text-sm">
@@ -137,16 +157,8 @@ export default function TrainerDetails({
 
       {canEdit && (
         <>
-          {error && (
-            <p className="text-xs text-red-500 text-center">
-              {error}
-            </p>
-          )}
-          {saved && (
-            <p className="text-xs text-green-600 text-center">
-              Lagret ✅
-            </p>
-          )}
+          {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+          {saved && <p className="text-xs text-green-600 text-center">Lagret ✅</p>}
 
           <div className="text-center pt-2">
             <button

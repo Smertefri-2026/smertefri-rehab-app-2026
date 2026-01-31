@@ -18,8 +18,8 @@ export default function NutritionPage() {
           {/* 📊 Seksjon 2 – Oversikt */}
           <Section2NutritionGraph />
 
-          {/* ⚙️ Seksjon 3 – Handlinger */}
-          <Section3NutritionActions />
+{/* ⚙️ Seksjon 3 – Handlinger */}
+<Section3NutritionActions />
         </div>
       </AppPage>
     </div>

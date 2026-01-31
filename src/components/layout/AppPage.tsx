@@ -1,4 +1,4 @@
-// src/components/layout/AppPage.tsx
+// /Users/oystein/smertefri-rehab-app-2026/src/components/layout/AppPage.tsx
 import React from "react";
 
 type AppPageProps = {
@@ -12,8 +12,11 @@ type AppPageProps = {
   /** Valgfri undertittel under tittelen */
   subtitle?: string;
 
-  /** Valgfrie actions til høyre for tittelen (knapper/links) */
+  /** Valgfrie actions (knapper/links) */
   actions?: React.ReactNode;
+
+  /** Hvor actions skal ligge i header */
+  actionsAlign?: "right" | "left";
 
   /** Standard spacing mellom seksjoner */
   spacing?: "tight" | "normal" | "roomy";
@@ -35,6 +38,7 @@ export default function AppPage({
   title,
   subtitle,
   actions,
+  actionsAlign = "right",
   spacing = "roomy",
   fullHeight = false,
   withTabBarPadding = true,
@@ -46,6 +50,11 @@ export default function AppPage({
     : "pb-0 md:pb-0";
 
   const hasHeader = !!title || !!subtitle || !!actions;
+
+  const headerClass =
+    actionsAlign === "right"
+      ? "flex items-start justify-between gap-3"
+      : "flex items-start justify-start gap-3";
 
   return (
     <main className={`${mainBase} bg-[#F4FBFA] ${className}`}>
@@ -60,18 +69,21 @@ export default function AppPage({
         `}
       >
         {hasHeader && (
-          <div className="flex items-start justify-between gap-3">
+          <div className={headerClass}>
+            {actionsAlign === "left" && actions ? (
+              <div className="shrink-0">{actions}</div>
+            ) : null}
+
             <div className="min-w-0">
               {title ? (
-                <h1 className="text-base sm:text-lg font-semibold text-sf-text">
-                  {title}
-                </h1>
+                <h1 className="text-base sm:text-lg font-semibold text-sf-text">{title}</h1>
               ) : null}
-              {subtitle ? (
-                <p className="mt-1 text-sm text-sf-muted">{subtitle}</p>
-              ) : null}
+              {subtitle ? <p className="mt-1 text-sm text-sf-muted">{subtitle}</p> : null}
             </div>
-            {actions ? <div className="shrink-0">{actions}</div> : null}
+
+            {actionsAlign === "right" && actions ? (
+              <div className="shrink-0">{actions}</div>
+            ) : null}
           </div>
         )}
 

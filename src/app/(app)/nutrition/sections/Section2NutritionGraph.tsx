@@ -1,9 +1,9 @@
-// /src/app/(app)/nutrition/sections/Section2NutritionGraph.tsx
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/nutrition/sections/Section2NutritionGraph.tsx
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { yyyyMmDd, sumMeals, loadDay } from "@/modules/nutrition/storage";
+import { yyyyMmDd, loadDay } from "@/modules/nutrition/storage";
 import { useRole } from "@/providers/RoleProvider";
 import { listNutritionDays, type NutritionDayRow } from "@/lib/nutritionLog.api";
 
@@ -127,7 +127,7 @@ function Sparkline({ values, target }: { values: number[]; target?: number }) {
 }
 
 export default function Section2NutritionGraph({ userId }: { userId?: string }) {
-  const { userId: me } = useRole();
+  const { role, userId: me } = useRole();
   const targetUserId = userId ?? me;
 
   const [range, setRange] = useState<RangeKey>("week");
@@ -182,23 +182,22 @@ export default function Section2NutritionGraph({ userId }: { userId?: string }) 
   }, [targets, metric]);
 
   // map date -> totals
-const byDate = useMemo(() => {
-  const map = new Map<string, DayTotals>();
-  for (const r of rows as any[]) {
-    map.set(r.day_date, {
-      calories_kcal: Number(r.calories_kcal || 0),
-      protein_g: Number(r.protein_g || 0),
-      fat_g: Number(r.fat_g || 0),
-      carbs_g: Number(r.carbs_g || 0),
-    });
-  }
-  return map;
-}, [rows]);
+  const byDate = useMemo(() => {
+    const map = new Map<string, DayTotals>();
+    for (const r of rows as any[]) {
+      map.set(r.day_date, {
+        calories_kcal: Number(r.calories_kcal || 0),
+        protein_g: Number(r.protein_g || 0),
+        fat_g: Number(r.fat_g || 0),
+        carbs_g: Number(r.carbs_g || 0),
+      });
+    }
+    return map;
+  }, [rows]);
 
   const series = useMemo(() => {
     const totalsByDay = dates.map(
-      (date) =>
-        byDate.get(date) ?? { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0 }
+      (date) => byDate.get(date) ?? { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0 }
     );
 
     const values = totalsByDay.map((t) => Number(t[metric] || 0));
@@ -226,16 +225,32 @@ const byDate = useMemo(() => {
 
   const unit = metric === "calories_kcal" ? "kcal" : "g";
   const trendText =
-    trend === 0 ? "≈ stabilt" : trend > 0 ? `↑ ${Math.round(trend)} ${unit}` : `↓ ${Math.round(Math.abs(trend))} ${unit}`;
+    trend === 0
+      ? "≈ stabilt"
+      : trend > 0
+      ? `↑ ${Math.round(trend)} ${unit}`
+      : `↓ ${Math.round(Math.abs(trend))} ${unit}`;
 
   const lastNonZero = useMemo(() => {
     const pairs = series.dates
       .map((date, idx) => ({ date, t: series.totalsByDay[idx] }))
-      .filter((x) => (x.t.calories_kcal || 0) > 0 || (x.t.protein_g || 0) > 0 || (x.t.fat_g || 0) > 0 || (x.t.carbs_g || 0) > 0)
+      .filter(
+        (x) =>
+          (x.t.calories_kcal || 0) > 0 ||
+          (x.t.protein_g || 0) > 0 ||
+          (x.t.fat_g || 0) > 0 ||
+          (x.t.carbs_g || 0) > 0
+      )
       .slice(-4)
       .reverse();
     return pairs;
   }, [series.dates, series.totalsByDay]);
+
+  const historyHref = userId
+    ? `/nutrition/${encodeURIComponent(targetUserId ?? "")}/history`
+    : "/nutrition/history";
+
+  const showHistoryButton = role === "client";
 
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm space-y-5">
@@ -244,9 +259,11 @@ const byDate = useMemo(() => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold text-sf-text">Oversikt</h2>
-              <span className="text-[11px] rounded-full border border-sf-border px-2 py-0.5 text-sf-muted">
-                Kilde: Supabase{loading ? " (laster…)" : ""}
-              </span>
+              {loading ? (
+                <span className="text-[11px] rounded-full border border-sf-border px-2 py-0.5 text-sf-muted">
+                  Laster…
+                </span>
+              ) : null}
             </div>
 
             <div className="mt-1 text-xs text-sf-muted space-y-1">
@@ -277,12 +294,14 @@ const byDate = useMemo(() => {
             </div>
           </div>
 
-          <Link
-            href="/nutrition/history"
-            className="rounded-full border border-sf-border px-4 py-1.5 text-sm text-sf-text hover:bg-sf-soft"
-          >
-            Historikk
-          </Link>
+          {showHistoryButton ? (
+            <Link
+              href={historyHref}
+              className="rounded-full border border-sf-border px-4 py-1.5 text-sm text-sf-text hover:bg-sf-soft"
+            >
+              Historikk
+            </Link>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -292,7 +311,9 @@ const byDate = useMemo(() => {
               type="button"
               onClick={() => setRange(r)}
               className={`rounded-full px-4 py-1.5 text-sm ${
-                range === r ? "bg-sf-soft font-medium text-sf-text shadow-sm" : "text-sf-muted hover:bg-sf-soft"
+                range === r
+                  ? "bg-sf-soft font-medium text-sf-text shadow-sm"
+                  : "text-sf-muted hover:bg-sf-soft"
               }`}
             >
               {r === "week" ? "Uke" : r === "month" ? "Måned" : "År"}
@@ -307,7 +328,9 @@ const byDate = useMemo(() => {
               type="button"
               onClick={() => setMetric(m)}
               className={`rounded-full px-4 py-1.5 text-sm ${
-                metric === m ? "bg-sf-soft font-medium text-sf-text shadow-sm" : "text-sf-muted hover:bg-sf-soft"
+                metric === m
+                  ? "bg-sf-soft font-medium text-sf-text shadow-sm"
+                  : "text-sf-muted hover:bg-sf-soft"
               }`}
               title={`Vis graf for ${metricLabel(m)}`}
             >
@@ -338,12 +361,16 @@ const byDate = useMemo(() => {
           <div className="text-sf-muted">Ingen logg enda – legg inn et måltid i “I dag” for å se graf.</div>
         ) : (
           lastNonZero.map((x) => (
-            <div key={x.date} className="flex items-center justify-between border-b border-sf-border pb-2 gap-4">
+            <div
+              key={x.date}
+              className="flex items-center justify-between border-b border-sf-border pb-2 gap-4"
+            >
               <span className="shrink-0">{formatLabel(x.date, "week")}</span>
               <div className="text-right">
                 <div className="font-medium">{Math.round(x.t.calories_kcal)} kcal</div>
                 <div className="text-[11px] text-sf-muted">
-                  P {Math.round(x.t.protein_g)}g • F {Math.round(x.t.fat_g)}g • K {Math.round(x.t.carbs_g)}g
+                  P {Math.round(x.t.protein_g)}g • F {Math.round(x.t.fat_g)}g • K{" "}
+                  {Math.round(x.t.carbs_g)}g
                 </div>
               </div>
             </div>

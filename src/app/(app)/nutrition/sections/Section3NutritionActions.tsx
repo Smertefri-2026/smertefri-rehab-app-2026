@@ -1,8 +1,16 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/nutrition/sections/Section3NutritionActions.tsx
+
 "use client";
 
 import Link from "next/link";
+import { useRole } from "@/providers/RoleProvider";
 
 export default function Section3NutritionActions() {
+  const { role } = useRole();
+
+  // Kun kunder skal se actions
+  if (role !== "client") return null;
+
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm space-y-3">
       <Link

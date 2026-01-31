@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+
 import { useRole } from "@/providers/RoleProvider";
 import { getMyProfile, updateMyProfile } from "@/lib/profile";
+import { removeMyTrainer } from "@/lib/trainerLink.api";
 
 type TrainerProfile = {
   id?: string;
@@ -32,44 +34,46 @@ export default function Section3Role() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-async function handleRemoveTrainer() {
-  if (
-    !confirm(
-      "Vil du fjerne tilknytningen til treneren din? Du kan velge ny trener senere."
-    )
-  ) {
-    return;
+  async function reload() {
+    setLoading(true);
+    try {
+      const data = await getMyProfile();
+      setProfile(data);
+    } catch (e: any) {
+      console.error("getMyProfile feilet:", e);
+      alert(e?.message ?? "Kunne ikke hente profil");
+    } finally {
+      setLoading(false);
+    }
   }
-
-  setSaving(true);
-  try {
-    await updateMyProfile({ trainer_id: null });
-    await reload();
-  } catch (e: any) {
-    console.error("Fjern trener feilet:", e);
-    alert(e?.message ?? "Kunne ikke fjerne trener");
-  } finally {
-    setSaving(false);
-  }
-}
-
-async function reload() {
-  setLoading(true);
-  try {
-    const data = await getMyProfile();
-    setProfile(data);
-  } catch (e: any) {
-    console.error("getMyProfile feilet:", e);
-    alert(e?.message ?? "Kunne ikke hente profil");
-  } finally {
-    setLoading(false);
-  }
-}
 
   useEffect(() => {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleRemoveTrainer() {
+    if (saving) return;
+
+    const ok = confirm(
+      "Vil du fjerne tilknytningen til treneren din? Du kan velge ny trener senere."
+    );
+    if (!ok) return;
+
+    setSaving(true);
+    try {
+      // ✅ Bruk RPC (remove_my_trainer) via lib/trainerLink.api
+      await removeMyTrainer();
+
+      // Oppdater UI fra DB
+      await reload();
+    } catch (e: any) {
+      console.error("Fjern trener feilet:", e);
+      alert(e?.message ?? "Kunne ikke fjerne trener");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (!role || loading || !profile) return null;
 
@@ -81,9 +85,7 @@ async function reload() {
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm">
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-sf-text">
-          Rolle & tilknytning
-        </h3>
+        <h3 className="text-sm font-semibold text-sf-text">Rolle & tilknytning</h3>
 
         {/* ===================== KUNDE ===================== */}
         {role === "client" && (
@@ -92,7 +94,7 @@ async function reload() {
               Du er registrert som kunde, og dette er din trener.
             </p>
 
-            {(trainer || profile.trainer_id) ? (
+            {trainer || profile.trainer_id ? (
               <div className="rounded-xl border border-sf-border bg-sf-soft p-4 space-y-3">
                 {/* Trenerheader */}
                 <div className="flex items-center gap-3">
@@ -115,9 +117,7 @@ async function reload() {
                     <p className="text-sm font-semibold truncate">
                       {trainerName || "Trener valgt"}
                     </p>
-                    <p className="text-xs text-sf-muted truncate">
-                      {trainer?.city ?? ""}
-                    </p>
+                    <p className="text-xs text-sf-muted truncate">{trainer?.city ?? ""}</p>
                   </div>
                 </div>
 
@@ -135,16 +135,17 @@ async function reload() {
                   </div>
                 ) : null}
 
-                {/* Handlinger – KUN KNAPPER */}
+                {/* Handlinger */}
                 <div className="flex flex-wrap items-center gap-2 pt-2">
                   <button
-  type="button"
-  onClick={handleRemoveTrainer}
-  disabled={saving}
-  className="rounded-lg border px-4 py-2 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
->
-  {saving ? "Fjerner…" : "Fjern trener"}
-</button>
+                    type="button"
+                    onClick={handleRemoveTrainer}
+                    disabled={saving}
+                    className="rounded-lg border px-4 py-2 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {saving ? "Fjerner…" : "Fjern trener"}
+                  </button>
+
                   <Link
                     href="/trainers"
                     className="rounded-lg bg-sf-primary px-4 py-2 text-xs text-white"
@@ -179,9 +180,7 @@ async function reload() {
               </div>
             ) : (
               <div className="rounded-xl border bg-sf-soft p-4">
-                <p className="text-sm">
-                  Du har ikke valgt trener ennå.
-                </p>
+                <p className="text-sm">Du har ikke valgt trener ennå.</p>
                 <Link
                   href="/trainers"
                   className="inline-block mt-2 rounded-lg bg-sf-primary px-4 py-2 text-xs text-white"
@@ -202,14 +201,10 @@ async function reload() {
 
             {/* BIO */}
             <div>
-              <label className="text-xs font-medium">
-                Kort beskrivelse (maks 300 ord)
-              </label>
+              <label className="text-xs font-medium">Kort beskrivelse (maks 300 ord)</label>
               <textarea
                 value={profile.trainer_bio ?? ""}
-                onChange={(e) =>
-                  setProfile({ ...profile, trainer_bio: e.target.value })
-                }
+                onChange={(e) => setProfile({ ...profile, trainer_bio: e.target.value })}
                 rows={5}
                 maxLength={1500}
                 className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
@@ -230,15 +225,10 @@ async function reload() {
                       onClick={() => {
                         const set = new Set(profile.trainer_specialties ?? []);
                         selected ? set.delete(s) : set.add(s);
-                        setProfile({
-                          ...profile,
-                          trainer_specialties: Array.from(set),
-                        });
+                        setProfile({ ...profile, trainer_specialties: Array.from(set) });
                       }}
                       className={`px-4 py-1 rounded-full text-xs border ${
-                        selected
-                          ? "bg-sf-primary text-white"
-                          : "bg-white text-sf-muted"
+                        selected ? "bg-sf-primary text-white" : "bg-white text-sf-muted"
                       }`}
                     >
                       {s}
@@ -254,10 +244,7 @@ async function reload() {
                 type="checkbox"
                 checked={(profile.trainer_public ?? true) !== false}
                 onChange={(e) =>
-                  setProfile({
-                    ...profile,
-                    trainer_public: e.target.checked,
-                  })
+                  setProfile({ ...profile, trainer_public: e.target.checked })
                 }
               />
               <span className="text-sm">Vis meg i trener-søk</span>
@@ -267,13 +254,13 @@ async function reload() {
             <button
               disabled={saving}
               onClick={async () => {
+                if (saving) return;
                 setSaving(true);
                 try {
                   await updateMyProfile({
                     trainer_bio: profile.trainer_bio ?? null,
                     trainer_specialties: profile.trainer_specialties ?? [],
-                    trainer_public:
-                      (profile.trainer_public ?? true) !== false,
+                    trainer_public: (profile.trainer_public ?? true) !== false,
                   });
                   alert("Trenerprofil lagret");
                 } catch (e: any) {
