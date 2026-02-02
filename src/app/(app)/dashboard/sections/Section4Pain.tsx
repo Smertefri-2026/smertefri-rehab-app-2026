@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+
 import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
 import { usePain } from "@/stores/pain.store";
@@ -16,6 +17,8 @@ import {
 } from "lucide-react";
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
+
+import { usePainMetricsForClients } from "@/lib/metrics/usePainMetricsForClients";
 
 /* ---------------- helpers ---------------- */
 
@@ -38,13 +41,19 @@ function avg(nums: number[]) {
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
+function statusLabel(count: number, loading: boolean) {
+  if (loading) return "…";
+  return count === 0 ? "✓" : String(count);
+}
+
 /* ---------------- component ---------------- */
 
 export default function Section4Pain() {
   const { role, userId } = useRole();
+
+  // CLIENT: bruker pain-store
   const { entries, loading: painLoading, fetchForClient } = usePain();
 
-  // -------- Kunde: hent egne smerter (så dashboard får ekte tall) --------
   useEffect(() => {
     if (role !== "client") return;
     if (!userId) return;
@@ -52,7 +61,6 @@ export default function Section4Pain() {
   }, [role, userId, fetchForClient]);
 
   const activeLatest = useMemo(() => {
-    // siste entry per område der is_active=true
     const map = new Map<string, any>();
     for (const e of entries) {
       if (!e?.is_active) continue;
@@ -71,7 +79,7 @@ export default function Section4Pain() {
   }, [entries]);
 
   const avg14 = useMemo(() => {
-    const fromISO = daysAgoISO(13); // inkl i dag = 14 dager
+    const fromISO = daysAgoISO(13);
     const relevant = entries
       .filter((e) => e?.is_active)
       .filter((e) => isoFromEntry(e) >= fromISO)
@@ -89,117 +97,59 @@ export default function Section4Pain() {
       .slice(0, 2);
   }, [activeLatest]);
 
-  // -------- Trener: ekte statistikk på mange klienter --------
-  const [trainerStatsLoading, setTrainerStatsLoading] = useState(false);
-  const [trainerStatsError, setTrainerStatsError] = useState<string | null>(null);
-  const [trainerStats, setTrainerStats] = useState<{
-    highPainClients: number;
-    increasingPainClients: number;
-    staleClients: number;
-  } | null>(null);
+  // TRAINER/ADMIN: finn klient-ids
+  const [clientIds, setClientIds] = useState<string[]>([]);
+  const [idsLoading, setIdsLoading] = useState(false);
+  const [idsError, setIdsError] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
-      if (role !== "trainer") return;
+      if (!role) return;
       if (!userId) return;
 
-      setTrainerStatsLoading(true);
-      setTrainerStatsError(null);
+      if (role !== "trainer" && role !== "admin") return;
+
+      setIdsLoading(true);
+      setIdsError(null);
 
       try {
-        // 1) hent klienter for trener (profiles.trainer_id)
-        const { data: clients, error: cErr } = await supabase
+        let q = supabase
           .from("profiles")
           .select("id")
-          .eq("role", "client")
-          .eq("trainer_id", userId);
+          .eq("role", "client");
 
-        if (cErr) throw cErr;
+        if (role === "trainer") q = q.eq("trainer_id", userId);
 
-        const clientIds = (clients ?? []).map((c: any) => c.id).filter(Boolean);
-        if (!clientIds.length) {
-          setTrainerStats({ highPainClients: 0, increasingPainClients: 0, staleClients: 0 });
-          return;
-        }
+        const { data, error } = await q;
+        if (error) throw error;
 
-        // 2) hent smerte-entries for disse klientene (vi tar litt historikk for trend)
-        const from14 = daysAgoISO(13);
-        const from10 = daysAgoISO(9);
-        const from7 = daysAgoISO(6);
-
-        const { data: rows, error: pErr } = await supabase
-          .from("pain_entries")
-          .select("client_id, intensity, entry_date, created_at, is_active")
-          .in("client_id", clientIds)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
-
-        if (pErr) throw pErr;
-
-        const all = (rows ?? []).map((r: any) => ({
-          ...r,
-          iso: isoFromEntry(r),
-          intensity: Number(r.intensity),
-        }));
-
-        // grupper per klient
-        const byClient = new Map<string, typeof all>();
-        for (const r of all) {
-          if (!r.client_id) continue;
-          const arr = byClient.get(r.client_id) ?? [];
-          arr.push(r);
-          byClient.set(r.client_id, arr);
-        }
-
-        let highPain = 0;
-        let increasing = 0;
-        let stale = 0;
-
-        for (const cid of clientIds) {
-          const list = byClient.get(cid) ?? [];
-
-          // stale: ingen entry siste 10 dager
-          const has10 = list.some((x) => x.iso && x.iso >= from10);
-          if (!has10) stale++;
-
-          // high pain: siste entry siste 7 dager >= 7
-          const latest7 = list.find((x) => x.iso && x.iso >= from7);
-          if (latest7 && Number.isFinite(latest7.intensity) && latest7.intensity >= 7) {
-            highPain++;
-          }
-
-          // increasing: snitt siste 7 dager > snitt forrige 7 (dag 8–14)
-          const last7 = list
-            .filter((x) => x.iso && x.iso >= from7)
-            .filter((x) => Number.isFinite(x.intensity))
-            .map((x) => x.intensity);
-
-          const prev7 = list
-            .filter((x) => x.iso && x.iso >= from14 && x.iso < from7)
-            .filter((x) => Number.isFinite(x.intensity))
-            .map((x) => x.intensity);
-
-          const a1 = avg(last7);
-          const a2 = avg(prev7);
-
-          if (a1 != null && a2 != null && a1 > a2) increasing++;
-        }
-
-        setTrainerStats({
-          highPainClients: highPain,
-          increasingPainClients: increasing,
-          staleClients: stale,
-        });
+        const ids = (data ?? []).map((r: any) => r.id).filter(Boolean);
+        setClientIds(ids);
       } catch (e: any) {
-        setTrainerStatsError(e?.message ?? "Ukjent feil");
-        setTrainerStats(null);
+        setIdsError(e?.message ?? "Ukjent feil");
+        setClientIds([]);
       } finally {
-        setTrainerStatsLoading(false);
+        setIdsLoading(false);
       }
     };
 
     run();
   }, [role, userId]);
+
+  // Metrics hook (samme som clients page)
+  const {
+    loading: metricsLoading,
+    error: metricsError,
+    stats,
+  } = usePainMetricsForClients({
+    clientIds,
+    highThreshold: 7,
+    staleDays: 10,
+  });
+
+  const highCount = (stats as any)?.high ?? 0;
+  const upCount = (stats as any)?.up ?? 0;
+  const staleCount = (stats as any)?.stale ?? 0;
 
   if (!role) return null;
 
@@ -208,13 +158,15 @@ export default function Section4Pain() {
       <h2 className="text-sm font-semibold text-sf-muted">Smerte & helselogg</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* ======================= KUNDE ======================= */}
+        {/* ======================= CLIENT ======================= */}
         {role === "client" && (
           <>
             <Link href="/pain" className="block">
               <DashboardCard title="Aktive smerteområder" icon={<HeartPulse size={18} />}>
                 <p className="text-lg font-semibold">
-                  {painLoading ? "Laster…" : `${activeLatest.length} ${activeLatest.length === 1 ? "område" : "områder"}`}
+                  {painLoading
+                    ? "Laster…"
+                    : `${activeLatest.length} ${activeLatest.length === 1 ? "område" : "områder"}`}
                 </p>
                 <p className="text-xs text-sf-muted">
                   {activeLabels.length
@@ -248,17 +200,17 @@ export default function Section4Pain() {
           </>
         )}
 
-        {/* ======================= TRENER ======================= */}
-        {role === "trainer" && (
+        {/* ======================= TRAINER + ADMIN ======================= */}
+        {(role === "trainer" || role === "admin") && (
           <>
             <Link href="/clients?pain=high" className="block">
-              <DashboardCard title="Høy smerte" icon={<AlertTriangle size={18} />} variant="danger">
-                <p className="text-lg font-semibold">
-                  {trainerStatsLoading ? "Laster…" : (trainerStats?.highPainClients ?? 0)}
-                </p>
-                <p className="text-xs text-sf-muted">
-                  Klienter med siste 7 dager ≥ 7
-                </p>
+              <DashboardCard
+                title="Høy smerte"
+                icon={<AlertTriangle size={18} />}
+                variant="danger"
+                status={statusLabel(highCount, idsLoading || metricsLoading)}
+              >
+                <p className="text-xs text-sf-muted">Klienter med høy smerte (≥ 7).</p>
                 <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
                   Åpne kunder
                 </p>
@@ -266,13 +218,13 @@ export default function Section4Pain() {
             </Link>
 
             <Link href="/clients?pain=up" className="block">
-              <DashboardCard title="Økende smerte" icon={<TrendingUp size={18} />} variant="warning">
-                <p className="text-lg font-semibold">
-                  {trainerStatsLoading ? "Laster…" : (trainerStats?.increasingPainClients ?? 0)}
-                </p>
-                <p className="text-xs text-sf-muted">
-                  Snitt siste 7d &gt; forrige 7d
-                </p>
+              <DashboardCard
+                title="Økende smerte"
+                icon={<TrendingUp size={18} />}
+                variant="warning"
+                status={statusLabel(upCount, idsLoading || metricsLoading)}
+              >
+                <p className="text-xs text-sf-muted">Klienter med økende trend.</p>
                 <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
                   Åpne kunder
                 </p>
@@ -280,62 +232,23 @@ export default function Section4Pain() {
             </Link>
 
             <Link href="/clients?pain=stale" className="block">
-              <DashboardCard title="Ingen oppdatering" icon={<Users size={18} />}>
-                <p className="text-lg font-semibold">
-                  {trainerStatsLoading ? "Laster…" : (trainerStats?.staleClients ?? 0)}
-                </p>
-                <p className="text-xs text-sf-muted">
-                  Ingen registrering siste 10 dager
-                </p>
+              <DashboardCard
+                title="Mangler smertejournal"
+                icon={<Users size={18} />}
+                status={statusLabel(staleCount, idsLoading || metricsLoading)}
+              >
+                <p className="text-xs text-sf-muted">Ingen oppdatering siste 10 dager.</p>
                 <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
                   Åpne kunder
                 </p>
               </DashboardCard>
             </Link>
 
-            {trainerStatsError ? (
+            {(idsError || metricsError) ? (
               <p className="text-xs text-red-600 lg:col-span-3">
-                Pain dashboard-feil: {trainerStatsError}
+                Pain-feil: {idsError ?? metricsError}
               </p>
             ) : null}
-          </>
-        )}
-
-        {/* ======================= ADMIN ======================= */}
-        {role === "admin" && (
-          <>
-            <Link href="/clients" className="block">
-              <DashboardCard title="Gjennomsnittlig smerte" icon={<HeartPulse size={18} />}>
-                <p className="text-sm text-sf-muted">
-                  Kommer snart (best via RPC/server-side for ytelse).
-                </p>
-                <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
-                  Åpne kunder
-                </p>
-              </DashboardCard>
-            </Link>
-
-            <Link href="/clients" className="block">
-              <DashboardCard title="Høy smerte (system)" icon={<AlertTriangle size={18} />} variant="warning">
-                <p className="text-sm text-sf-muted">
-                  Kommer snart.
-                </p>
-                <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
-                  Åpne kunder
-                </p>
-              </DashboardCard>
-            </Link>
-
-            <Link href="/clients" className="block">
-              <DashboardCard title="Manglende rapportering" icon={<Users size={18} />} variant="danger">
-                <p className="text-sm text-sf-muted">
-                  Kommer snart.
-                </p>
-                <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
-                  Åpne kunder
-                </p>
-              </DashboardCard>
-            </Link>
           </>
         )}
       </div>

@@ -1,5 +1,4 @@
-// src/app/page.tsx
-import HeaderFrontpage from "@/app/(public)/frontpage/Seksjon/HeaderFrontpage";
+// src/app/(public)/page.tsx
 import SeksjonFooter from "@/app/(public)/frontpage/Seksjon/SeksjonFooter";
 
 import Seksjon1Hero from "@/app/(public)/frontpage/Seksjon/Seksjon1Hero";
@@ -16,7 +15,6 @@ import Seksjon10FPriser from "@/app/(public)/frontpage/Seksjon/Seksjon10FPriser"
 export default function HomePage() {
   return (
     <>
-
       <main id="top" className="w-full">
         <Seksjon1Hero />
         <Seksjon2Kjenner />

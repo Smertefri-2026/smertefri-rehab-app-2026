@@ -1,3 +1,4 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/dashboard/sections/Section5Tests.tsx
 "use client";
 
 import Link from "next/link";
@@ -15,9 +16,9 @@ import {
 } from "lucide-react";
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
+import { useTestMetricsForClients } from "@/lib/metrics/useTestMetricsForClients";
 
 type Role = "client" | "trainer" | "admin" | string;
-
 type Category = "bodyweight" | "strength" | "cardio";
 
 type TestSession = {
@@ -36,23 +37,8 @@ type TestEntry = {
   sort: number;
 };
 
-type ClientRow = {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  trainer_id: string | null;
-};
-
-const CATEGORIES: Category[] = ["bodyweight", "strength", "cardio"];
-
-const CATEGORY_LABEL: Record<Category, string> = {
-  bodyweight: "Egenvekt",
-  strength: "Styrke",
-  cardio: "Kondis",
-};
-
 const TOTAL_KEYS: Record<Category, string[]> = {
-  bodyweight: ["knebøy", "pushups", "situps"], // ekskluder planke fra “sum”
+  bodyweight: ["knebøy", "pushups", "situps"],
   strength: ["knebøy", "markløft", "benkpress"],
   cardio: ["mølle", "sykkel", "roing", "ski"],
 };
@@ -74,14 +60,6 @@ function formatShort(ts: string | null) {
   });
 }
 
-function daysAgo(ts: string | null) {
-  if (!ts) return null;
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return null;
-  const diff = Date.now() - d.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
 function sessionTotal(category: Category, entries: TestEntry[]): number {
   const allowed = new Set(TOTAL_KEYS[category] ?? []);
   const sum = entries
@@ -90,39 +68,21 @@ function sessionTotal(category: Category, entries: TestEntry[]): number {
   return Number.isFinite(sum) ? sum : 0;
 }
 
-function fullName(c: ClientRow) {
-  const n = `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim();
-  return n || "Klient";
+function statusLabel(count: number, loading: boolean) {
+  if (loading) return "…";
+  return count === 0 ? "✓" : String(count);
 }
-
-type ClientComputed = {
-  clientId: string;
-  name: string;
-  lastTestAt: string | null;
-  missingCategories: Category[];
-  avgPct: number | null; // gjennomsnitt av tilgjengelige kategori-% (baseline→latest)
-  anyNegative: boolean;
-  anyPositive: boolean;
-};
 
 export default function Section5Tests() {
   const { role, userId } = useRole() as { role: Role; userId: string | null };
 
-  // CLIENT: som før
+  /* =========================
+   * CLIENT: behold din logikk (ekte data)
+   * ========================= */
   const [sessions, setSessions] = useState<TestSession[]>([]);
-  const [entriesBySession, setEntriesBySession] = useState<
-    Record<string, TestEntry[]>
-  >({});
+  const [entriesBySession, setEntriesBySession] = useState<Record<string, TestEntry[]>>({});
   const [err, setErr] = useState<string | null>(null);
 
-  // TRAINER/ADMIN: klient-oversikt
-  const [clients, setClients] = useState<ClientRow[]>([]);
-  const [taErr, setTaErr] = useState<string | null>(null);
-  const [taLoading, setTaLoading] = useState(false);
-
-  /**
-   * CLIENT – hent egne sessions/entries (uendret logikk)
-   */
   useEffect(() => {
     if (role !== "client" || !userId) return;
 
@@ -192,22 +152,11 @@ export default function Section5Tests() {
   }, [role, userId]);
 
   const clientCards = useMemo(() => {
-    const build = (
-      category: Category,
-      href: string,
-      title: string,
-      subtitle: string
-    ) => {
+    const build = (category: Category, href: string, title: string, subtitle: string) => {
       const catSessions = sessions.filter((x) => x.category === category);
+
       if (catSessions.length === 0) {
-        return {
-          href,
-          title,
-          subtitle,
-          status: "—",
-          lastAt: null as string | null,
-          pct: null as number | null,
-        };
+        return { href, title, subtitle, status: "—", lastAt: null as string | null };
       }
 
       const first = catSessions[0];
@@ -222,235 +171,93 @@ export default function Section5Tests() {
 
       const status = pct == null ? "—" : `${pct >= 0 ? "+" : ""}${Math.round(pct)}%`;
 
-      return {
-        href,
-        title,
-        subtitle,
-        status,
-        lastAt: last.created_at,
-        pct,
-      };
+      return { href, title, subtitle, status, lastAt: last.created_at };
     };
 
     return [
-      build(
-        "bodyweight",
-        "/tests/bodyweight",
-        "Egenvekt",
-        "4 min (knebøy + armhevinger + situps + planke)"
-      ),
+      build("bodyweight", "/tests/bodyweight", "Egenvekt", "4 min (knebøy + armhevinger + situps + planke)"),
       build("strength", "/tests/strength", "Styrke", "1RM progresjon i baseøvelser"),
       build("cardio", "/tests/cardio", "Kondisjon", "4 min (distanse på apparat)"),
     ];
   }, [sessions, entriesBySession]);
 
-  /**
-   * TRAINER/ADMIN – hent klienter + sessions + entries og beregn status
-   */
+  /* =========================
+   * TRAINER/ADMIN: ekte counts via metrics-hook
+   * ========================= */
+  const [clientIds, setClientIds] = useState<string[]>([]);
+  const [idsLoading, setIdsLoading] = useState(false);
+  const [idsError, setIdsError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!userId) return;
-    if (role !== "trainer" && role !== "admin") return;
+    const run = async () => {
+      if (!userId) return;
+      if (role !== "trainer" && role !== "admin") return;
 
-    let alive = true;
+      setIdsLoading(true);
+      setIdsError(null);
 
-    (async () => {
-      setTaErr(null);
-      setTaLoading(true);
+      try {
+        let q = supabase.from("profiles").select("id").eq("role", "client");
+        if (role === "trainer") q = q.eq("trainer_id", userId);
 
-      // 1) Hent klienter
-      let q = supabase.from("profiles").select("id, first_name, last_name, trainer_id");
+        const { data, error } = await q;
+        if (error) throw error;
 
-      if (role === "trainer") {
-        q = q.eq("trainer_id", userId);
+        setClientIds((data ?? []).map((r: any) => r.id).filter(Boolean));
+      } catch (e: any) {
+        setIdsError(e?.message ?? "Ukjent feil");
+        setClientIds([]);
+      } finally {
+        setIdsLoading(false);
       }
-
-      const { data: cData, error: cErr } = await q;
-
-      if (!alive) return;
-
-      if (cErr) {
-        setTaErr(cErr.message);
-        setClients([]);
-        setTaLoading(false);
-        return;
-      }
-
-      const cList = (cData ?? []) as ClientRow[];
-      setClients(cList);
-
-      if (cList.length === 0) {
-        setTaLoading(false);
-        return;
-      }
-
-      const clientIds = cList.map((c) => c.id);
-
-      // 2) Hent sessions for disse klientene
-      const { data: sData, error: sErr } = await supabase
-        .from("test_sessions")
-        .select("id, client_id, category, created_at")
-        .in("client_id", clientIds)
-        .order("created_at", { ascending: true });
-
-      if (!alive) return;
-
-      if (sErr) {
-        setTaErr(sErr.message);
-        setSessions([]);
-        setEntriesBySession({});
-        setTaLoading(false);
-        return;
-      }
-
-      const sList = (sData ?? []) as TestSession[];
-      setSessions(sList);
-
-      if (sList.length === 0) {
-        setEntriesBySession({});
-        setTaLoading(false);
-        return;
-      }
-
-      const sessionIds = sList.map((s) => s.id);
-
-      // 3) Hent entries
-      const { data: eData, error: eErr } = await supabase
-        .from("test_entries")
-        .select("id, session_id, metric_key, value, unit, sort")
-        .in("session_id", sessionIds)
-        .order("sort", { ascending: true });
-
-      if (!alive) return;
-
-      if (eErr) {
-        setTaErr(eErr.message);
-        setEntriesBySession({});
-        setTaLoading(false);
-        return;
-      }
-
-      const map: Record<string, TestEntry[]> = {};
-      for (const row of (eData ?? []) as any[]) {
-        const sid = row.session_id as string;
-        if (!map[sid]) map[sid] = [];
-        map[sid].push({
-          id: row.id,
-          session_id: row.session_id,
-          metric_key: row.metric_key,
-          value: Number(row.value),
-          unit: row.unit ?? null,
-          sort: Number(row.sort ?? 0),
-        });
-      }
-      setEntriesBySession(map);
-
-      setTaLoading(false);
-    })();
-
-    return () => {
-      alive = false;
     };
+
+    run();
   }, [role, userId]);
 
-  const trainerAdminComputed = useMemo(() => {
-    if (role !== "trainer" && role !== "admin") return [] as ClientComputed[];
-
-    // grupper sessions per klient + kategori
-    const byClientCat: Record<string, Record<Category, TestSession[]>> = {};
-    for (const s of sessions) {
-      if (!byClientCat[s.client_id]) {
-        byClientCat[s.client_id] = { bodyweight: [], strength: [], cardio: [] };
-      }
-      byClientCat[s.client_id][s.category].push(s);
-    }
-
-    const res: ClientComputed[] = [];
-
-    for (const c of clients) {
-      const perCat = byClientCat[c.id] ?? { bodyweight: [], strength: [], cardio: [] };
-
-      // siste testdato (på tvers av kategorier)
-      const allSess = [...perCat.bodyweight, ...perCat.strength, ...perCat.cardio];
-      const lastTestAt = allSess.length ? allSess[allSess.length - 1].created_at : null;
-
-      // mangler baseline i hvilke kategorier?
-      const missingCategories = CATEGORIES.filter((cat) => (perCat[cat]?.length ?? 0) === 0);
-
-      // progresjon per kategori (baseline vs latest)
-      const pcts: number[] = [];
-      let anyNegative = false;
-      let anyPositive = false;
-
-      for (const cat of CATEGORIES) {
-        const list = perCat[cat] ?? [];
-        if (list.length < 2) continue;
-
-        const first = list[0];
-        const last = list[list.length - 1];
-
-        const firstEntries = entriesBySession[first.id] ?? [];
-        const lastEntries = entriesBySession[last.id] ?? [];
-
-        const baseline = sessionTotal(cat, firstEntries);
-        const latest = sessionTotal(cat, lastEntries);
-        const pct = safePct(baseline, latest);
-
-        if (pct == null) continue;
-
-        pcts.push(pct);
-        if (pct < 0) anyNegative = true;
-        if (pct > 0) anyPositive = true;
-      }
-
-      const avgPct = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null;
-
-      res.push({
-        clientId: c.id,
-        name: fullName(c),
-        lastTestAt,
-        missingCategories,
-        avgPct,
-        anyNegative,
-        anyPositive,
-      });
-    }
-
-    return res;
-  }, [role, clients, sessions, entriesBySession]);
+  const {
+    loading: testsLoading,
+    error: testsError,
+    byClientId,
+  } = useTestMetricsForClients({
+    clientIds,
+    inactiveDays: 30,
+  });
 
   const trainerAdminStats = useMemo(() => {
     if (role !== "trainer" && role !== "admin") {
-      return {
-        missingBaseline: 0,
-        inactive30: 0,
-        negative: 0,
-        positive: 0,
-        totalClients: 0,
-      };
+      return { missingBaseline: 0, inactive30: 0, negative: 0, positive: 0 };
     }
 
-    const totalClients = trainerAdminComputed.length;
+    let missingBaseline = 0;
+    let inactive30 = 0;
+    let negative = 0;
+    let positive = 0;
 
-    const missingBaseline = trainerAdminComputed.filter(
-      (c) => c.missingCategories.length > 0
-    ).length;
+    for (const cid of clientIds) {
+      const m: any = byClientId?.[cid];
 
-    const inactive30 = trainerAdminComputed.filter((c) => {
-      const d = daysAgo(c.lastTestAt);
-      return d != null && d > 30;
-    }).length;
+      // baseline missing
+      const missingCats = (m?.missingCategories?.length ?? 0) > 0;
+      if (!m || missingCats) missingBaseline++;
 
-    const negative = trainerAdminComputed.filter((c) => (c.avgPct ?? 0) < 0).length;
-    const positive = trainerAdminComputed.filter((c) => (c.avgPct ?? 0) > 0).length;
+      // inactive
+      if ((m?.daysSinceLastTest ?? 9999) > 30) inactive30++;
 
-    return { missingBaseline, inactive30, negative, positive, totalClients };
-  }, [role, trainerAdminComputed]);
+      // progress
+      const pct = Number(m?.avgPct ?? 0);
+      if (pct < 0) negative++;
+      if (pct > 0) positive++;
+    }
+
+    return { missingBaseline, inactive30, negative, positive };
+  }, [role, clientIds, byClientId]);
 
   return (
     <section className="space-y-4">
       <h2 className="text-sm font-semibold text-sf-muted">Tester & fremgang</h2>
 
-      {/* KUNDE – EGEN FREMGANG */}
+      {/* CLIENT */}
       {role === "client" && (
         <>
           {err && (
@@ -476,20 +283,20 @@ export default function Section5Tests() {
         </>
       )}
 
-      {/* TRENER – KLIENTSTATUS (LIVE) */}
-      {role === "trainer" && (
+      {/* TRAINER + ADMIN */}
+      {(role === "trainer" || role === "admin") && (
         <>
-          {taErr && (
+          {(idsError || testsError) ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {taErr}
+              Test-feil: {idsError ?? testsError}
             </div>
-          )}
+          ) : null}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link href="/clients?filter=baseline-missing">
               <DashboardCard
                 title="Mangler baseline"
-                status={taLoading ? "…" : String(trainerAdminStats.missingBaseline)}
+                status={statusLabel(trainerAdminStats.missingBaseline, idsLoading || testsLoading)}
                 icon={<AlertTriangle size={18} />}
                 variant="warning"
               >
@@ -501,7 +308,7 @@ export default function Section5Tests() {
             <Link href="/clients?filter=inactive-tests">
               <DashboardCard
                 title="Ikke testet siste 30 dager"
-                status={taLoading ? "…" : String(trainerAdminStats.inactive30)}
+                status={statusLabel(trainerAdminStats.inactive30, idsLoading || testsLoading)}
                 icon={<Users size={18} />}
                 variant="info"
               >
@@ -513,11 +320,11 @@ export default function Section5Tests() {
             <Link href="/clients?filter=negative-progress">
               <DashboardCard
                 title="Negativ progresjon"
-                status={taLoading ? "…" : String(trainerAdminStats.negative)}
+                status={statusLabel(trainerAdminStats.negative, idsLoading || testsLoading)}
                 icon={<TrendingDown size={18} />}
                 variant="danger"
               >
-                <p className="text-sm">Snakk med klienten: søvn, smerte, stress, volum.</p>
+                <p className="text-sm">Sjekk søvn, smerte, stress og totalbelastning.</p>
                 <p className="text-xs text-sf-muted mt-2">Se liste →</p>
               </DashboardCard>
             </Link>
@@ -525,68 +332,11 @@ export default function Section5Tests() {
             <Link href="/clients?filter=positive-progress">
               <DashboardCard
                 title="Positiv progresjon"
-                status={taLoading ? "…" : String(trainerAdminStats.positive)}
+                status={statusLabel(trainerAdminStats.positive, idsLoading || testsLoading)}
                 icon={<TrendingUp size={18} />}
                 variant="success"
               >
-                <p className="text-sm">Gi cred – og bygg videre på det som funker.</p>
-                <p className="text-xs text-sf-muted mt-2">Se liste →</p>
-              </DashboardCard>
-            </Link>
-          </div>
-        </>
-      )}
-
-      {/* ADMIN – SYSTEMOVERSIKT (LIVE) */}
-      {role === "admin" && (
-        <>
-          {taErr && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {taErr}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href="/clients?filter=baseline-missing">
-              <DashboardCard
-                title="Mangler baseline"
-                status={taLoading ? "…" : String(trainerAdminStats.missingBaseline)}
-                variant="warning"
-              >
-                <p className="text-sm">Klienter som mangler tester i én eller flere kategorier.</p>
-                <p className="text-xs text-sf-muted mt-2">Se liste →</p>
-              </DashboardCard>
-            </Link>
-
-            <Link href="/clients?filter=inactive-tests">
-              <DashboardCard
-                title="Ikke testet siste 30 dager"
-                status={taLoading ? "…" : String(trainerAdminStats.inactive30)}
-                variant="info"
-              >
-                <p className="text-sm">Indikerer lav aktivitet/oppfølging.</p>
-                <p className="text-xs text-sf-muted mt-2">Se liste →</p>
-              </DashboardCard>
-            </Link>
-
-            <Link href="/clients?filter=negative-progress">
-              <DashboardCard
-                title="Negativ progresjon"
-                status={taLoading ? "…" : String(trainerAdminStats.negative)}
-                variant="danger"
-              >
-                <p className="text-sm">Krever ekstra oppfølging/systemtiltak.</p>
-                <p className="text-xs text-sf-muted mt-2">Se liste →</p>
-              </DashboardCard>
-            </Link>
-
-            <Link href="/clients?filter=positive-progress">
-              <DashboardCard
-                title="Positiv progresjon"
-                status={taLoading ? "…" : String(trainerAdminStats.positive)}
-                variant="success"
-              >
-                <p className="text-sm">Bra signal: metodikk + kontinuitet funker.</p>
+                <p className="text-sm">Bra signal: kontinuitet + metodikk fungerer.</p>
                 <p className="text-xs text-sf-muted mt-2">Se liste →</p>
               </DashboardCard>
             </Link>
