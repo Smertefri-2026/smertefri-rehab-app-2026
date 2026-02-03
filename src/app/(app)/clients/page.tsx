@@ -1,4 +1,3 @@
-// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/clients/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -30,7 +29,7 @@ type FilterKey =
   | "negative-progress"
   | "positive-progress";
 
-// 3 nutrition-filtre + (valgfri) bakoverkompat "missing" = missing-profile
+// 3 nutrition-filtre + bakoverkompat "missing" (= missing-profile)
 type NutritionFilterKey = "none" | "missing" | "missing-profile" | "no-logs-7d" | "logged-today";
 type HoursFilterKey = "none" | "missing";
 
@@ -45,23 +44,17 @@ function formatShort(ts: string | null | undefined) {
   if (!ts) return "—";
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("no-NO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return d.toLocaleDateString("no-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function testStatusText(m: any): string {
   if (!m) return "Ingen tester";
-
   const missing = (m?.missingCategories?.length ?? 0) > 0;
   if (missing) return "Mangler baseline";
 
   const pct = Number(m?.avgPct ?? 0);
   if (pct > 0) return `+${Math.round(pct)}%`;
   if (pct < 0) return `${Math.round(pct)}%`;
-
   return "OK";
 }
 
@@ -139,6 +132,8 @@ export default function ClientsPage() {
     "none"
   );
 
+  const activeUnassigned = searchParams.get("unassigned") === "1";
+
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -164,6 +159,9 @@ export default function ClientsPage() {
   function setHours(next: HoursFilterKey) {
     pushParam("hours", next === "none" ? null : next);
   }
+  function clearUnassigned() {
+    pushParam("unassigned", null);
+  }
 
   function resetAllFilters() {
     const sp = new URLSearchParams(searchParams.toString());
@@ -171,6 +169,7 @@ export default function ClientsPage() {
     sp.delete("pain");
     sp.delete("nutrition");
     sp.delete("hours");
+    sp.delete("unassigned");
     router.push(`${pathname}?${sp.toString()}`);
   }
 
@@ -312,6 +311,11 @@ export default function ClientsPage() {
   const results = useMemo(() => {
     let list = searched;
 
+    // ✅ Uten trener (unassigned)
+    if (activeUnassigned) {
+      list = list.filter((c) => !c.trainer_id);
+    }
+
     // Test-filter
     if (activeFilter !== "all") {
       list = list.filter((c) => {
@@ -321,7 +325,6 @@ export default function ClientsPage() {
         if (activeFilter === "inactive-tests") return (m?.daysSinceLastTest ?? 9999) > 30;
         if (activeFilter === "negative-progress") return (m?.avgPct ?? 0) < 0;
         if (activeFilter === "positive-progress") return (m?.avgPct ?? 0) > 0;
-
         return true;
       });
     }
@@ -338,17 +341,15 @@ export default function ClientsPage() {
       });
     }
 
-    // Nutrition-param
+    // Nutrition-param (bakoverkompat "missing" => missing-profile)
     const nutKey = activeNutrition === "missing" ? "missing-profile" : activeNutrition;
 
     if (nutKey === "missing-profile") {
       list = list.filter((c) => !hasProfileByClientId[c.id]);
     }
-
     if (nutKey === "no-logs-7d") {
       list = list.filter((c) => !hasAnyLogLast7ByClientId[c.id]);
     }
-
     if (nutKey === "logged-today") {
       list = list.filter((c) => !!hasLoggedTodayByClientId[c.id]);
     }
@@ -361,6 +362,7 @@ export default function ClientsPage() {
     return list;
   }, [
     searched,
+    activeUnassigned,
     activeFilter,
     activePain,
     activeNutrition,
@@ -398,8 +400,10 @@ export default function ClientsPage() {
   const painMissingJournal = painStats.stale ?? 0;
   const baselineMissing = testStats.missingBaseline ?? 0;
 
-  // Varsel-kortet i Clients er "mangler profil"
-  const nutritionMissing = missingNutritionCount ?? 0;
+  const nutritionMissingProfile = missingNutritionCount ?? 0;
+  const nutritionNoLogs7d = Object.values(hasAnyLogLast7ByClientId).filter((v) => v === false).length;
+  const nutritionLoggedToday = Object.values(hasLoggedTodayByClientId).filter((v) => v === true).length;
+
   const trainingHoursMissing = missingUpcomingCount ?? 0;
 
   return (
@@ -409,34 +413,27 @@ export default function ClientsPage() {
 
       {/* 🚨 Varsler */}
       <Section2ClientAlerts
-  painMissingJournal={painMissingJournal}
-  baselineMissing={baselineMissing}
-  trainingHoursMissing={trainingHoursMissing}
-
-  nutritionMissingProfile={nutritionMissing}
-
-  nutritionNoLogs7d={Object.values(hasAnyLogLast7ByClientId).filter((v) => v === false).length}
-  nutritionLoggedToday={Object.values(hasLoggedTodayByClientId).filter((v) => v === true).length}
-
-  painLoading={painLoading}
-  testsLoading={testsLoading}
-  nutLoading={nutLoading || nutActLoading}
-  hoursLoading={hoursLoading}
-
-  painError={painError}
-  testsError={testsError}
-  nutError={nutError ?? nutActError}
-  hoursError={hoursError}
-
-  onPainStale={() => setPain("stale")}
-  onBaselineMissing={() => setFilter("baseline-missing")}
-
-  onNutritionMissingProfile={() => setNutrition("missing-profile")}
-  onNutritionNoLogs7d={() => setNutrition("no-logs-7d")}
-  onNutritionLoggedToday={() => setNutrition("logged-today")}
-
-  onHoursMissing={() => setHours("missing")}
-/>
+        painMissingJournal={painMissingJournal}
+        baselineMissing={baselineMissing}
+        trainingHoursMissing={trainingHoursMissing}
+        nutritionMissingProfile={nutritionMissingProfile}
+        nutritionNoLogs7d={nutritionNoLogs7d}
+        nutritionLoggedToday={nutritionLoggedToday}
+        painLoading={painLoading}
+        testsLoading={testsLoading}
+        nutLoading={nutLoading || nutActLoading}
+        hoursLoading={hoursLoading}
+        painError={painError}
+        testsError={testsError}
+        nutError={nutError ?? nutActError}
+        hoursError={hoursError}
+        onPainStale={() => setPain("stale")}
+        onBaselineMissing={() => setFilter("baseline-missing")}
+        onNutritionMissingProfile={() => setNutrition("missing-profile")}
+        onNutritionNoLogs7d={() => setNutrition("no-logs-7d")}
+        onNutritionLoggedToday={() => setNutrition("logged-today")}
+        onHoursMissing={() => setHours("missing")}
+      />
 
       {/* ✅ Aktive filtre */}
       <Section3ActiveFiltersRow
@@ -444,10 +441,12 @@ export default function ClientsPage() {
         activePain={activePain}
         activeNutrition={activeNutrition === "missing" ? "missing-profile" : activeNutrition}
         activeHours={activeHours}
+        activeUnassigned={activeUnassigned}
         onClearTest={() => setFilter("all")}
         onClearPain={() => setPain("none")}
         onClearNutrition={() => setNutrition("none")}
         onClearHours={() => setHours("none")}
+        onClearUnassigned={clearUnassigned}
         onResetAll={resetAllFilters}
       />
 
@@ -473,9 +472,7 @@ export default function ClientsPage() {
         })}
       </section>
 
-      {results.length === 0 && (
-        <p className="text-sm text-sf-muted mt-4">Ingen kunder matcher søk/filter.</p>
-      )}
+      {results.length === 0 && <p className="text-sm text-sf-muted mt-4">Ingen kunder matcher søk/filter.</p>}
     </AppPage>
   );
 }

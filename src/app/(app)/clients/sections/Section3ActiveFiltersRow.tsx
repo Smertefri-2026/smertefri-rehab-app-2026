@@ -1,4 +1,3 @@
-// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/clients/sections/Section3ActiveFiltersRow.tsx
 "use client";
 
 import { X } from "lucide-react";
@@ -20,10 +19,14 @@ type Props = {
   activeNutrition: NutritionFilterKey;
   activeHours: HoursFilterKey;
 
+  activeUnassigned: boolean;
+
   onClearTest: () => void;
   onClearPain: () => void;
   onClearNutrition: () => void;
   onClearHours: () => void;
+  onClearUnassigned: () => void;
+
   onResetAll: () => void;
 };
 
@@ -55,10 +58,12 @@ export default function Section3ActiveFiltersRow(props: Props) {
     activePain,
     activeNutrition,
     activeHours,
+    activeUnassigned,
     onClearTest,
     onClearPain,
     onClearNutrition,
     onClearHours,
+    onClearUnassigned,
     onResetAll,
   } = props;
 
@@ -66,7 +71,8 @@ export default function Section3ActiveFiltersRow(props: Props) {
     activeFilter !== "all" ||
     activePain !== "none" ||
     activeNutrition !== "none" ||
-    activeHours !== "none";
+    activeHours !== "none" ||
+    activeUnassigned;
 
   if (!anyActive) return null;
 
@@ -74,6 +80,17 @@ export default function Section3ActiveFiltersRow(props: Props) {
     <section className="mt-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-sf-muted mr-1">Aktive filtre:</span>
+
+        {activeUnassigned && (
+          <button
+            onClick={onClearUnassigned}
+            className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium border-[#007C80] bg-[#E6F3F6] text-[#007C80]"
+            title="Fjern filter: Uten trener"
+          >
+            Uten trener
+            <X size={14} />
+          </button>
+        )}
 
         {activeFilter !== "all" && (
           <button

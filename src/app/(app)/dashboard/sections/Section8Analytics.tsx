@@ -1,82 +1,312 @@
+// src/app/(app)/dashboard/sections/Section8Analytics.tsx
 "use client";
 
-import {
-  TrendingUp,
-  LineChart,
-  BarChart3,
-  Timer,
-  Activity,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { TrendingUp, LineChart, BarChart3, Timer, Activity } from "lucide-react";
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
+import { supabase } from "@/lib/supabaseClient";
+import { yyyyMmDd } from "@/modules/nutrition/storage";
+import { useRole } from "@/providers/RoleProvider";
+
+type AnalyticsStats = {
+  totalClients: number;
+
+  activeClients7d: number;
+  events7d: number;
+
+  testSessions7d: number;
+  painEntries7d: number;
+  nutritionLogs7d: number;
+  bookings7d: number;
+
+  avgDaysSinceClientCreated: number;
+
+  topPainAreas7d: Array<{ label: string; count: number }>;
+};
+
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 min
+let _cache: { ts: number; data: AnalyticsStats } | null = null;
+
+function daysAgoISO(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString();
+}
+
+function dayISO(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return yyyyMmDd(d);
+}
+
+function safeNum(n: any) {
+  const x = Number(n);
+  return Number.isFinite(x) ? x : 0;
+}
 
 export default function Section8Analytics() {
+  const { role } = useRole();
+  const isAdmin = role === "admin";
+
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [stats, setStats] = useState<AnalyticsStats | null>(null);
+
+  const fetchStats = async (force = false) => {
+    if (!isAdmin) return;
+
+    // cache
+    if (!force && _cache && Date.now() - _cache.ts < CACHE_TTL_MS) {
+      setStats(_cache.data);
+      return;
+    }
+
+    setLoading(true);
+    setErr(null);
+
+    try {
+      // 1) finn alle klienter
+      const { data: clients, error: cErr } = await supabase
+        .from("profiles")
+        .select("id, created_at")
+        .eq("role", "client");
+
+      if (cErr) throw cErr;
+
+      const clientIds = (clients ?? []).map((c: any) => c.id).filter(Boolean);
+      const totalClients = clientIds.length;
+
+      if (!totalClients) {
+        const empty: AnalyticsStats = {
+          totalClients: 0,
+          activeClients7d: 0,
+          events7d: 0,
+          testSessions7d: 0,
+          painEntries7d: 0,
+          nutritionLogs7d: 0,
+          bookings7d: 0,
+          avgDaysSinceClientCreated: 0,
+          topPainAreas7d: [],
+        };
+        setStats(empty);
+        _cache = { ts: Date.now(), data: empty };
+        return;
+      }
+
+      // 2) tidsvinduer
+      const fromTS = daysAgoISO(6);
+      const fromDay = dayISO(6);
+      const todayDay = yyyyMmDd(new Date());
+
+      // 3) hente “events”
+      const [testsRes, painRes, nutRes, bookRes] = await Promise.all([
+        supabase
+          .from("test_sessions")
+          .select("id, client_id, created_at")
+          .in("client_id", clientIds)
+          .gte("created_at", fromTS),
+
+        supabase
+          .from("pain_entries")
+          .select("id, client_id, created_at, area_label, area_key")
+          .in("client_id", clientIds)
+          .gte("created_at", fromTS),
+
+        supabase
+          .from("nutrition_days")
+          .select("id, user_id, day_date, calories_kcal, protein_g, fat_g, carbs_g")
+          .in("user_id", clientIds)
+          .gte("day_date", fromDay)
+          .lte("day_date", todayDay),
+
+        supabase
+          .from("bookings")
+          .select("id, client_id, created_at, start_time")
+          .in("client_id", clientIds)
+          .gte("created_at", fromTS),
+      ]);
+
+      if (testsRes.error) throw testsRes.error;
+      if (painRes.error) throw painRes.error;
+      if (nutRes.error) throw nutRes.error;
+      if (bookRes.error) throw bookRes.error;
+
+      const testRows = (testsRes.data ?? []) as any[];
+      const painRows = (painRes.data ?? []) as any[];
+      const nutRows = (nutRes.data ?? []) as any[];
+      const bookRows = (bookRes.data ?? []) as any[];
+
+      // nutritionLogs7d: tell kun rader med noe data (makroer/kcal)
+      const nutritionLogs7d = nutRows.filter((r) => {
+        const kcal = safeNum(r.calories_kcal);
+        const p = safeNum(r.protein_g);
+        const f = safeNum(r.fat_g);
+        const k = safeNum(r.carbs_g);
+        return kcal > 0 || p > 0 || f > 0 || k > 0;
+      });
+
+      // aktive klienter (7d) = har minst ett event
+      const activeSet = new Set<string>();
+      for (const r of testRows) if (r.client_id) activeSet.add(String(r.client_id));
+      for (const r of painRows) if (r.client_id) activeSet.add(String(r.client_id));
+      for (const r of nutritionLogs7d) if (r.user_id) activeSet.add(String(r.user_id));
+      for (const r of bookRows) if (r.client_id) activeSet.add(String(r.client_id));
+
+      const activeClients7d = activeSet.size;
+
+      const testSessions7d = testRows.length;
+      const painEntries7d = painRows.length;
+      const bookings7d = bookRows.length;
+      const nutritionLogs7dCount = nutritionLogs7d.length;
+
+      const events7d = testSessions7d + painEntries7d + bookings7d + nutritionLogs7dCount;
+
+      // snitt dager siden klient ble opprettet
+      const now = Date.now();
+      const days = (clients ?? []).map((c: any) => {
+        const t = new Date(c.created_at ?? 0).getTime();
+        if (!t || Number.isNaN(t)) return 0;
+        return Math.max(0, Math.round((now - t) / (1000 * 60 * 60 * 24)));
+      });
+
+      const avgDaysSinceClientCreated =
+        days.length ? Math.round(days.reduce((a: number, b: number) => a + b, 0) / days.length) : 0;
+
+      // topp smerteområder (7d)
+      const areaCount = new Map<string, number>();
+      for (const r of painRows) {
+        const label =
+          String(r.area_label ?? "").trim() ||
+          String(r.area_key ?? "").trim() ||
+          "Ukjent område";
+        areaCount.set(label, (areaCount.get(label) ?? 0) + 1);
+      }
+
+      const topPainAreas7d = Array.from(areaCount.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([label, count]) => ({ label, count }));
+
+      const out: AnalyticsStats = {
+        totalClients,
+        activeClients7d,
+        events7d,
+        testSessions7d,
+        painEntries7d,
+        nutritionLogs7d: nutritionLogs7dCount,
+        bookings7d,
+        avgDaysSinceClientCreated,
+        topPainAreas7d,
+      };
+
+      setStats(out);
+      _cache = { ts: Date.now(), data: out };
+    } catch (e: any) {
+      setErr(e?.message ?? "Ukjent feil");
+      setStats(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchStats(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
+
+  const trendText = useMemo(() => {
+    if (!stats) return "—";
+    return `${stats.events7d} registreringer siste 7 dager`;
+  }, [stats]);
+
+  if (!isAdmin) return null;
+
   return (
-    <section className="space-y-4">
-      <h2 className="text-sm font-semibold text-sf-muted">
-        Analyse & innsikt
-      </h2>
+    <section id="analytics" className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-sf-muted">Analyse & innsikt</h2>
+
+        <button
+          onClick={() => fetchStats(true)}
+          className="rounded-full border border-sf-border px-3 py-1 text-xs font-medium text-sf-muted hover:bg-sf-soft"
+          title="Tving oppdatering"
+        >
+          Oppdater
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* PROGRESJON */}
-        <DashboardCard
-          title="Progresjon over tid"
-          icon={<TrendingUp size={18} />}
-        >
-          <p>Endring i tester og smerte</p>
-          <p className="text-sf-muted">
-            Måles per bruker og per periode
-          </p>
+        <DashboardCard title="Progresjon over tid" icon={<TrendingUp size={18} />}>
+          {loading || !stats ? (
+            <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
+          ) : (
+            <>
+              <p className="text-sm">
+                Tester: <span className="font-medium">{stats.testSessions7d}</span> • Smerte:{" "}
+                <span className="font-medium">{stats.painEntries7d}</span>
+              </p>
+              <p className="mt-2 text-xs text-sf-muted">Siste 7 dager</p>
+            </>
+          )}
         </DashboardCard>
 
-        {/* ENGASJEMENT */}
-        <DashboardCard
-          title="Brukerengasjement"
-          icon={<Activity size={18} />}
-        >
-          <p>Aktive dager og handlinger</p>
-          <p className="text-sf-muted">
-            Kalender · tester · registreringer
-          </p>
+        <DashboardCard title="Brukerengasjement" icon={<Activity size={18} />}>
+          {loading || !stats ? (
+            <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
+          ) : (
+            <>
+              <p className="text-sm">
+                Aktive klienter: <span className="font-medium">{stats.activeClients7d}</span> / {stats.totalClients}
+              </p>
+              <p className="mt-2 text-xs text-sf-muted">{trendText}</p>
+            </>
+          )}
         </DashboardCard>
 
-        {/* TID I SYSTEMET */}
-        <DashboardCard
-          title="Tid i rehabilitering"
-          icon={<Timer size={18} />}
-        >
-          <p>Varighet per løp</p>
-          <p className="text-sf-muted">
-            Fra oppstart til mål
-          </p>
+        <DashboardCard title="Tid i rehabilitering" icon={<Timer size={18} />}>
+          {loading || !stats ? (
+            <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
+          ) : (
+            <>
+              <p className="text-sm">
+                Snitt: <span className="font-medium">{stats.avgDaysSinceClientCreated}</span> dager siden oppstart
+              </p>
+              <p className="mt-2 text-xs text-sf-muted">Basert på klientkonto-opprettelse</p>
+            </>
+          )}
         </DashboardCard>
 
-        {/* RAPPORTERING */}
-        <DashboardCard
-          title="Rapporter"
-          icon={<LineChart size={18} />}
-        >
-          <p>Eksport og oversikter</p>
-          <p className="text-sf-muted">
-            PDF / CSV (kommer senere)
-          </p>
+        <DashboardCard title="Rapporter" icon={<LineChart size={18} />}>
+          <p className="text-sm">PDF / CSV</p>
+          <p className="mt-2 text-xs text-sf-muted">Kommer etter test-/journalmodulen er helt stabil</p>
         </DashboardCard>
 
-        {/* TRENDS */}
-        <DashboardCard
-          title="Plattform-trender"
-          icon={<BarChart3 size={18} />}
-          variant="info"
-        >
-          <p>Populære tiltak og mønstre</p>
-          <p className="text-sf-muted">
-            Basert på anonymiserte data
-          </p>
+        <DashboardCard title="Plattform-trender" icon={<BarChart3 size={18} />} variant="info">
+          {loading || !stats ? (
+            <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
+          ) : stats.topPainAreas7d.length === 0 ? (
+            <p className="text-sm text-sf-muted">Ingen smerteregistreringer siste 7 dager.</p>
+          ) : (
+            <>
+              <p className="text-sm">Topp smerteområder (7d):</p>
+              <ul className="mt-2 text-xs text-sf-muted space-y-1">
+                {stats.topPainAreas7d.map((x) => (
+                  <li key={x.label}>
+                    • {x.label}: <span className="font-medium text-sf-text">{x.count}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </DashboardCard>
       </div>
 
+      {err ? <p className="text-xs text-red-600">Analytics-feil: {err}</p> : null}
+
       <p className="text-xs text-sf-muted">
-        Analysemodulen vil bygges ut med grafer, filtre og tidslinjer.
+        Tallene er headcounts (raske). Cache: ~{Math.round(CACHE_TTL_MS / 1000)}s. “Oppdater” tvinger ny henting.
       </p>
     </section>
   );
