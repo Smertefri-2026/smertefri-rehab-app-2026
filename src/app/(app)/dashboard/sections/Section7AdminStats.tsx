@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Users, UserCheck, Calendar, Activity, AlertCircle } from "lucide-react";
+import { Users, UserCheck, Calendar, Activity, AlertCircle, CheckCircle2 } from "lucide-react";
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { supabase } from "@/lib/supabaseClient";
@@ -26,8 +26,8 @@ type Counts = {
   alertsBookingsMissingLinks: number;
 };
 
-const CACHE_KEY = "sf_admin_stats_v1";
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min (endre til 60_000 for 1 min)
+const CACHE_KEY = "sf_admin_stats_v2";
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 
 function isoDaysAgo(n: number) {
   const d = new Date();
@@ -65,8 +65,30 @@ function writeCache(data: Counts) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
   } catch {
-    // ignore (private mode, etc.)
+    // ignore
   }
+}
+
+function statusLabel(count: number, loading: boolean) {
+  if (loading) return "…";
+  return count === 0 ? "✓" : String(count);
+}
+
+function MaybeLink({
+  enabled,
+  href,
+  children,
+}: {
+  enabled: boolean;
+  href: string;
+  children: React.ReactNode;
+}) {
+  if (!enabled) return <div className="cursor-default">{children}</div>;
+  return (
+    <Link href={href} className="block">
+      {children}
+    </Link>
+  );
 }
 
 export default function Section7AdminStats() {
@@ -80,7 +102,6 @@ export default function Section7AdminStats() {
   const fetchStats = async (force = false) => {
     setErr(null);
 
-    // 1) cache først
     if (!force) {
       const cached = readCache();
       if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
@@ -127,7 +148,6 @@ export default function Section7AdminStats() {
 
         // activity last 7
         countRows("test_sessions", (q) => q.gte("created_at", from7)),
-        // ⚠️ hvis tabellen din heter noe annet enn pain_entries: bytt tabellnavn her
         countRows("pain_entries", (q) => q.gte("created_at", from7)),
         countRows("nutrition_days", (q) => q.gte("updated_at", from7)),
         countRows("bookings", (q) => q.gte("created_at", from7)),
@@ -172,17 +192,24 @@ export default function Section7AdminStats() {
     return (counts.alertsClientsNoTrainer ?? 0) + (counts.alertsBookingsMissingLinks ?? 0);
   }, [counts]);
 
-  const systemVariant =
-    alertCount === 0 ? ("success" as const) : alertCount >= 5 ? ("danger" as const) : ("warning" as const);
-
-  const status = (n: number) => (loading ? "…" : String(n));
-
-  const activityTotal = counts
-    ? (counts.activity7Tests ?? 0) +
+  const activityTotal = useMemo(() => {
+    if (!counts) return 0;
+    return (
+      (counts.activity7Tests ?? 0) +
       (counts.activity7Pain ?? 0) +
       (counts.activity7Nutrition ?? 0) +
       (counts.activity7Bookings ?? 0)
-    : 0;
+    );
+  }, [counts]);
+
+  const ready = !loading && !!counts && !err;
+
+  const systemVariant =
+    alertCount === 0 ? ("success" as const) : alertCount >= 5 ? ("danger" as const) : ("warning" as const);
+
+  // “vis kun hvis noe å følge opp” – men behold mens vi laster
+  const showSystemCard = !ready || alertCount > 0;
+  const allOk = ready && alertCount === 0;
 
   return (
     <section className="space-y-4">
@@ -207,7 +234,11 @@ export default function Section7AdminStats() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* USERS */}
         <Link href="/admin/users" className="block">
-          <DashboardCard title="Brukere" icon={<Users size={18} />} status={counts ? status(counts.usersTotal) : "—"}>
+          <DashboardCard
+            title="Brukere"
+            icon={<Users size={18} />}
+            status={!counts ? "—" : statusLabel(counts.usersTotal, loading)}
+          >
             <p className="text-sm text-sf-muted">
               {loading || !counts
                 ? "Laster fordeling…"
@@ -217,9 +248,13 @@ export default function Section7AdminStats() {
           </DashboardCard>
         </Link>
 
-        {/* TRAINERS (du sa denne virker) */}
+        {/* TRAINERS */}
         <Link href="/trainers" className="block">
-          <DashboardCard title="Rehab-trenere" icon={<UserCheck size={18} />} status={counts ? status(counts.trainers) : "—"}>
+          <DashboardCard
+            title="Rehab-trenere"
+            icon={<UserCheck size={18} />}
+            status={!counts ? "—" : statusLabel(counts.trainers, loading)}
+          >
             <p className="text-sm text-sf-muted">
               {loading || !counts ? "Laster…" : `Totalt trenere på plattformen: ${counts.trainers}`}
             </p>
@@ -232,7 +267,7 @@ export default function Section7AdminStats() {
           <DashboardCard
             title="Bookinger (30 dager)"
             icon={<Calendar size={18} />}
-            status={counts ? status(counts.bookingsNext30) : "—"}
+            status={!counts ? "—" : statusLabel(counts.bookingsNext30, loading)}
             variant="info"
           >
             <p className="text-sm text-sf-muted">
@@ -246,7 +281,11 @@ export default function Section7AdminStats() {
 
         {/* ACTIVITY */}
         <Link href="/admin/activity" className="block">
-          <DashboardCard title="Aktivitet siste 7 dager" icon={<Activity size={18} />} status={counts ? status(activityTotal) : "—"}>
+          <DashboardCard
+            title="Aktivitet siste 7 dager"
+            icon={<Activity size={18} />}
+            status={!counts ? "—" : statusLabel(activityTotal, loading)}
+          >
             <p className="text-sm text-sf-muted">
               {loading || !counts
                 ? "Laster…"
@@ -256,26 +295,33 @@ export default function Section7AdminStats() {
           </DashboardCard>
         </Link>
 
-        {/* SYSTEM ALERTS */}
-        <Link href="/clients?unassigned=1" className="block">
-          <DashboardCard
-            title="Systemvarsler"
-            icon={<AlertCircle size={18} />}
-            variant={systemVariant}
-            status={counts ? status(alertCount) : "—"}
-          >
-            <p className="text-sm text-sf-muted">
-              {loading || !counts
-                ? "Laster…"
-                : alertCount === 0
-                  ? "Ingen varsler akkurat nå."
+        {/* SYSTEMSTATUS: enten Varsler-kort eller Alt OK-kort (samme plass i grid) */}
+        {showSystemCard ? (
+          <MaybeLink enabled={ready && alertCount > 0} href="/clients?unassigned=1">
+            <DashboardCard
+              title="Systemvarsler"
+              icon={<AlertCircle size={18} />}
+              variant={systemVariant}
+              status={!counts ? "—" : statusLabel(alertCount, loading)}
+            >
+              <p className="text-sm text-sf-muted">
+                {loading || !counts
+                  ? "Sjekker system…"
                   : `Uten trener: ${counts.alertsClientsNoTrainer} • Bookinger m/ manglende relasjon: ${counts.alertsBookingsMissingLinks}`}
-            </p>
-            <p className="mt-2 text-xs text-sf-muted">
-              {alertCount === 0 ? "✓ Systemet ser bra ut" : "Trykk for å se klienter uten trener →"}
-            </p>
+              </p>
+              <p className="mt-2 text-xs text-sf-muted">
+                {ready && alertCount > 0 ? "Åpne liste →" : "Ingen å vise"}
+              </p>
+            </DashboardCard>
+          </MaybeLink>
+        ) : null}
+
+        {allOk ? (
+          <DashboardCard title="Systemstatus" icon={<CheckCircle2 size={18} />} variant="success" status="✓">
+            <p className="text-sm">Ingen systemvarsler – alt ser bra ut.</p>
+            <p className="mt-2 text-xs text-sf-muted">Tips: bruk “Oppdater” for å tvinge ny henting.</p>
           </DashboardCard>
-        </Link>
+        ) : null}
       </div>
 
       <p className="text-xs text-sf-muted">

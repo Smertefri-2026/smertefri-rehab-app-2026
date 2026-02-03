@@ -1,8 +1,7 @@
-// src/app/(app)/dashboard/sections/Section8Analytics.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, LineChart, BarChart3, Timer, Activity } from "lucide-react";
+import { TrendingUp, LineChart, BarChart3, Timer, Activity, CheckCircle2, AlertTriangle } from "lucide-react";
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { supabase } from "@/lib/supabaseClient";
@@ -48,6 +47,10 @@ function safeNum(n: any) {
 export default function Section8Analytics() {
   const { role } = useRole();
   const isAdmin = role === "admin";
+  if (!isAdmin) return null;
+
+  // GA4 env (vises kun som “satt/ikke satt”)
+  const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -56,7 +59,6 @@ export default function Section8Analytics() {
   const fetchStats = async (force = false) => {
     if (!isAdmin) return;
 
-    // cache
     if (!force && _cache && Date.now() - _cache.ts < CACHE_TTL_MS) {
       setStats(_cache.data);
       return;
@@ -211,17 +213,16 @@ export default function Section8Analytics() {
   };
 
   useEffect(() => {
-    if (!isAdmin) return;
     fetchStats(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+  }, []);
 
-  const trendText = useMemo(() => {
+  const engagementText = useMemo(() => {
     if (!stats) return "—";
     return `${stats.events7d} registreringer siste 7 dager`;
   }, [stats]);
 
-  if (!isAdmin) return null;
+  const allOk = !loading && !!stats && !err;
 
   return (
     <section id="analytics" className="space-y-4">
@@ -237,8 +238,27 @@ export default function Section8Analytics() {
         </button>
       </div>
 
+      {err ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Analytics-feil: {err}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <DashboardCard title="Progresjon over tid" icon={<TrendingUp size={18} />}>
+        {/* Systemstatus (liten, ryddig “OK”) */}
+        {allOk ? (
+          <DashboardCard title="Status" icon={<CheckCircle2 size={18} />} variant="success" status="✓">
+            <p className="text-sm">Innsikt er oppdatert.</p>
+            <p className="mt-2 text-xs text-sf-muted">Cache ~{Math.round(CACHE_TTL_MS / 1000)}s.</p>
+          </DashboardCard>
+        ) : (
+          <DashboardCard title="Status" icon={<AlertTriangle size={18} />} variant="warning" status={loading ? "…" : "—"}>
+            <p className="text-sm text-sf-muted">{loading ? "Laster…" : "Ingen data ennå"}</p>
+            <p className="mt-2 text-xs text-sf-muted">Trykk “Oppdater” ved behov.</p>
+          </DashboardCard>
+        )}
+
+        <DashboardCard title="Aktivitet (7 dager)" icon={<TrendingUp size={18} />} status={loading || !stats ? "—" : String(stats.events7d)}>
           {loading || !stats ? (
             <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
           ) : (
@@ -247,12 +267,14 @@ export default function Section8Analytics() {
                 Tester: <span className="font-medium">{stats.testSessions7d}</span> • Smerte:{" "}
                 <span className="font-medium">{stats.painEntries7d}</span>
               </p>
-              <p className="mt-2 text-xs text-sf-muted">Siste 7 dager</p>
+              <p className="mt-2 text-xs text-sf-muted">
+                Kosthold: {stats.nutritionLogs7d} • Bookinger: {stats.bookings7d}
+              </p>
             </>
           )}
         </DashboardCard>
 
-        <DashboardCard title="Brukerengasjement" icon={<Activity size={18} />}>
+        <DashboardCard title="Engasjement" icon={<Activity size={18} />} status={loading || !stats ? "—" : `${stats.activeClients7d}/${stats.totalClients}`}>
           {loading || !stats ? (
             <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
           ) : (
@@ -260,27 +282,22 @@ export default function Section8Analytics() {
               <p className="text-sm">
                 Aktive klienter: <span className="font-medium">{stats.activeClients7d}</span> / {stats.totalClients}
               </p>
-              <p className="mt-2 text-xs text-sf-muted">{trendText}</p>
+              <p className="mt-2 text-xs text-sf-muted">{engagementText}</p>
             </>
           )}
         </DashboardCard>
 
-        <DashboardCard title="Tid i rehabilitering" icon={<Timer size={18} />}>
+        <DashboardCard title="Tid i rehabilitering" icon={<Timer size={18} />} status={loading || !stats ? "—" : `${stats.avgDaysSinceClientCreated}d`}>
           {loading || !stats ? (
             <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
           ) : (
             <>
               <p className="text-sm">
-                Snitt: <span className="font-medium">{stats.avgDaysSinceClientCreated}</span> dager siden oppstart
+                Snitt: <span className="font-medium">{stats.avgDaysSinceClientCreated}</span> dager
               </p>
               <p className="mt-2 text-xs text-sf-muted">Basert på klientkonto-opprettelse</p>
             </>
           )}
-        </DashboardCard>
-
-        <DashboardCard title="Rapporter" icon={<LineChart size={18} />}>
-          <p className="text-sm">PDF / CSV</p>
-          <p className="mt-2 text-xs text-sf-muted">Kommer etter test-/journalmodulen er helt stabil</p>
         </DashboardCard>
 
         <DashboardCard title="Plattform-trender" icon={<BarChart3 size={18} />} variant="info">
@@ -301,12 +318,31 @@ export default function Section8Analytics() {
             </>
           )}
         </DashboardCard>
+
+        {/* GA4 “sjekk” (viser bare om du har satt env) */}
+        <DashboardCard title="Google Analytics (GA4)" icon={<LineChart size={18} />} variant={GA_ID ? "success" : "warning"} status={GA_ID ? "✓" : "!"}>
+          <p className="text-sm">
+            {GA_ID ? (
+              <>
+                Måling aktiv: <span className="font-medium">{GA_ID}</span>
+              </>
+            ) : (
+              "Mangler NEXT_PUBLIC_GA_ID"
+            )}
+          </p>
+          <p className="mt-2 text-xs text-sf-muted">
+            Sett env-var + legg inn tag i app/layout.tsx (se oppskriften under).
+          </p>
+        </DashboardCard>
+
+        <DashboardCard title="Rapporter" icon={<LineChart size={18} />}>
+          <p className="text-sm">PDF / CSV</p>
+          <p className="mt-2 text-xs text-sf-muted">Kommer etter at test/journal er helt stabil</p>
+        </DashboardCard>
       </div>
 
-      {err ? <p className="text-xs text-red-600">Analytics-feil: {err}</p> : null}
-
       <p className="text-xs text-sf-muted">
-        Tallene er headcounts (raske). Cache: ~{Math.round(CACHE_TTL_MS / 1000)}s. “Oppdater” tvinger ny henting.
+        Tallene her er “headcounts” (raske). Cache: ~{Math.round(CACHE_TTL_MS / 1000)}s. “Oppdater” tvinger ny henting.
       </p>
     </section>
   );
