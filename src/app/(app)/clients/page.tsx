@@ -1,3 +1,4 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/clients/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -45,6 +46,25 @@ function formatShort(ts: string | null | undefined) {
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("no-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function formatDateNo(d: Date) {
+  // f.eks. "Onsdag 31.12"
+  const weekday = d.toLocaleDateString("no-NO", { weekday: "long" });
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${dd}.${mm}`;
+}
+
+function formatTimeHHMM(d: Date) {
+  return d.toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" });
+}
+
+function prettyDateTime(ts: string | null | undefined) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${formatDateNo(d)} · ${formatTimeHHMM(d)}`;
 }
 
 function testStatusText(m: any): string {
@@ -236,6 +256,61 @@ export default function ClientsPage() {
   }) as any;
 
   const hoursByClientId: Record<string, any> = hoursByClientIdMaybe ?? {};
+
+  // =========================
+  // ✅ NESTE TIME (korrekt per klient – hentes direkte fra bookings)
+  //    Dette fikser "Mangler" selv om det finnes time.
+  // =========================
+  const [nextSessionByClientId, setNextSessionByClientId] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let alive = true;
+
+    const run = async () => {
+      if (!visibleClientIds.length) {
+        setNextSessionByClientId({});
+        return;
+      }
+
+      try {
+        const nowISO = new Date().toISOString();
+
+        // Hent kommende bookinger for alle synlige klienter (ikke cancelled)
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("client_id,start_time,status")
+          .in("client_id", visibleClientIds)
+          .neq("status", "cancelled")
+          .gte("start_time", nowISO)
+          .order("start_time", { ascending: true })
+          .limit(5000);
+
+        if (error) throw error;
+
+        // plukk første (tidligste) booking per klient
+        const map: Record<string, string> = {};
+        for (const r of (data ?? []) as any[]) {
+          const cid = String(r.client_id ?? "");
+          if (!cid) continue;
+          if (map[cid]) continue; // første er tidligst pga order
+          const label = prettyDateTime(r.start_time);
+          if (label) map[cid] = label;
+        }
+
+        if (!alive) return;
+        setNextSessionByClientId(map);
+      } catch (e) {
+        if (!alive) return;
+        // ved feil: ikke kræsje – bare fall back til "Mangler/Har"
+        setNextSessionByClientId({});
+      }
+    };
+
+    run();
+    return () => {
+      alive = false;
+    };
+  }, [visibleClientIds]);
 
   // =========================
   // NUTRITION ACTIVITY (logs)
@@ -461,8 +536,11 @@ export default function ClientsPage() {
           const hasUpcoming = Boolean(hasUpcomingByClientId[cid]);
           const h = hoursByClientId[cid];
 
+          // ✅ Bruk "ekte" neste time (datotekst) hvis vi har den
+          const nextLabel = nextSessionByClientId[cid] ?? null;
+
           const status = {
-            nextSession: hoursStatusText(h, hasUpcoming),
+            nextSession: nextLabel ?? (hasUpcoming ? hoursStatusText(h, hasUpcoming) : "Mangler"),
             painLevel: painStatusText(p),
             testStatus: testStatusText(t),
             nutritionStatus: hasNutProfile ? "OK" : "Mangler",

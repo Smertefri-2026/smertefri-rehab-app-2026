@@ -1,7 +1,8 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/components/client/ClientCard.tsx
 "use client";
 
 import Link from "next/link";
-import { Calendar, HeartPulse, Activity, Utensils } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { Client } from "@/types/client";
 
 /* ---------------- HELPERS ---------------- */
@@ -29,7 +30,6 @@ function calculateAge(birthDate?: string | null): number | null {
 
 /* ---------------- TYPES ---------------- */
 
-// UI-status som kan komme fra metrics-hooks (strings, ikke rigid union)
 export type ClientCardStatus = {
   nextSession?: string | null;
   painLevel?: string | null;
@@ -37,21 +37,28 @@ export type ClientCardStatus = {
   nutritionStatus?: string | null;
 };
 
-/* ---------------- COMPONENT ---------------- */
-
 type Props = {
   client: Client;
   href?: string;
-  status?: ClientCardStatus | null; // 👈 override (fra metrics)
+  status?: ClientCardStatus | null;
 };
 
+function normalizeNextSessionLabel(v?: string | null) {
+  const raw = String(v ?? "").trim();
+  if (!raw || raw === "—") return "Mangler";
+
+  // Hvis det kommer "Har" fra gammel logikk – vi vil ikke vise "Har"
+  // (du ønsket faktisk dato). Inntil vi har dato: vis "Mangler".
+  if (raw.toLowerCase() === "har") return "Mangler";
+
+  return raw;
+}
+
 export default function ClientCard({ client, href, status: statusProp }: Props) {
-  // fallback til gammel client.status hvis du ikke sender inn prop
-  const status = (statusProp ?? (client.status as any) ?? null) as ClientCardStatus | null;
-
   const age = calculateAge(client.birth_date);
-
   const initials = `${client.first_name?.[0] ?? ""}${client.last_name?.[0] ?? ""}`.toUpperCase();
+
+  const nextLabel = normalizeNextSessionLabel(statusProp?.nextSession);
 
   const content = (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm hover:shadow-md transition">
@@ -74,42 +81,21 @@ export default function ClientCard({ client, href, status: statusProp }: Props) 
             <p className="text-base font-semibold text-sf-text">
               {client.first_name} {client.last_name}
             </p>
-            <p className="text-sm text-sf-muted">{age !== null ? `${age} år` : "—"} • {client.city ?? "—"}</p>
+            <p className="text-sm text-sf-muted">
+              {age !== null ? `${age} år` : "—"} • {client.city ?? "—"}
+            </p>
           </div>
         </div>
 
-        {/* 📊 Status */}
-        {status && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex items-center gap-3 rounded-xl bg-sf-soft p-3">
-              <Calendar size={18} className="text-sf-primary" />
-              <span className="text-sm">
-                Neste time: <strong>{status.nextSession ?? "—"}</strong>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3 rounded-xl bg-sf-soft p-3">
-              <HeartPulse size={18} className="text-sf-primary" />
-              <span className="text-sm">
-                Smertenivå: <strong>{status.painLevel ?? "—"}</strong>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3 rounded-xl bg-sf-soft p-3">
-              <Activity size={18} className="text-sf-primary" />
-              <span className="text-sm">
-                Tester: <strong>{status.testStatus ?? "—"}</strong>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3 rounded-xl bg-sf-soft p-3">
-              <Utensils size={18} className="text-sf-primary" />
-              <span className="text-sm">
-                Kosthold: <strong>{status.nutritionStatus ?? "—"}</strong>
-              </span>
-            </div>
+        {/* 📅 Kun Neste time */}
+        <div className="grid grid-cols-1">
+          <div className="flex items-center gap-3 rounded-xl bg-sf-soft p-3">
+            <CalendarClock size={18} className="text-sf-primary" />
+            <span className="text-sm">
+              Neste time: <strong>{nextLabel}</strong>
+            </span>
           </div>
-        )}
+        </div>
 
         {/* 🧠 Notat */}
         {client.note?.text && (

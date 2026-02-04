@@ -15,16 +15,28 @@ type Row = {
   city?: string | null;
   trainer_id?: string | null;
   created_at?: string | null;
+  email?: string | null; // valgfritt hvis du vil bruke det i label
 };
 
-function fullName(r: Row) {
+type ProfileLite = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+};
+
+function fullName(r: { first_name?: string | null; last_name?: string | null; email?: string | null; id?: string }) {
   const n = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
-  return n || "—";
+  return n || r.email || r.id || "—";
 }
 
 export default function AdminUsersPage() {
   const { role, loading: roleLoading } = useRole();
+
   const [rows, setRows] = useState<Row[]>([]);
+  const [trainerById, setTrainerById] = useState<Record<string, ProfileLite>>({});
+  const [clientCountByTrainerId, setClientCountByTrainerId] = useState<Record<string, number>>({});
+
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -41,20 +53,68 @@ export default function AdminUsersPage() {
 
     (async () => {
       try {
+        // 1) Hent alle profiles
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, role, first_name, last_name, city, trainer_id, created_at")
+          .select("id, role, first_name, last_name, city, trainer_id, created_at, email")
           .order("created_at", { ascending: false })
           .limit(500);
 
         if (!alive) return;
         if (error) throw error;
 
-        setRows((data ?? []) as Row[]);
+        const list = (data ?? []) as Row[];
+        setRows(list);
+
+        // 2) Bygg liste av trainer_id som finnes hos klienter
+        const trainerIds = Array.from(
+          new Set(
+            list
+              .filter((r) => (r.role ?? "") === "client")
+              .map((r) => r.trainer_id)
+              .filter(Boolean) as string[]
+          )
+        );
+
+        // 3) Bygg count kunder per trainer_id (for "Kunder"-kolonnen)
+        const counts: Record<string, number> = {};
+        for (const r of list) {
+          if ((r.role ?? "") !== "client") continue;
+          if (!r.trainer_id) continue;
+          counts[r.trainer_id] = (counts[r.trainer_id] ?? 0) + 1;
+        }
+        setClientCountByTrainerId(counts);
+
+        // 4) Hent trenerprofiler og lag map
+        if (trainerIds.length === 0) {
+          setTrainerById({});
+          return;
+        }
+
+        const { data: tProfs, error: tErr } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email")
+          .in("id", trainerIds);
+
+        if (!alive) return;
+        if (tErr) throw tErr;
+
+        const map: Record<string, ProfileLite> = {};
+        for (const p of (tProfs ?? []) as any[]) {
+          map[String(p.id)] = {
+            id: String(p.id),
+            first_name: p.first_name ?? null,
+            last_name: p.last_name ?? null,
+            email: p.email ?? null,
+          };
+        }
+        setTrainerById(map);
       } catch (e: any) {
         if (!alive) return;
         setErr(e?.message ?? "Ukjent feil");
         setRows([]);
+        setTrainerById({});
+        setClientCountByTrainerId({});
       } finally {
         if (!alive) return;
         setLoading(false);
@@ -79,13 +139,15 @@ export default function AdminUsersPage() {
     const query = q.trim().toLowerCase();
     if (query) {
       list = list.filter((r) => {
-        const hay = `${fullName(r)} ${r.city ?? ""} ${r.id}`.toLowerCase();
+        const trainerName =
+          r.trainer_id && trainerById[r.trainer_id] ? fullName(trainerById[r.trainer_id]) : "";
+        const hay = `${fullName(r)} ${r.city ?? ""} ${trainerName} ${r.id}`.toLowerCase();
         return hay.includes(query);
       });
     }
 
     return list;
-  }, [rows, q, roleFilter]);
+  }, [rows, q, roleFilter, trainerById]);
 
   return (
     <AppPage>
@@ -110,7 +172,7 @@ export default function AdminUsersPage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Søk navn, by eller ID…"
+            placeholder="Søk navn, by, trener eller ID…"
             className="w-full sm:w-72 rounded-xl border border-sf-border bg-white px-3 py-2 text-sm"
           />
         </div>
@@ -127,8 +189,8 @@ export default function AdminUsersPage() {
           <div className="col-span-4">Navn</div>
           <div className="col-span-2">Rolle</div>
           <div className="col-span-2">By</div>
-          <div className="col-span-2">Trainer ID</div>
-          <div className="col-span-2">User ID</div>
+          <div className="col-span-2">Trener</div>
+          <div className="col-span-2">Kunder</div>
         </div>
 
         {loading ? (
@@ -136,15 +198,39 @@ export default function AdminUsersPage() {
         ) : filtered.length === 0 ? (
           <div className="p-4 text-sm text-sf-muted">Ingen treff.</div>
         ) : (
-          filtered.map((r) => (
-            <div key={r.id} className="grid grid-cols-12 px-4 py-3 text-sm border-t border-sf-border">
-              <div className="col-span-4">{fullName(r)}</div>
-              <div className="col-span-2">{r.role ?? "—"}</div>
-              <div className="col-span-2">{r.city ?? "—"}</div>
-              <div className="col-span-2">{r.trainer_id ?? "—"}</div>
-              <div className="col-span-2 font-mono text-xs">{r.id}</div>
-            </div>
-          ))
+          filtered.map((r) => {
+            const trainerObj = r.trainer_id ? trainerById[r.trainer_id] : null;
+            const trainerName = trainerObj ? fullName(trainerObj) : r.trainer_id ? r.trainer_id.slice(0, 8) : "—";
+
+            const kunder =
+              (r.role ?? "") === "trainer"
+                ? (clientCountByTrainerId[r.id] ?? 0)
+                : "—";
+
+            return (
+              <div key={r.id} className="grid grid-cols-12 px-4 py-3 text-sm border-t border-sf-border">
+                <div className="col-span-4">{fullName(r)}</div>
+                <div className="col-span-2">{r.role ?? "—"}</div>
+                <div className="col-span-2">{r.city ?? "—"}</div>
+
+                <div className="col-span-2">
+                  {(r.role ?? "") === "client" ? (
+                    <div className="truncate">{trainerName}</div>
+                  ) : (
+                    <span className="text-sf-muted">—</span>
+                  )}
+                </div>
+
+                <div className="col-span-2">
+                  {(r.role ?? "") === "trainer" ? (
+                    <span className="font-medium">{kunder}</span>
+                  ) : (
+                    <span className="text-sf-muted">—</span>
+                  )}
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </AppPage>

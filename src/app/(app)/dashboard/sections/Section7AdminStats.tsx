@@ -162,12 +162,15 @@ export default function Section7AdminStats() {
         clients,
         trainers,
         admins,
+
         bookingsTotal,
         bookingsNext30,
+
         activity7Tests,
         activity7Pain,
         activity7Nutrition,
         activity7Bookings,
+
         alertsClientsNoTrainer,
         alertsBookingsMissingLinks,
       };
@@ -207,7 +210,6 @@ export default function Section7AdminStats() {
   const systemVariant =
     alertCount === 0 ? ("success" as const) : alertCount >= 5 ? ("danger" as const) : ("warning" as const);
 
-  // “vis kun hvis noe å følge opp” – men behold mens vi laster
   const showSystemCard = !ready || alertCount > 0;
   const allOk = ready && alertCount === 0;
 
@@ -295,7 +297,7 @@ export default function Section7AdminStats() {
           </DashboardCard>
         </Link>
 
-        {/* SYSTEMSTATUS: enten Varsler-kort eller Alt OK-kort (samme plass i grid) */}
+        {/* SYSTEMSTATUS */}
         {showSystemCard ? (
           <MaybeLink enabled={ready && alertCount > 0} href="/clients?unassigned=1">
             <DashboardCard

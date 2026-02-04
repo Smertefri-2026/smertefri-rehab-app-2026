@@ -10,13 +10,63 @@ function getEnv(name: string) {
   return v;
 }
 
+type GAMetrics = {
+  totalUsers: number;
+  activeUsers: number;
+  newUsers: number;
+  sessions: number;
+  views: number;
+  events: number;
+  engagementRate: number; // 0..1
+  avgEngagementTimeSec: number;
+};
+
+function num(v: any) {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+}
+
+function metricMapFromReport(report: any, metricNames: string[]): Record<string, number> {
+  const mv = report?.rows?.[0]?.metricValues ?? [];
+  const out: Record<string, number> = {};
+  for (let i = 0; i < metricNames.length; i++) out[metricNames[i]] = num(mv?.[i]?.value ?? 0);
+  return out;
+}
+
+function toGAMetrics(report: any): GAMetrics {
+  // Må være i samme rekkefølge som i runReport-metrikklisten under
+  const names = [
+    "totalUsers",
+    "activeUsers",
+    "newUsers",
+    "sessions",
+    "screenPageViews",
+    "eventCount",
+    "engagementRate",
+    "averageSessionDuration",
+  ];
+  const m = metricMapFromReport(report, names);
+
+  return {
+    totalUsers: m.totalUsers ?? 0,
+    activeUsers: m.activeUsers ?? 0,
+    newUsers: m.newUsers ?? 0,
+    sessions: m.sessions ?? 0,
+    views: m.screenPageViews ?? 0,
+    events: m.eventCount ?? 0,
+    engagementRate: m.engagementRate ?? 0,
+    // averageSessionDuration er i sekunder
+    avgEngagementTimeSec: m.averageSessionDuration ?? 0,
+  };
+}
+
 export async function GET() {
   try {
     const propertyId = getEnv("GA4_PROPERTY_ID"); // numbers only
     const clientEmail = getEnv("GA_CLIENT_EMAIL");
     const privateKeyRaw = getEnv("GA_PRIVATE_KEY");
 
-    // Private key often needs newline fix when stored in env
+    // Private key trenger ofte newline-fix når lagret i env
     const privateKey = privateKeyRaw.replace(/\\n/g, "\n");
 
     const analyticsDataClient = new BetaAnalyticsDataClient({
@@ -28,36 +78,55 @@ export async function GET() {
 
     const property = `properties/${propertyId}`;
 
-    // Basic overview: users, sessions, pageviews last 7d + last 30d
-    const [report7d, report30d, reportToday] = await Promise.all([
+    const commonMetrics = [
+      { name: "totalUsers" },
+      { name: "activeUsers" },
+      { name: "newUsers" },
+      { name: "sessions" },
+      { name: "screenPageViews" },
+      { name: "eventCount" },
+      { name: "engagementRate" },
+      { name: "averageSessionDuration" },
+    ];
+
+    // 1) Today / 7d / 30d
+    const [reportToday, report7d, report30d] = await Promise.all([
+      analyticsDataClient.runReport({
+        property,
+        dateRanges: [{ startDate: "today", endDate: "today" }],
+        metrics: commonMetrics,
+      }),
       analyticsDataClient.runReport({
         property,
         dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
-        metrics: [{ name: "activeUsers" }, { name: "sessions" }, { name: "screenPageViews" }],
+        metrics: commonMetrics,
       }),
       analyticsDataClient.runReport({
         property,
         dateRanges: [{ startDate: "30daysAgo", endDate: "today" }],
-        metrics: [{ name: "activeUsers" }, { name: "sessions" }, { name: "screenPageViews" }],
-      }),
-      analyticsDataClient.runReport({
-        property,
-        dateRanges: [{ startDate: "today", endDate: "today" }],
-        metrics: [{ name: "activeUsers" }, { name: "sessions" }, { name: "screenPageViews" }],
+        metrics: commonMetrics,
       }),
     ]);
 
-    const toNums = (r: any) => {
-      const mv = r?.rows?.[0]?.metricValues ?? [];
-      return {
-        activeUsers: Number(mv?.[0]?.value ?? 0),
-        sessions: Number(mv?.[1]?.value ?? 0),
-        pageViews: Number(mv?.[2]?.value ?? 0),
-      };
-    };
+    const today = toGAMetrics(reportToday);
+    const d7 = toGAMetrics(report7d);
+    const d30 = toGAMetrics(report30d);
 
-    // Top pages (7d)
-    const [topPages7d] = await analyticsDataClient.runReport({
+    // 2) Realtime: aktive brukere siste 30 min
+    let realtimeActiveUsers = 0;
+    try {
+      const [rt] = await analyticsDataClient.runRealtimeReport({
+        property,
+        metrics: [{ name: "activeUsers" }],
+      });
+      realtimeActiveUsers = num(rt?.rows?.[0]?.metricValues?.[0]?.value ?? 0);
+    } catch {
+      // Realtime kan feile uten at resten skal feile
+      realtimeActiveUsers = 0;
+    }
+
+    // 3) Top pages (7d)
+    const [topPagesReport] = await analyticsDataClient.runReport({
       property,
       dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
       dimensions: [{ name: "pagePath" }],
@@ -66,22 +135,41 @@ export async function GET() {
       limit: 8,
     });
 
-    const pages =
-      (topPages7d.rows ?? []).map((row: any) => ({
-        path: row.dimensionValues?.[0]?.value ?? "/",
-        views: Number(row.metricValues?.[0]?.value ?? 0),
+    const topPages7d =
+      (topPagesReport?.rows ?? []).map((row: any) => ({
+        path: String(row?.dimensionValues?.[0]?.value ?? "/"),
+        views: num(row?.metricValues?.[0]?.value ?? 0),
       })) ?? [];
 
+    // 4) Top sources (7d) – source/medium
+    const [sourcesReport] = await analyticsDataClient.runReport({
+      property,
+      dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
+      dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
+      metrics: [{ name: "sessions" }],
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit: 8,
+    });
+
+    const topSources7d =
+      (sourcesReport?.rows ?? []).map((row: any) => ({
+        source: String(row?.dimensionValues?.[0]?.value ?? "(direct)"),
+        medium: String(row?.dimensionValues?.[1]?.value ?? "(none)"),
+        sessions: num(row?.metricValues?.[0]?.value ?? 0),
+      })) ?? [];
+
+    // ✅ Shape matcher frontend (Section8Analytics.tsx)
     return NextResponse.json({
-      ok: true,
-      today: toNums(reportToday),
-      last7d: toNums(report7d),
-      last30d: toNums(report30d),
-      topPages7d: pages,
+      realtimeActiveUsers,
+      today,
+      d7,
+      d30,
+      topPages7d,
+      topSources7d,
     });
   } catch (e: any) {
     return NextResponse.json(
-      { ok: false, error: e?.message ?? "Unknown GA error" },
+      { error: e?.message ?? "Unknown GA error" },
       { status: 500 }
     );
   }
