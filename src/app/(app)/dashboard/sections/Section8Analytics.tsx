@@ -1,7 +1,18 @@
+// src/app/(app)/dashboard/sections/Section8Analytics.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, LineChart, BarChart3, Timer, Activity, CheckCircle2, AlertTriangle } from "lucide-react";
+import {
+  TrendingUp,
+  LineChart,
+  BarChart3,
+  Timer,
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+  Globe,
+  MousePointerClick,
+} from "lucide-react";
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { supabase } from "@/lib/supabaseClient";
@@ -24,6 +35,24 @@ type AnalyticsStats = {
   topPainAreas7d: Array<{ label: string; count: number }>;
 };
 
+type GAOverview = {
+  realtimeActiveUsers: number;
+  today: {
+    totalUsers: number;
+    activeUsers: number;
+    newUsers: number;
+    sessions: number;
+    views: number;
+    events: number;
+    engagementRate: number; // 0..1
+    avgEngagementTimeSec: number;
+  };
+  d7: GAOverview["today"];
+  d30: GAOverview["today"];
+  topPages7d: Array<{ path: string; views: number }>;
+  topSources7d: Array<{ source: string; medium: string; sessions: number }>;
+};
+
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 min
 let _cache: { ts: number; data: AnalyticsStats } | null = null;
 
@@ -44,14 +73,28 @@ function safeNum(n: any) {
   return Number.isFinite(x) ? x : 0;
 }
 
+function fmtPct01(x: number) {
+  if (!Number.isFinite(x)) return "—";
+  return `${Math.round(x * 100)}%`;
+}
+
+function fmtSecToMin(sec: number) {
+  if (!Number.isFinite(sec)) return "—";
+  const m = Math.round(sec / 60);
+  return `${m} min`;
+}
+
 export default function Section8Analytics() {
   const { role } = useRole();
   const isAdmin = role === "admin";
   if (!isAdmin) return null;
 
-  // GA4 env (vises kun som “satt/ikke satt”)
+  // GA4 env (sjekk)
   const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
+  // -----------------------------
+  // A) Interne “produkt-metrics” (Supabase)
+  // -----------------------------
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
@@ -68,7 +111,6 @@ export default function Section8Analytics() {
     setErr(null);
 
     try {
-      // 1) finn alle klienter
       const { data: clients, error: cErr } = await supabase
         .from("profiles")
         .select("id, created_at")
@@ -96,12 +138,10 @@ export default function Section8Analytics() {
         return;
       }
 
-      // 2) tidsvinduer
       const fromTS = daysAgoISO(6);
       const fromDay = dayISO(6);
       const todayDay = yyyyMmDd(new Date());
 
-      // 3) hente “events”
       const [testsRes, painRes, nutRes, bookRes] = await Promise.all([
         supabase
           .from("test_sessions")
@@ -139,7 +179,6 @@ export default function Section8Analytics() {
       const nutRows = (nutRes.data ?? []) as any[];
       const bookRows = (bookRes.data ?? []) as any[];
 
-      // nutritionLogs7d: tell kun rader med noe data (makroer/kcal)
       const nutritionLogs7d = nutRows.filter((r) => {
         const kcal = safeNum(r.calories_kcal);
         const p = safeNum(r.protein_g);
@@ -148,7 +187,6 @@ export default function Section8Analytics() {
         return kcal > 0 || p > 0 || f > 0 || k > 0;
       });
 
-      // aktive klienter (7d) = har minst ett event
       const activeSet = new Set<string>();
       for (const r of testRows) if (r.client_id) activeSet.add(String(r.client_id));
       for (const r of painRows) if (r.client_id) activeSet.add(String(r.client_id));
@@ -164,7 +202,6 @@ export default function Section8Analytics() {
 
       const events7d = testSessions7d + painEntries7d + bookings7d + nutritionLogs7dCount;
 
-      // snitt dager siden klient ble opprettet
       const now = Date.now();
       const days = (clients ?? []).map((c: any) => {
         const t = new Date(c.created_at ?? 0).getTime();
@@ -175,7 +212,6 @@ export default function Section8Analytics() {
       const avgDaysSinceClientCreated =
         days.length ? Math.round(days.reduce((a: number, b: number) => a + b, 0) / days.length) : 0;
 
-      // topp smerteområder (7d)
       const areaCount = new Map<string, number>();
       for (const r of painRows) {
         const label =
@@ -212,8 +248,34 @@ export default function Section8Analytics() {
     }
   };
 
+  // -----------------------------
+  // B) Ekte trafikk (GA Data API)
+  // -----------------------------
+  const [gaLoading, setGaLoading] = useState(false);
+  const [gaErr, setGaErr] = useState<string | null>(null);
+  const [ga, setGa] = useState<GAOverview | null>(null);
+
+  const fetchGA = async () => {
+    setGaLoading(true);
+    setGaErr(null);
+
+    try {
+      const res = await fetch("/api/ga/overview", { method: "GET" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? "GA-feil");
+
+      setGa(json as GAOverview);
+    } catch (e: any) {
+      setGaErr(e?.message ?? "Ukjent GA-feil");
+      setGa(null);
+    } finally {
+      setGaLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchStats(false);
+    fetchGA();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -230,7 +292,10 @@ export default function Section8Analytics() {
         <h2 className="text-sm font-semibold text-sf-muted">Analyse & innsikt</h2>
 
         <button
-          onClick={() => fetchStats(true)}
+          onClick={() => {
+            fetchStats(true);
+            fetchGA();
+          }}
           className="rounded-full border border-sf-border px-3 py-1 text-xs font-medium text-sf-muted hover:bg-sf-soft"
           title="Tving oppdatering"
         >
@@ -244,8 +309,14 @@ export default function Section8Analytics() {
         </div>
       ) : null}
 
+      {gaErr ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          GA-feil: {gaErr}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Systemstatus (liten, ryddig “OK”) */}
+        {/* Status */}
         {allOk ? (
           <DashboardCard title="Status" icon={<CheckCircle2 size={18} />} variant="success" status="✓">
             <p className="text-sm">Innsikt er oppdatert.</p>
@@ -258,7 +329,12 @@ export default function Section8Analytics() {
           </DashboardCard>
         )}
 
-        <DashboardCard title="Aktivitet (7 dager)" icon={<TrendingUp size={18} />} status={loading || !stats ? "—" : String(stats.events7d)}>
+        {/* Interne events */}
+        <DashboardCard
+          title="Aktivitet (7 dager)"
+          icon={<TrendingUp size={18} />}
+          status={loading || !stats ? "—" : String(stats.events7d)}
+        >
           {loading || !stats ? (
             <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
           ) : (
@@ -274,7 +350,12 @@ export default function Section8Analytics() {
           )}
         </DashboardCard>
 
-        <DashboardCard title="Engasjement" icon={<Activity size={18} />} status={loading || !stats ? "—" : `${stats.activeClients7d}/${stats.totalClients}`}>
+        {/* Engasjement (internt) */}
+        <DashboardCard
+          title="Engasjement (internt)"
+          icon={<Activity size={18} />}
+          status={loading || !stats ? "—" : `${stats.activeClients7d}/${stats.totalClients}`}
+        >
           {loading || !stats ? (
             <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
           ) : (
@@ -287,7 +368,12 @@ export default function Section8Analytics() {
           )}
         </DashboardCard>
 
-        <DashboardCard title="Tid i rehabilitering" icon={<Timer size={18} />} status={loading || !stats ? "—" : `${stats.avgDaysSinceClientCreated}d`}>
+        {/* Tid i rehab */}
+        <DashboardCard
+          title="Tid i rehabilitering"
+          icon={<Timer size={18} />}
+          status={loading || !stats ? "—" : `${stats.avgDaysSinceClientCreated}d`}
+        >
           {loading || !stats ? (
             <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
           ) : (
@@ -300,6 +386,7 @@ export default function Section8Analytics() {
           )}
         </DashboardCard>
 
+        {/* Plattform-trender (internt) */}
         <DashboardCard title="Plattform-trender" icon={<BarChart3 size={18} />} variant="info">
           {loading || !stats ? (
             <p className="text-sm text-sf-muted">{loading ? "Laster…" : "—"}</p>
@@ -319,8 +406,13 @@ export default function Section8Analytics() {
           )}
         </DashboardCard>
 
-        {/* GA4 “sjekk” (viser bare om du har satt env) */}
-        <DashboardCard title="Google Analytics (GA4)" icon={<LineChart size={18} />} variant={GA_ID ? "success" : "warning"} status={GA_ID ? "✓" : "!"}>
+        {/* GA4 sjekk */}
+        <DashboardCard
+          title="Google Analytics (GA4)"
+          icon={<LineChart size={18} />}
+          variant={GA_ID ? "success" : "warning"}
+          status={GA_ID ? "✓" : "!"}
+        >
           <p className="text-sm">
             {GA_ID ? (
               <>
@@ -331,18 +423,126 @@ export default function Section8Analytics() {
             )}
           </p>
           <p className="mt-2 text-xs text-sf-muted">
-            Sett env-var + legg inn tag i app/layout.tsx (se oppskriften under).
+            GA-tag ligger i app/layout.tsx. Rapportene hentes via /api/ga/overview.
           </p>
         </DashboardCard>
 
-        <DashboardCard title="Rapporter" icon={<LineChart size={18} />}>
-          <p className="text-sm">PDF / CSV</p>
-          <p className="mt-2 text-xs text-sf-muted">Kommer etter at test/journal er helt stabil</p>
+        {/* GA: realtime */}
+        <DashboardCard
+          title="Besøk nå"
+          icon={<Globe size={18} />}
+          variant="info"
+          status={gaLoading || !ga ? "—" : String(ga.realtimeActiveUsers)}
+        >
+          <p className="text-sm text-sf-muted">
+            {gaLoading ? "Laster…" : !ga ? "Ingen data" : "Aktive brukere siste 30 min"}
+          </p>
+          {ga ? (
+            <p className="mt-2 text-xs text-sf-muted">
+              I GA-konsollen får du mer detaljert realtime (sider/geo).
+            </p>
+          ) : null}
+        </DashboardCard>
+
+        {/* GA: i dag */}
+        <DashboardCard
+          title="Trafikk i dag"
+          icon={<MousePointerClick size={18} />}
+          status={gaLoading || !ga ? "—" : String(ga.today.sessions)}
+        >
+          {gaLoading || !ga ? (
+            <p className="text-sm text-sf-muted">{gaLoading ? "Laster…" : "—"}</p>
+          ) : (
+            <>
+              <p className="text-sm">
+                Brukere: <span className="font-medium">{ga.today.totalUsers}</span> • Nye:{" "}
+                <span className="font-medium">{ga.today.newUsers}</span>
+              </p>
+              <p className="mt-2 text-xs text-sf-muted">
+                Sesjoner: {ga.today.sessions} • Visninger: {ga.today.views}
+              </p>
+            </>
+          )}
+        </DashboardCard>
+
+        {/* GA: 7d */}
+        <DashboardCard title="GA siste 7 dager" icon={<TrendingUp size={18} />} variant="success">
+          {gaLoading || !ga ? (
+            <p className="text-sm text-sf-muted">{gaLoading ? "Laster…" : "—"}</p>
+          ) : (
+            <>
+              <p className="text-sm">
+                Brukere: <span className="font-medium">{ga.d7.totalUsers}</span> • Aktive:{" "}
+                <span className="font-medium">{ga.d7.activeUsers}</span>
+              </p>
+              <p className="mt-2 text-xs text-sf-muted">
+                Sesjoner: {ga.d7.sessions} • Visninger: {ga.d7.views} • Events: {ga.d7.events}
+              </p>
+              <p className="mt-2 text-xs text-sf-muted">
+                Engasjement: {fmtPct01(ga.d7.engagementRate)} • Snitt eng.tid: {fmtSecToMin(ga.d7.avgEngagementTimeSec)}
+              </p>
+            </>
+          )}
+        </DashboardCard>
+
+        {/* GA: 30d */}
+        <DashboardCard title="GA siste 30 dager" icon={<LineChart size={18} />}>
+          {gaLoading || !ga ? (
+            <p className="text-sm text-sf-muted">{gaLoading ? "Laster…" : "—"}</p>
+          ) : (
+            <>
+              <p className="text-sm">
+                Brukere: <span className="font-medium">{ga.d30.totalUsers}</span> • Nye:{" "}
+                <span className="font-medium">{ga.d30.newUsers}</span>
+              </p>
+              <p className="mt-2 text-xs text-sf-muted">
+                Sesjoner: {ga.d30.sessions} • Visninger: {ga.d30.views}
+              </p>
+            </>
+          )}
+        </DashboardCard>
+
+        {/* GA: toppsider */}
+        <DashboardCard title="Toppsider (7d)" icon={<BarChart3 size={18} />} variant="info">
+          {gaLoading || !ga ? (
+            <p className="text-sm text-sf-muted">{gaLoading ? "Laster…" : "—"}</p>
+          ) : ga.topPages7d.length === 0 ? (
+            <p className="text-sm text-sf-muted">Ingen data.</p>
+          ) : (
+            <ul className="text-xs text-sf-muted space-y-1">
+              {ga.topPages7d.map((p) => (
+                <li key={p.path} className="flex justify-between gap-2">
+                  <span className="truncate">{p.path}</span>
+                  <span className="font-medium text-sf-text">{p.views}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DashboardCard>
+
+        {/* GA: trafikkilder */}
+        <DashboardCard title="Trafikkilder (7d)" icon={<Activity size={18} />} variant="info">
+          {gaLoading || !ga ? (
+            <p className="text-sm text-sf-muted">{gaLoading ? "Laster…" : "—"}</p>
+          ) : ga.topSources7d.length === 0 ? (
+            <p className="text-sm text-sf-muted">Ingen data.</p>
+          ) : (
+            <ul className="text-xs text-sf-muted space-y-1">
+              {ga.topSources7d.map((s) => (
+                <li key={`${s.source}/${s.medium}`} className="flex justify-between gap-2">
+                  <span className="truncate">
+                    {s.source} / {s.medium}
+                  </span>
+                  <span className="font-medium text-sf-text">{s.sessions}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </DashboardCard>
       </div>
 
       <p className="text-xs text-sf-muted">
-        Tallene her er “headcounts” (raske). Cache: ~{Math.round(CACHE_TTL_MS / 1000)}s. “Oppdater” tvinger ny henting.
+        Interne tall = raske headcounts fra DB. GA-tall = faktisk trafikk (GA4 Data API). “Oppdater” henter begge.
       </p>
     </section>
   );

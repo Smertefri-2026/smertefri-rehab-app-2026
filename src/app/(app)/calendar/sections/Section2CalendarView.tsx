@@ -1,6 +1,8 @@
 // /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/calendar/sections/Section2CalendarView.tsx
 "use client";
 
+import React, { useEffect, useRef, useState } from "react";
+
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -11,7 +13,6 @@ import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/nb";
 import nbLocale from "@fullcalendar/core/locales/nb";
 
-import { useEffect, useRef, useState } from "react";
 import { CalendarView } from "@/types/calendar";
 
 dayjs.locale("nb");
@@ -24,6 +25,9 @@ type Props = {
   /* 🔔 callbacks */
   onCreate?: (start: Date) => void;
   onEdit?: (bookingId: string) => void;
+
+  /* ✅ swipe / ekstern view-endring */
+  onViewChange?: (next: CalendarView) => void;
 };
 
 export default function Section2CalendarView({
@@ -32,6 +36,7 @@ export default function Section2CalendarView({
   events = [],
   onCreate,
   onEdit,
+  onViewChange,
 }: Props) {
   const calendarRef = useRef<FullCalendar | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -81,6 +86,63 @@ export default function Section2CalendarView({
     if (bookingId) onEdit?.(bookingId);
   };
 
+  // =========================
+  // ✅ SWIPE: Day ↔ Week ↔ Month
+  // =========================
+  const viewOrder: CalendarView[] = ["day", "week", "month"]; // evt legg til "year" hvis du vil
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+
+  function clampIndex(i: number) {
+    if (i < 0) return 0;
+    if (i >= viewOrder.length) return viewOrder.length - 1;
+    return i;
+  }
+
+  function cycleView(direction: "next" | "prev") {
+    if (!onViewChange) return;
+
+    const idx = viewOrder.indexOf(view);
+    const safeIdx = idx === -1 ? 1 : idx; // fallback -> "week"
+    const nextIdx = direction === "next" ? safeIdx + 1 : safeIdx - 1;
+
+    onViewChange(viewOrder[clampIndex(nextIdx)]);
+  }
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    startX.current = t.clientX;
+    startY.current = t.clientY;
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const sx = startX.current;
+    const sy = startY.current;
+
+    startX.current = null;
+    startY.current = null;
+
+    if (sx == null || sy == null) return;
+
+    const t = e.changedTouches[0];
+    const dx = t.clientX - sx;
+    const dy = t.clientY - sy;
+
+    // ✅ Ikke trigge ved vanlig scrolling
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    const MIN_SWIPE = 55; // juster ved behov (70-90 hvis for følsomt)
+    if (absX < MIN_SWIPE) return;
+    if (absY > absX * 0.7) return; // må være mest horisontal swipe
+
+    // Swipe venstre = neste view (day->week->month)
+    if (dx < 0) cycleView("next");
+
+    // Swipe høyre = forrige view
+    if (dx > 0) cycleView("prev");
+  };
+
   return (
     <section className="w-full">
       <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
@@ -96,7 +158,11 @@ export default function Section2CalendarView({
           </h2>
         </div>
 
-        <div className="relative h-[calc(100vh-190px)] overflow-y-auto">
+        <div
+          className="relative h-[calc(100vh-190px)] overflow-y-auto"
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
           <FullCalendar
             ref={calendarRef}
             plugins={[

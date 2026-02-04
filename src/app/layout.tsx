@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Montserrat_Alternates } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,17 +20,16 @@ const montserratAlternates = Montserrat_Alternates({
   weight: ["400", "500", "600", "700"],
 });
 
+// ✅ Read env at module scope (recommended)
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+
 export const metadata: Metadata = {
   title: {
     default: "SmerteFri",
     template: "%s • SmerteFri",
   },
   description: "SmerteFri Rehab Platform",
-
-  // ✅ dette påvirker mye av “Add to Home Screen”
   applicationName: "SmerteFri",
-
-  // ✅ ikoner (må finnes på URLene)
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -38,14 +38,11 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
-
-  // ✅ iOS / PWA-ish
   appleWebApp: {
     capable: true,
     title: "SmerteFri",
     statusBarStyle: "default",
   },
-
   themeColor: "#FFFFFF",
 };
 
@@ -56,6 +53,28 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="no" suppressHydrationWarning>
+      {/* ✅ Google Analytics (GA4) – only if NEXT_PUBLIC_GA_ID is set */}
+      {GA_ID ? (
+        <>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+            strategy="afterInteractive"
+          />
+          <Script id="ga4-init" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){window.dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA_ID}', {
+                anonymize_ip: true,
+                // If you ever want to handle pageviews manually in SPA routes:
+                // send_page_view: false
+              });
+            `}
+          </Script>
+        </>
+      ) : null}
+
       <body
         className={`
           ${geistSans.variable}

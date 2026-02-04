@@ -215,6 +215,7 @@ export default function CalendarPage() {
                     view={view}
                     currentDate={currentDate}
                     events={calendarEvents}
+                    onViewChange={handleViewChange}
                     onCreate={(date) => {
                       if (role === "admin" && !adminHasSelection) return;
                       setSelectedDate(date);
