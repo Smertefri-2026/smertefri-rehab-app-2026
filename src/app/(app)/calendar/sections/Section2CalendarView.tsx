@@ -1,7 +1,7 @@
 // /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/calendar/sections/Section2CalendarView.tsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -64,16 +64,64 @@ export default function Section2CalendarView({
       ? "dayGridMonth"
       : "multiMonthYear";
 
-  /* 🔁 Bytt view */
+  /**
+   * ✅ Defensive: FullCalendar kan mutere event-objekter.
+   * Gjør start/end til ISO-strenger + ny object-referanse.
+   */
+  const safeEvents = useMemo(() => {
+    return (events ?? []).map((e: any) => {
+      const start =
+        e?.start instanceof Date
+          ? e.start.toISOString()
+          : typeof e?.start === "string"
+          ? e.start
+          : e?.start;
+
+      const end =
+        e?.end instanceof Date
+          ? e.end.toISOString()
+          : typeof e?.end === "string"
+          ? e.end
+          : e?.end;
+
+      return { ...e, start, end };
+    });
+  }, [events]);
+
+  /**
+   * ✅ Når vi er i 2-dagers timeGrid (mobil/uke):
+   * filtrer til synlig range [currentDate, currentDate + 2 dager).
+   * Dette hindrer at events fra “forrige vindu” blir med.
+   */
+  const visibleEvents = useMemo(() => {
+    if (effectiveView !== "timeGridTwoDay") return safeEvents;
+
+    const rangeStart = currentDate.startOf("day").toDate().getTime();
+    const rangeEnd = currentDate.startOf("day").add(2, "day").toDate().getTime();
+
+    return safeEvents.filter((e: any) => {
+      const s =
+        typeof e?.start === "string"
+          ? new Date(e.start).getTime()
+          : e?.start instanceof Date
+          ? e.start.getTime()
+          : NaN;
+
+      if (!Number.isFinite(s)) return false;
+      return s >= rangeStart && s < rangeEnd;
+    });
+  }, [safeEvents, effectiveView, currentDate]);
+
+  /* 🔁 Bytt view i FullCalendar når app-view endres */
   useEffect(() => {
     const api = calendarRef.current?.getApi();
     if (api) api.changeView(effectiveView);
   }, [effectiveView]);
 
-  /* 🔁 Synk dato */
+  /* 🔁 Synk dato (alltid start på dagen) */
   useEffect(() => {
     const api = calendarRef.current?.getApi();
-    if (api) api.gotoDate(currentDate.toDate());
+    if (api) api.gotoDate(currentDate.startOf("day").toDate());
   }, [currentDate]);
 
   /* ➕ Klikk på tomt tidspunkt */
@@ -88,7 +136,7 @@ export default function Section2CalendarView({
   };
 
   // =========================
-  // ✅ SWIPE: Prev/Next (dag/uke/mnd avhenger av aktiv view)
+  // ✅ SWIPE: Prev/Next
   // =========================
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
@@ -112,19 +160,15 @@ export default function Section2CalendarView({
     const dx = t.clientX - sx;
     const dy = t.clientY - sy;
 
-    // ✅ Ikke trigge ved vanlig scrolling
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
     const MIN_SWIPE = 55; // øk til 70-90 hvis for følsomt
     if (absX < MIN_SWIPE) return;
-    if (absY > absX * 0.7) return; // må være mest horisontal swipe
+    if (absY > absX * 0.7) return; // må være mest horisontal
 
-    // Swipe VENSTRE = neste dag/uke/mnd (avhenger av view)
-    if (dx < 0) onNext?.();
-
-    // Swipe HØYRE = forrige dag/uke/mnd
-    if (dx > 0) onPrev?.();
+    if (dx < 0) onNext?.(); // venstre = neste
+    if (dx > 0) onPrev?.(); // høyre = forrige
   };
 
   return (
@@ -148,6 +192,8 @@ export default function Section2CalendarView({
           onTouchEnd={onTouchEnd}
         >
           <FullCalendar
+            // ✅ Tving ren re-mount ved view/dato (hindrer cache-artefakter)
+            key={`${effectiveView}-${currentDate.format("YYYY-MM-DD")}`}
             ref={calendarRef}
             plugins={[
               dayGridPlugin,
@@ -157,7 +203,7 @@ export default function Section2CalendarView({
             ]}
             locale={nbLocale}
             initialView={effectiveView}
-            initialDate={currentDate.toDate()}
+            initialDate={currentDate.startOf("day").toDate()}
             headerToolbar={false}
             height="auto"
             expandRows
@@ -167,11 +213,9 @@ export default function Section2CalendarView({
             allDaySlot={false}
             selectable={false}
             editable={false}
-            events={events}
-            /* ✅ KLIKK */
+            events={visibleEvents}
             dateClick={handleDateClick}
             eventClick={handleEventClick}
-            /* ✅ UKENUMMER */
             weekNumbers={true}
             weekNumberCalculation="ISO"
             weekText=""

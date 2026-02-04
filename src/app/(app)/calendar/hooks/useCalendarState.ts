@@ -1,4 +1,4 @@
-// src/app/(app)/calendar/hooks/useCalendarState.ts
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/calendar/hooks/useCalendarState.ts
 "use client";
 
 import dayjs, { Dayjs } from "dayjs";
@@ -35,7 +35,8 @@ export function useCalendarState() {
 
   const handleViewChange = (nextView: CalendarView) => {
     setView(nextView);
-    setCurrentDate(dayjs());
+    // ✅ behold currentDate slik at du ikke hopper til "i dag" når du bytter view
+    // (hvis du heller vil reset til i dag: sett tilbake setCurrentDate(dayjs()))
   };
 
   return { view, currentDate, handlePrev, handleNext, handleViewChange };
