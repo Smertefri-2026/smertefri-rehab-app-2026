@@ -9,35 +9,38 @@ export function useCalendarState() {
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
 
+  // ✅ Når "week" på mobil egentlig er 2-dagers view (timeGridTwoDay)
+  const [isMobileWeek, setIsMobileWeek] = useState(false);
+
   const handlePrev = () => {
-    setCurrentDate((prev) =>
-      view === "day"
-        ? prev.subtract(1, "day")
-        : view === "week"
-        ? prev.subtract(1, "week")
-        : view === "month"
-        ? prev.subtract(1, "month")
-        : prev.subtract(1, "year")
-    );
+    setCurrentDate((prev) => {
+      if (view === "day") return prev.subtract(1, "day");
+      if (view === "week") return prev.subtract(1, isMobileWeek ? "day" : "week");
+      if (view === "month") return prev.subtract(1, "month");
+      return prev.subtract(1, "year");
+    });
   };
 
   const handleNext = () => {
-    setCurrentDate((prev) =>
-      view === "day"
-        ? prev.add(1, "day")
-        : view === "week"
-        ? prev.add(1, "week")
-        : view === "month"
-        ? prev.add(1, "month")
-        : prev.add(1, "year")
-    );
+    setCurrentDate((prev) => {
+      if (view === "day") return prev.add(1, "day");
+      if (view === "week") return prev.add(1, isMobileWeek ? "day" : "week");
+      if (view === "month") return prev.add(1, "month");
+      return prev.add(1, "year");
+    });
   };
 
   const handleViewChange = (nextView: CalendarView) => {
     setView(nextView);
-    // ✅ behold currentDate slik at du ikke hopper til "i dag" når du bytter view
-    // (hvis du heller vil reset til i dag: sett tilbake setCurrentDate(dayjs()))
+    // ✅ behold currentDate (ikke hopp til i dag)
   };
 
-  return { view, currentDate, handlePrev, handleNext, handleViewChange };
+  return {
+    view,
+    currentDate,
+    handlePrev,
+    handleNext,
+    handleViewChange,
+    setIsMobileWeek, // ✅ UI kan fortelle om "week" er 2-dagers mode
+  };
 }

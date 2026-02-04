@@ -30,8 +30,14 @@ export default function CalendarPage() {
   const { role, loading, userId } = useRole();
   const searchParams = useSearchParams();
 
-  const { view, currentDate, handlePrev, handleNext, handleViewChange } =
-    useCalendarState();
+  const {
+    view,
+    currentDate,
+    handlePrev,
+    handleNext,
+    handleViewChange,
+    setIsMobileWeek, // ✅ NY
+  } = useCalendarState();
 
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -93,7 +99,7 @@ export default function CalendarPage() {
     eventRole: eventRole as any,
     namesById,
     adminExtras: {
-      trainerName: admin.trainerName ?? undefined, // 👈 ikke null
+      trainerName: admin.trainerName ?? undefined,
       clientNamesById: admin.clientNamesById,
     },
   });
@@ -217,9 +223,12 @@ export default function CalendarPage() {
                     view={view}
                     currentDate={currentDate}
                     events={calendarEvents}
-                    // ✅ swipe blar i tid:
                     onPrev={handlePrev}
                     onNext={handleNext}
+                    // ✅ fortell hooken om vi er i mobil "week" (2-dagers view)
+                    onMobileWeekChange={(isMobileWeek) =>
+                      setIsMobileWeek(isMobileWeek)
+                    }
                     onCreate={(date) => {
                       if (role === "admin" && !adminHasSelection) return;
                       setSelectedDate(date);
@@ -270,7 +279,6 @@ export default function CalendarPage() {
                 allBookings={bookings}
               />
 
-              {/* ✅ CLIENT: upcoming + history kan åpne samme edit-dialog */}
               {role === "client" && (
                 <>
                   <Section4ClientUpcoming
@@ -291,7 +299,6 @@ export default function CalendarPage() {
                 </>
               )}
 
-              {/* ✅ TRAINER: availability editor */}
               {role === "trainer" && (
                 <Section6TrainerAvailability
                   initialAvailability={(availability ?? undefined) as any}

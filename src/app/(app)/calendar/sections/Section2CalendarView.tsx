@@ -22,13 +22,14 @@ type Props = {
   currentDate: Dayjs;
   events?: any[];
 
-  /* 🔔 callbacks */
   onCreate?: (start: Date) => void;
   onEdit?: (bookingId: string) => void;
 
-  /* ✅ swipe i tid (prev/next) */
   onPrev?: () => void;
   onNext?: () => void;
+
+  // ✅ fortell parent/hook om "week" kjøres som 2-dagers (mobil)
+  onMobileWeekChange?: (isMobileWeek: boolean) => void;
 };
 
 export default function Section2CalendarView({
@@ -39,6 +40,7 @@ export default function Section2CalendarView({
   onEdit,
   onPrev,
   onNext,
+  onMobileWeekChange,
 }: Props) {
   const calendarRef = useRef<FullCalendar | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -64,10 +66,12 @@ export default function Section2CalendarView({
       ? "dayGridMonth"
       : "multiMonthYear";
 
-  /**
-   * ✅ Defensive: FullCalendar kan mutere event-objekter.
-   * Gjør start/end til ISO-strenger + ny object-referanse.
-   */
+  // ✅ Informer parent/hook om vi er i mobil-uke (2-dagers)
+  useEffect(() => {
+    onMobileWeekChange?.(view === "week" && effectiveView === "timeGridTwoDay");
+  }, [view, effectiveView, onMobileWeekChange]);
+
+  /* ✅ Defensive: ISO-strenger for å unngå mutasjon/caching-bugs */
   const safeEvents = useMemo(() => {
     return (events ?? []).map((e: any) => {
       const start =
@@ -88,11 +92,7 @@ export default function Section2CalendarView({
     });
   }, [events]);
 
-  /**
-   * ✅ Når vi er i 2-dagers timeGrid (mobil/uke):
-   * filtrer til synlig range [currentDate, currentDate + 2 dager).
-   * Dette hindrer at events fra “forrige vindu” blir med.
-   */
+  /* ✅ Filter til synlig 2-dagers range for å unngå “hengende” events */
   const visibleEvents = useMemo(() => {
     if (effectiveView !== "timeGridTwoDay") return safeEvents;
 
@@ -112,24 +112,22 @@ export default function Section2CalendarView({
     });
   }, [safeEvents, effectiveView, currentDate]);
 
-  /* 🔁 Bytt view i FullCalendar når app-view endres */
+  /* 🔁 Bytt view i FullCalendar */
   useEffect(() => {
     const api = calendarRef.current?.getApi();
     if (api) api.changeView(effectiveView);
   }, [effectiveView]);
 
-  /* 🔁 Synk dato (alltid start på dagen) */
+  /* 🔁 Synk dato */
   useEffect(() => {
     const api = calendarRef.current?.getApi();
     if (api) api.gotoDate(currentDate.startOf("day").toDate());
   }, [currentDate]);
 
-  /* ➕ Klikk på tomt tidspunkt */
   const handleDateClick = (arg: DateClickArg) => {
     onCreate?.(arg.date);
   };
 
-  /* ✏️ Klikk på eksisterende booking */
   const handleEventClick = (arg: any) => {
     const bookingId = arg?.event?.id;
     if (bookingId) onEdit?.(bookingId);
@@ -163,12 +161,12 @@ export default function Section2CalendarView({
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    const MIN_SWIPE = 55; // øk til 70-90 hvis for følsomt
+    const MIN_SWIPE = 55;
     if (absX < MIN_SWIPE) return;
-    if (absY > absX * 0.7) return; // må være mest horisontal
+    if (absY > absX * 0.7) return;
 
-    if (dx < 0) onNext?.(); // venstre = neste
-    if (dx > 0) onPrev?.(); // høyre = forrige
+    if (dx < 0) onNext?.();
+    if (dx > 0) onPrev?.();
   };
 
   return (
@@ -192,7 +190,6 @@ export default function Section2CalendarView({
           onTouchEnd={onTouchEnd}
         >
           <FullCalendar
-            // ✅ Tving ren re-mount ved view/dato (hindrer cache-artefakter)
             key={`${effectiveView}-${currentDate.format("YYYY-MM-DD")}`}
             ref={calendarRef}
             plugins={[
