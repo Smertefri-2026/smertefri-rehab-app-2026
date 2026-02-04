@@ -1,4 +1,4 @@
-// src/app/(app)/calendar/page.tsx
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/calendar/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -35,7 +35,9 @@ export default function CalendarPage() {
 
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
+    null
+  );
 
   const { bookings, loading: bookingsLoading, refreshBookings } = useBookings();
 
@@ -215,7 +217,9 @@ export default function CalendarPage() {
                     view={view}
                     currentDate={currentDate}
                     events={calendarEvents}
-                    onViewChange={handleViewChange}
+                    // ✅ swipe blar i tid:
+                    onPrev={handlePrev}
+                    onNext={handleNext}
                     onCreate={(date) => {
                       if (role === "admin" && !adminHasSelection) return;
                       setSelectedDate(date);

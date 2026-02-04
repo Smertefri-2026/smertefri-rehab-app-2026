@@ -26,8 +26,9 @@ type Props = {
   onCreate?: (start: Date) => void;
   onEdit?: (bookingId: string) => void;
 
-  /* ✅ swipe / ekstern view-endring */
-  onViewChange?: (next: CalendarView) => void;
+  /* ✅ swipe i tid (prev/next) */
+  onPrev?: () => void;
+  onNext?: () => void;
 };
 
 export default function Section2CalendarView({
@@ -36,7 +37,8 @@ export default function Section2CalendarView({
   events = [],
   onCreate,
   onEdit,
-  onViewChange,
+  onPrev,
+  onNext,
 }: Props) {
   const calendarRef = useRef<FullCalendar | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -80,34 +82,16 @@ export default function Section2CalendarView({
   };
 
   /* ✏️ Klikk på eksisterende booking */
-  // NB: Typen varierer mellom FullCalendar-versjoner, så vi bruker minimal typing
   const handleEventClick = (arg: any) => {
     const bookingId = arg?.event?.id;
     if (bookingId) onEdit?.(bookingId);
   };
 
   // =========================
-  // ✅ SWIPE: Day ↔ Week ↔ Month
+  // ✅ SWIPE: Prev/Next (dag/uke/mnd avhenger av aktiv view)
   // =========================
-  const viewOrder: CalendarView[] = ["day", "week", "month"]; // evt legg til "year" hvis du vil
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
-
-  function clampIndex(i: number) {
-    if (i < 0) return 0;
-    if (i >= viewOrder.length) return viewOrder.length - 1;
-    return i;
-  }
-
-  function cycleView(direction: "next" | "prev") {
-    if (!onViewChange) return;
-
-    const idx = viewOrder.indexOf(view);
-    const safeIdx = idx === -1 ? 1 : idx; // fallback -> "week"
-    const nextIdx = direction === "next" ? safeIdx + 1 : safeIdx - 1;
-
-    onViewChange(viewOrder[clampIndex(nextIdx)]);
-  }
 
   const onTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0];
@@ -132,15 +116,15 @@ export default function Section2CalendarView({
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    const MIN_SWIPE = 55; // juster ved behov (70-90 hvis for følsomt)
+    const MIN_SWIPE = 55; // øk til 70-90 hvis for følsomt
     if (absX < MIN_SWIPE) return;
     if (absY > absX * 0.7) return; // må være mest horisontal swipe
 
-    // Swipe venstre = neste view (day->week->month)
-    if (dx < 0) cycleView("next");
+    // Swipe VENSTRE = neste dag/uke/mnd (avhenger av view)
+    if (dx < 0) onNext?.();
 
-    // Swipe høyre = forrige view
-    if (dx > 0) cycleView("prev");
+    // Swipe HØYRE = forrige dag/uke/mnd
+    if (dx > 0) onPrev?.();
   };
 
   return (
