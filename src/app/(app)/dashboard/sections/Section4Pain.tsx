@@ -61,9 +61,7 @@ function MaybeLink({
   href: string;
   children: React.ReactNode;
 }) {
-  if (!enabled) {
-    return <div className="cursor-default">{children}</div>;
-  }
+  if (!enabled) return <div className="cursor-default">{children}</div>;
   return (
     <Link href={href} className="block">
       {children}
@@ -82,10 +80,10 @@ type RankedRow = {
 };
 
 type TrendMeta = {
-  eligibleCount: number; // de som har delta (altså både last7 og prev7)
-  recent14Count: number; // de som har noe data i 14d
-  betterCount: number; // delta < 0
-  worseCount: number; // delta > 0
+  eligibleCount: number;
+  recent14Count: number;
+  betterCount: number;
+  worseCount: number;
   avgDelta: number | null;
 };
 
@@ -140,6 +138,13 @@ export default function Section4Pain() {
       .slice(0, 2);
   }, [activeLatest]);
 
+  // ✅ NY: client-tilstand
+  const hasAnyPainHistory = useMemo(() => entries.length > 0, [entries]);
+  const hasActivePain = useMemo(() => activeLatest.length > 0, [activeLatest]);
+
+  // Kun vis “de 3 vanlige kortene” når: loading eller aktiv smerte
+  const showClientPainCards = painLoading || hasActivePain;
+
   // TRAINER/ADMIN: finn klient-ids
   const [clientIds, setClientIds] = useState<string[]>([]);
   const [idsLoading, setIdsLoading] = useState(false);
@@ -174,7 +179,7 @@ export default function Section4Pain() {
     run();
   }, [role, userId]);
 
-  // Metrics hook (samme som clients page)
+  // Metrics hook
   const { loading: metricsLoading, error: metricsError, stats } = usePainMetricsForClients({
     clientIds,
     highThreshold: 7,
@@ -187,7 +192,6 @@ export default function Section4Pain() {
 
   const ready = role === "trainer" || role === "admin" ? !idsLoading && !metricsLoading : true;
 
-  // ✅ Skjul OK-kort for trainer/admin når ferdig lastet
   const showHigh = !ready || highCount > 0;
   const showUp = !ready || upCount > 0;
   const showStale = !ready || staleCount > 0;
@@ -201,7 +205,7 @@ export default function Section4Pain() {
     !idsError &&
     !metricsError;
 
-  /* --------- Trend (14 dager): Best / Dårligst i samme design som Section5 --------- */
+  /* --------- Trend (14 dager) --------- */
   const [rankLoading, setRankLoading] = useState(false);
   const [rankErr, setRankErr] = useState<string | null>(null);
   const [best, setBest] = useState<RankedRow[]>([]);
@@ -239,7 +243,6 @@ export default function Section4Pain() {
         const from14 = daysAgoISO(13);
         const from7 = daysAgoISO(6);
 
-        // 1) Hent navn
         const { data: profs, error: pErr } = await supabase
           .from("profiles")
           .select("id, first_name, last_name")
@@ -252,8 +255,6 @@ export default function Section4Pain() {
           nameMap.set(String((p as any).id), nameOfProfile(p));
         }
 
-        // 2) Hent smerterader siste 14 dager
-        // NB: vi filtrerer med created_at, men bruker isoFromEntry for å støtte entry_date også
         const { data: rows, error: rErr } = await supabase
           .from("pain_entries")
           .select("client_id, intensity, entry_date, created_at, is_active")
@@ -264,7 +265,6 @@ export default function Section4Pain() {
 
         if (rErr) throw rErr;
 
-        // group per client → last7 / prev7 avg
         const per = new Map<string, { last7: number[]; prev7: number[] }>();
         for (const r of rows ?? []) {
           const cid = String((r as any).client_id ?? "");
@@ -307,7 +307,6 @@ export default function Section4Pain() {
             ? withDelta.reduce((acc, x) => acc + Number(x.delta ?? 0), 0) / withDelta.length
             : null;
 
-        // Best = mest negativ delta (bedre), Worst = mest positiv delta (verre)
         const best3 = [...withDelta].sort((a, b) => Number(a.delta) - Number(b.delta)).slice(0, 3);
         const worst3 = [...withDelta].sort((a, b) => Number(b.delta) - Number(a.delta)).slice(0, 3);
 
@@ -341,8 +340,6 @@ export default function Section4Pain() {
 
   if (!role) return null;
 
-  // ✅ FIX: Client får 3 kolonner på lg (samme som Section5/6)
-  // Trainer/Admin beholder 4 kolonner (inkl Trend-kortet)
   const gridClass =
     role === "trainer" || role === "admin"
       ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
@@ -356,45 +353,82 @@ export default function Section4Pain() {
         {/* ======================= CLIENT ======================= */}
         {role === "client" && (
           <>
-            <Link href="/pain" className="block">
-              <DashboardCard title="Aktive smerteområder" icon={<HeartPulse size={18} />}>
-                <p className="text-lg font-semibold">
-                  {painLoading ? "Laster…" : `${activeLatest.length} ${activeLatest.length === 1 ? "område" : "områder"}`}
-                </p>
-                <p className="text-xs text-sf-muted">
-                  {activeLabels.length
-                    ? activeLabels.join(" og ") + (activeLatest.length > 2 ? " …" : "")
-                    : "Trykk for å åpne smertejournal"}
-                </p>
-              </DashboardCard>
-            </Link>
+            {showClientPainCards ? (
+              <>
+                <Link href="/pain" className="block">
+                  <DashboardCard title="Aktive smerteområder" icon={<HeartPulse size={18} />}>
+                    <p className="text-lg font-semibold">
+                      {painLoading
+                        ? "Laster…"
+                        : `${activeLatest.length} ${activeLatest.length === 1 ? "område" : "områder"}`}
+                    </p>
+                    <p className="text-xs text-sf-muted">
+                      {activeLabels.length
+                        ? activeLabels.join(" og ") + (activeLatest.length > 2 ? " …" : "")
+                        : "Trykk for å åpne smertejournal"}
+                    </p>
+                  </DashboardCard>
+                </Link>
 
-            <Link href="/pain" className="block">
-              <DashboardCard title="Snitt smerteintensitet" icon={<TrendingDown size={18} />} variant="info">
-                <p className="text-lg font-semibold">
-                  {painLoading ? "Laster…" : avg14 == null ? "—" : `${avg14.toFixed(1)} / 10`}
-                </p>
-                <p className="text-xs text-sf-muted">
-                  {avg14 == null ? "Ingen data siste 14 dager" : "Basert på aktive registreringer siste 14 dager"}
-                </p>
-              </DashboardCard>
-            </Link>
+                <Link href="/pain" className="block">
+                  <DashboardCard title="Snitt smerteintensitet" icon={<TrendingDown size={18} />} variant="info">
+                    <p className="text-lg font-semibold">
+                      {painLoading ? "Laster…" : avg14 == null ? "—" : `${avg14.toFixed(1)} / 10`}
+                    </p>
+                    <p className="text-xs text-sf-muted">
+                      {avg14 == null ? "Ingen data siste 14 dager" : "Basert på aktive registreringer siste 14 dager"}
+                    </p>
+                  </DashboardCard>
+                </Link>
 
-            <Link href="/pain" className="block">
-              <DashboardCard title="Oppdater smerte" icon={<HeartPulse size={18} />}>
-                <p className="text-sm text-sf-muted">Registrer dagens smerte (og se utvikling over tid).</p>
-                <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
-                  Åpne smertejournal
-                </p>
-              </DashboardCard>
-            </Link>
+                <Link href="/pain" className="block">
+                  <DashboardCard title="Oppdater smerte" icon={<HeartPulse size={18} />}>
+                    <p className="text-sm text-sf-muted">Registrer dagens smerte (og se utvikling over tid).</p>
+                    <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
+                      Åpne smertejournal
+                    </p>
+                  </DashboardCard>
+                </Link>
+              </>
+            ) : (
+              <Link href="/pain" className="block">
+                <DashboardCard
+                  title={hasAnyPainHistory ? "Du er smertefri" : "Kom i gang med smertejournal"}
+                  icon={hasAnyPainHistory ? <CheckCircle2 size={18} /> : <HeartPulse size={18} />}
+                  variant={hasAnyPainHistory ? "success" : "info"}
+                >
+                  {hasAnyPainHistory ? (
+                    <>
+                      <p className="text-sm">Så bra! 🎉 Du har ingen aktive smerteområder akkurat nå.</p>
+                      <p className="mt-2 text-xs text-sf-muted">
+                        Hvis du får smerte senere, registrer det her – så får du bedre historikk og oppfølging.
+                      </p>
+                      <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
+                        Registrer smerte
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm">
+                        Start med å registrere smerte (hvis du har) – så kan vi følge utviklingen over tid.
+                      </p>
+                      <p className="mt-2 text-xs text-sf-muted">
+                        Har du ingen smerte? Da trenger du ikke logge noe – men du kan alltid starte senere.
+                      </p>
+                      <p className="mt-3 inline-flex items-center rounded-xl bg-sf-primary px-4 py-2 text-sm font-medium text-white">
+                        Kom i gang
+                      </p>
+                    </>
+                  )}
+                </DashboardCard>
+              </Link>
+            )}
           </>
         )}
 
         {/* ======================= TRAINER + ADMIN ======================= */}
         {(role === "trainer" || role === "admin") && (
           <>
-            {/* ✅ Hvis alt er OK: vis ett grønt kort */}
             {allOkTrainerAdmin ? (
               <DashboardCard
                 title="Alle kunder er oppdatert"
@@ -407,7 +441,6 @@ export default function Section4Pain() {
               </DashboardCard>
             ) : null}
 
-            {/* ✅ Vis bare kort som faktisk har noe å følge opp */}
             {showHigh ? (
               <MaybeLink enabled={!ready || highCount > 0} href="/clients?pain=high">
                 <DashboardCard
@@ -455,7 +488,6 @@ export default function Section4Pain() {
               </MaybeLink>
             ) : null}
 
-            {/* 📈 Trend – samme “design” som Section5 */}
             <DashboardCard title="Trend (14 dager)" icon={<LineChart size={18} />} variant="info">
               {!ready || rankLoading ? (
                 <p className="text-sm text-sf-muted">{!ready ? "Laster…" : "Laster trend…"}</p>
@@ -534,10 +566,8 @@ export default function Section4Pain() {
               )}
             </DashboardCard>
 
-            {(idsError || metricsError) ? (
-              <p className="text-xs text-red-600 lg:col-span-4">
-                Pain-feil: {idsError ?? metricsError}
-              </p>
+            {idsError || metricsError ? (
+              <p className="text-xs text-red-600 lg:col-span-4">Pain-feil: {idsError ?? metricsError}</p>
             ) : null}
           </>
         )}
