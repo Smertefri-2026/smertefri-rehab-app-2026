@@ -91,7 +91,6 @@ export default function Section3PainHistory({ clientId, areaKey }: Props) {
 
     const relevant = entries
       .filter((e) => e.client_id === clientId && e.area_key === activeAreaKey)
-      // ✅ bruk entry_date eller created_at for filtrering
       .filter((e) => dateISOFromEntry(e) >= fromISO);
 
     // én verdi per dag: ta siste som finnes den dagen
@@ -142,7 +141,7 @@ export default function Section3PainHistory({ clientId, areaKey }: Props) {
 
   return (
     <section className="w-full">
-      <div className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm space-y-4">
+      <div className="rounded-2xl border border-sf-border bg-white p-4 sm:p-6 shadow-sm space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-lg font-semibold">Utvikling over tid</h3>
@@ -174,7 +173,6 @@ export default function Section3PainHistory({ clientId, areaKey }: Props) {
           <p className="text-sm text-sf-muted">Ingen registreringer i valgt periode.</p>
         ) : (
           <>
-            {/* ✅ mini-stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <StatPill label="Sist registrert" value={lastLabel} />
               <StatPill label="Snitt" value={avgText} />
@@ -190,12 +188,7 @@ export default function Section3PainHistory({ clientId, areaKey }: Props) {
   );
 }
 
-function MiniLineChart({
-  points,
-}: {
-  points: { date: string; value: number | null }[];
-}) {
-  // enkel SVG chart: 0–10
+function MiniLineChart({ points }: { points: { date: string; value: number | null }[] }) {
   const w = 900;
   const h = 220;
   const pad = 28;
@@ -211,7 +204,6 @@ function MiniLineChart({
     return pad + (1 - v / 10) * usableH;
   });
 
-  // ✅ Path starter med "M" på første gyldige punkt
   let started = false;
   const d = xs
     .map((x, i) => {
@@ -225,9 +217,8 @@ function MiniLineChart({
     .join(" ");
 
   return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full min-w-[700px]">
-        {/* grid */}
+    <div className="w-full overflow-x-auto sm:overflow-x-visible">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full min-w-[700px] sm:min-w-0">
         {[0, 2, 4, 6, 8, 10].map((v) => {
           const y = pad + (1 - v / 10) * usableH;
           return (
@@ -240,10 +231,8 @@ function MiniLineChart({
           );
         })}
 
-        {/* line */}
         {d ? <path d={d} fill="none" stroke="#007C80" strokeWidth="3" /> : null}
 
-        {/* points (med tooltip) */}
         {xs.map((x, i) => {
           const y = ys[i];
           const p = points[i];
@@ -252,7 +241,6 @@ function MiniLineChart({
           return (
             <g key={i}>
               <circle cx={x} cy={y} r="4.5" fill="#ffffff" stroke="#007C80" strokeWidth="2" />
-              {/* ✅ Native tooltip */}
               <title>
                 {p.date} – {p.value}/10
               </title>

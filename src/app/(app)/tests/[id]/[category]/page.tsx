@@ -124,7 +124,7 @@ function MiniLineChart({
   const xScale = (i: number) => PAD + i * xStep;
 
   return (
-    <div className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-sf-border bg-white p-4 sm:p-6 shadow-sm">
       <div className="mb-3">
         <div className="text-sm font-semibold text-sf-text">Progresjon (%)</div>
         <div className="text-xs text-sf-muted">Trykk på en øvelse for å fokusere.</div>
@@ -149,8 +149,8 @@ function MiniLineChart({
         })}
       </div>
 
-      <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[640px]">
+      <div className="overflow-x-auto sm:overflow-x-visible">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[640px] sm:min-w-0">
           <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#94a3b8" />
           <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="#94a3b8" />
 
@@ -209,17 +209,14 @@ export default function TestCategoryClientPage() {
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [busyDelete, setBusyDelete] = useState(false);
 
-  // ✅ Kunde-tilgang / trenerkobling
   const [myTrainerId, setMyTrainerId] = useState<string | null>(null);
   const [accessLoading, setAccessLoading] = useState(false);
 
-  // navn (trainer/admin får fra store, client kan falle tilbake til "Klient")
   const client = clientId ? getClientById(clientId) : null;
   const clientName = client
     ? `${client.first_name ?? ""} ${client.last_name ?? ""}`.trim() || "Klient"
     : "Klient";
 
-  // ✅ hent trainer_id for innlogget kunde (for å styre knapp)
   useEffect(() => {
     const run = async () => {
       if (role !== "client") return;
@@ -374,22 +371,14 @@ export default function TestCategoryClientPage() {
     setBusyDelete(true);
     setErr(null);
 
-    const { error: eErr } = await supabase
-      .from("test_entries")
-      .delete()
-      .eq("session_id", latestSession.id);
-
+    const { error: eErr } = await supabase.from("test_entries").delete().eq("session_id", latestSession.id);
     if (eErr) {
       setBusyDelete(false);
       setErr(eErr.message);
       return;
     }
 
-    const { error: sErr } = await supabase
-      .from("test_sessions")
-      .delete()
-      .eq("id", latestSession.id);
-
+    const { error: sErr } = await supabase.from("test_sessions").delete().eq("id", latestSession.id);
     if (sErr) {
       setBusyDelete(false);
       setErr(sErr.message);
@@ -426,12 +415,9 @@ export default function TestCategoryClientPage() {
     );
   }
 
-  // ✅ Access-regler:
-  // - trainer/admin: alltid
-  // - client: kun egen side (view). Registrer-knapp kun hvis ingen trener.
   const clientSelf = role === "client" && userId && userId === clientId;
   const canView = role === "trainer" || role === "admin" || clientSelf;
-  const canRegister = (role === "trainer" || role === "admin") || (clientSelf && !myTrainerId);
+  const canRegister = role === "trainer" || role === "admin" || (clientSelf && !myTrainerId);
 
   if (!canView) {
     return (
@@ -452,9 +438,7 @@ export default function TestCategoryClientPage() {
     <main className="bg-[#F4FBFA]">
       <AppPage>
         <div className="mx-auto w-full max-w-5xl space-y-5">
-          {/* ✅ Topp: mobil = stack, desktop = side-by-side */}
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            {/* VENSTRE: tilbake + tittel */}
             <div className="flex items-start gap-3">
               <Link
                 href={`/tests/${encodeURIComponent(clientId)}`}
@@ -470,16 +454,12 @@ export default function TestCategoryClientPage() {
                 </h1>
                 <p className="text-sm text-sf-muted">{cfg.subtitle}</p>
 
-                {/* Lite hint for kunde med trener */}
                 {role === "client" && clientSelf && myTrainerId ? (
-                  <p className="mt-1 text-xs text-sf-muted">
-                    Testregistrering gjøres av treneren din.
-                  </p>
+                  <p className="mt-1 text-xs text-sf-muted">Testregistrering gjøres av treneren din.</p>
                 ) : null}
               </div>
             </div>
 
-            {/* HØYRE: actions */}
             <div
               className="
                 w-full md:w-auto
@@ -488,13 +468,10 @@ export default function TestCategoryClientPage() {
                 md:flex md:items-center md:justify-end md:gap-2
               "
             >
-              {/* ✅ Vis kun hvis kanRegister */}
               {canRegister ? (
                 <button
                   type="button"
-                  onClick={() =>
-                    router.push(`/tests/${encodeURIComponent(clientId)}/${category}/new`)
-                  }
+                  onClick={() => router.push(`/tests/${encodeURIComponent(clientId)}/${category}/new`)}
                   className="
                     inline-flex w-full md:w-auto
                     items-center justify-center gap-2
@@ -509,7 +486,6 @@ export default function TestCategoryClientPage() {
                 <div className="hidden sm:block" />
               )}
 
-              {/* ✅ Edit/Delete kun hvis canRegister */}
               <button
                 type="button"
                 disabled={!canRegister || disableEditDelete}
@@ -558,7 +534,7 @@ export default function TestCategoryClientPage() {
 
           <MiniLineChart labels={ui.labels} series={ui.series} focusKey={focusKey} onFocus={setFocusKey} />
 
-          <div className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-sf-border bg-white p-4 sm:p-6 shadow-sm">
             <div className="mb-4 text-sm font-semibold text-sf-text">Historikk</div>
 
             {ui.history.length === 0 ? (
@@ -616,16 +592,14 @@ export default function TestCategoryClientPage() {
                         {h.rows.map((r: any) => (
                           <div key={r.key} className="flex items-center justify-between gap-4">
                             <div className="text-sf-text">
-                              <span className="font-medium">{r.label}:</span> {r.value ?? "—"}{" "}
-                              {r.unit ?? cfg.unitLabel}
+                              <span className="font-medium">{r.label}:</span> {r.value ?? "—"} {r.unit ?? cfg.unitLabel}
                             </div>
 
                             <div className="text-right text-sf-muted">
                               {r.delta != null && r.pct != null ? (
                                 <span className="text-[#2F6B4F]">
                                   ({r.delta >= 0 ? "+" : ""}
-                                  {Math.round(r.delta)} {r.unit ?? cfg.unitLabel} ·{" "}
-                                  {r.pct >= 0 ? "+" : ""}
+                                  {Math.round(r.delta)} {r.unit ?? cfg.unitLabel} · {r.pct >= 0 ? "+" : ""}
                                   {Math.round(r.pct)}%)
                                 </span>
                               ) : (

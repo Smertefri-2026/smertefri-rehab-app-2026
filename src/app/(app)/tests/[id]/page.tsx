@@ -10,6 +10,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
 import { useClients } from "@/stores/clients.store";
 
+import { Plus } from "lucide-react";
+
 type Category = "bodyweight" | "strength" | "cardio";
 const CATEGORIES: Category[] = ["bodyweight", "strength", "cardio"];
 
@@ -123,7 +125,7 @@ function MiniLineChart({
   const xScale = (i: number) => PAD + i * xStep;
 
   return (
-    <div className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-sf-border bg-white p-4 sm:p-6 shadow-sm">
       <div className="mb-3">
         <div className="text-sm font-semibold text-sf-text">Progresjon (%)</div>
         <div className="text-xs text-sf-muted">Trykk på en øvelse for å fokusere.</div>
@@ -148,8 +150,8 @@ function MiniLineChart({
         })}
       </div>
 
-      <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[640px]">
+      <div className="overflow-x-auto sm:overflow-x-visible">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[640px] sm:min-w-0">
           <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#94a3b8" />
           <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="#94a3b8" />
 
@@ -201,9 +203,6 @@ export default function TestsIdPage() {
 
   const isCategory = CATEGORIES.includes(id as Category);
 
-  // =========================
-  // A) Kunde / Self category
-  // =========================
   const category = (isCategory ? (id as Category) : null) as Category | null;
   const cfg = category ? CATEGORY_CONFIG[category] : null;
 
@@ -212,12 +211,40 @@ export default function TestsIdPage() {
   const [err, setErr] = useState<string | null>(null);
   const [focusKey, setFocusKey] = useState<string | null>(null);
 
+  // ✅ Kunde: trenerkobling for å styre "Registrer ny test"
+  const [myTrainerId, setMyTrainerId] = useState<string | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
+
+  useEffect(() => {
+    const run = async () => {
+      if (role !== "client") return;
+      if (!userId) return;
+
+      setAccessLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("trainer_id")
+          .eq("id", userId)
+          .single();
+
+        if (error) throw error;
+        setMyTrainerId((data as any)?.trainer_id ?? null);
+      } catch {
+        setMyTrainerId(null);
+      } finally {
+        setAccessLoading(false);
+      }
+    };
+    run();
+  }, [role, userId]);
+
   useEffect(() => {
     if (!isCategory) return;
     if (loading || !userId) return;
     if (!cfg || !category) return;
 
-    // kun kunder (self)
+    // Denne "category-modusen" er for kundevisning (egen historikk)
     if (role && role !== "client") return;
 
     let alive = true;
@@ -308,7 +335,7 @@ export default function TestsIdPage() {
         const base = baselineMap[m.key] ?? null;
         const p = pct(base, v);
         const delta = base != null && v != null ? v - base : null;
-        return { ...m, value: v, pct: p, delta };
+        return { ...m, value: v, pct: p, delta, unit: (e?.unit ?? m.unit ?? cfg.unitLabel) as string };
       });
 
       return {
@@ -322,18 +349,15 @@ export default function TestsIdPage() {
     return { labels, series, history };
   }, [sessions, entriesBySession, cfg]);
 
-  // =========================
-  // B) Trainer/Admin client overview
-  // =========================
   const clientId = !isCategory ? id : null;
   const client = clientId ? getClientById(clientId) : null;
   const clientName = client
     ? `${client.first_name ?? ""} ${client.last_name ?? ""}`.trim()
     : "Klient";
 
-  if (loading || clientsLoading) return null;
+  if (loading || clientsLoading || (role === "client" && accessLoading)) return null;
 
-  // --------- Render A: Self category ----------
+  // ✅ KUNDE-MODUS (id = category)
   if (isCategory) {
     if (!cfg || !category) {
       return (
@@ -347,7 +371,6 @@ export default function TestsIdPage() {
       );
     }
 
-    // Trenere/admin skal ikke inn her
     if (role && role !== "client") {
       return (
         <main className="bg-[#F4FBFA]">
@@ -360,22 +383,52 @@ export default function TestsIdPage() {
       );
     }
 
+    const canRegister = Boolean(userId) && !myTrainerId;
+
     return (
       <main className="bg-[#F4FBFA]">
         <AppPage>
           <div className="mx-auto w-full max-w-5xl space-y-5">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/tests"
-                className="inline-flex items-center justify-center rounded-full border border-sf-border bg-white px-3 py-2 text-sm hover:bg-sf-soft"
-                title="Tilbake"
-              >
-                ←
-              </Link>
-              <div>
-                <h1 className="text-2xl font-semibold text-sf-text">{cfg.title}</h1>
-                <p className="text-sm text-sf-muted">{cfg.subtitle}</p>
+            {/* Header + actions */}
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/tests"
+                  className="inline-flex items-center justify-center rounded-full border border-sf-border bg-white px-3 py-2 text-sm hover:bg-sf-soft"
+                  title="Tilbake"
+                >
+                  ←
+                </Link>
+                <div>
+                  <h1 className="text-2xl font-semibold text-sf-text">{cfg.title}</h1>
+                  <p className="text-sm text-sf-muted">{cfg.subtitle}</p>
+
+                  {!canRegister ? (
+                    <p className="mt-1 text-xs text-sf-muted">
+                      Testregistrering gjøres av treneren din.
+                    </p>
+                  ) : null}
+                </div>
               </div>
+
+              {/* ✅ Kun kunde uten trener */}
+              {canRegister ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(`/tests/${encodeURIComponent(userId!)}/${category}/new`)
+                  }
+                  className="
+                    inline-flex w-full md:w-auto
+                    items-center justify-center gap-2
+                    rounded-xl bg-[#007C80] px-4 py-2
+                    text-sm font-medium text-white hover:opacity-95
+                  "
+                >
+                  <Plus size={16} />
+                  Registrer ny test
+                </button>
+              ) : null}
             </div>
 
             {err && (
@@ -391,7 +444,7 @@ export default function TestsIdPage() {
               onFocus={setFocusKey}
             />
 
-            <div className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-sf-border bg-white p-4 sm:p-6 shadow-sm">
               <div className="mb-4 text-sm font-semibold text-sf-text">Historikk</div>
 
               {ui.history.length === 0 ? (
@@ -422,7 +475,10 @@ export default function TestsIdPage() {
                               <div className="text-right text-sf-muted">
                                 {r.delta != null && r.pct != null ? (
                                   <span className="text-[#2F6B4F]">
-                                    (+{Math.round(r.delta)} {unit} · +{Math.round(r.pct)}%)
+                                    ({r.delta >= 0 ? "+" : ""}
+                                    {Math.round(r.delta)} {unit} ·{" "}
+                                    {r.pct >= 0 ? "+" : ""}
+                                    {Math.round(r.pct)}%)
                                   </span>
                                 ) : (
                                   <span />
@@ -443,7 +499,7 @@ export default function TestsIdPage() {
     );
   }
 
-  // --------- Render B: Client overview ----------
+  // ✅ TRENER/ADMIN-MODUS (id = clientId)
   if (role && role !== "trainer" && role !== "admin") {
     return (
       <main className="bg-[#F4FBFA]">

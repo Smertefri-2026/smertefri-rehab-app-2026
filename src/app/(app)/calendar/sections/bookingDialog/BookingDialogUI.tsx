@@ -129,13 +129,13 @@ export function BookingDialogUI({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl flex flex-col max-h-[85vh]">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl flex flex-col max-h-[85vh] overflow-hidden">
         {/* HEADER */}
-        <div className="p-6 pb-3">
+        <div className="p-4 sm:p-6 pb-3">
           <h3 className="text-base font-semibold">{isCreate ? "Ny time" : "Rediger time"}</h3>
 
           <div className="mt-2 text-sm text-sf-muted space-y-1">
-            <div>
+            <div className="break-words">
               Valgt tidspunkt:{" "}
               <strong>{effectiveStart ? fmtDateTime(effectiveStart) : "—"}</strong>
             </div>
@@ -168,165 +168,169 @@ export function BookingDialogUI({
           </div>
         </div>
 
-        {/* BODY */}
-        <div className="px-6 pb-4 overflow-y-auto space-y-3">
-          {/* Kundevalg for trainer/admin (create) */}
-          {isCreate && (role === "trainer" || role === "admin") && (
-            <div className="rounded-xl border border-sf-border p-3 space-y-2">
-              <div className="text-sm font-medium">Kunde</div>
-              <select
-                value={pickedClientId ?? ""}
-                onChange={(e) => setPickedClientId(e.target.value)}
-                className="w-full rounded-lg border border-sf-border px-3 py-2 text-sm"
-              >
-                {trainerClients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "Kunde"}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Varighet */}
-          <div className="rounded-xl border border-sf-border p-3 space-y-2">
-            <div className="text-sm font-medium">Varighet</div>
-            <div className="flex justify-center flex-wrap gap-2">
-              {[15, 25, 50].map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setDuration(m as BookingDuration)}
-                  className={`min-w-[90px] rounded-full px-4 py-2 text-sm border ${
-                    duration === m
-                      ? "bg-[#007C80] text-white border-transparent"
-                      : "bg-white border-sf-border text-sf-text"
-                  }`}
+        {/* BODY (scroll) */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Kundevalg for trainer/admin (create) */}
+            {isCreate && (role === "trainer" || role === "admin") && (
+              <div className="rounded-xl border border-sf-border p-3 space-y-2 min-w-0">
+                <div className="text-sm font-medium">Kunde</div>
+                <select
+                  value={pickedClientId ?? ""}
+                  onChange={(e) => setPickedClientId(e.target.value)}
+                  className="w-full rounded-lg border border-sf-border px-3 py-2 text-sm min-w-0"
                 >
-                  {m} min
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Dato/tid */}
-          <div className="rounded-xl border border-sf-border p-3 space-y-3">
-            <div className="text-sm font-medium">Dato</div>
-
-            {/* ✅ Samme DatePicker som Profil – uten disabled-prop */}
-            <div className={dateLocked ? "opacity-60 pointer-events-none" : ""}>
-              <DatePicker
-                value={pickedDate}
-                onChange={(v) => {
-                  if (dateLocked) return;
-                  setPickedDate(v);
-                  setPickedTime(null);
-                }}
-              />
-            </div>
-
-            <div className="text-sm font-medium">Tidspunkt</div>
-            {slotButtons.length ? (
-              <div className="grid grid-cols-4 gap-2">
-                {slotButtons.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setPickedTime(t)}
-                    className={`rounded-lg border px-3 py-2 text-sm ${
-                      pickedTime === t
-                        ? "bg-[#007C80] text-white border-transparent"
-                        : "bg-white border-sf-border"
-                    }`}
-                    disabled={dateLocked}
-                  >
-                    {t}
-                  </button>
-                ))}
+                  {trainerClients.map((c) => {
+                    const label = (`${c.first_name ?? ""} ${c.last_name ?? ""}`).trim() || "Kunde";
+                    return (
+                      <option key={c.id} value={c.id} title={label}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
-            ) : (
-              <p className="text-xs text-sf-muted">Ingen ledige tidspunkter denne dagen.</p>
             )}
-          </div>
 
-          {/* Gjentak (create) */}
-          {isCreate && (
-            <div className="rounded-xl border border-sf-border p-3 space-y-3">
-              <div className="text-sm font-medium">Gjentak</div>
-
+            {/* Varighet */}
+            <div className="rounded-xl border border-sf-border p-3 space-y-2 min-w-0">
+              <div className="text-sm font-medium">Varighet</div>
               <div className="flex justify-center flex-wrap gap-2">
-                {[
-                  { key: "none", label: "Ingen" },
-                  { key: "weekly", label: "Ukentlig" },
-                  { key: "biweekly", label: "Annenhver uke" },
-                ].map((r) => (
+                {[15, 25, 50].map((m) => (
                   <button
-                    key={r.key}
+                    key={m}
                     type="button"
-                    onClick={() => setRepeat(r.key as BookingRepeat)}
-                    className={`min-w-[140px] rounded-full px-4 py-2 text-sm border ${
-                      repeat === r.key
+                    onClick={() => setDuration(m as BookingDuration)}
+                    className={`min-w-[90px] rounded-full px-4 py-2 text-sm border ${
+                      duration === m
                         ? "bg-[#007C80] text-white border-transparent"
                         : "bg-white border-sf-border text-sf-text"
                     }`}
                   >
-                    {r.label}
+                    {m} min
                   </button>
                 ))}
               </div>
+            </div>
 
-              {repeat !== "none" && (
-                <div className="space-y-2">
-                  <div className="text-xs text-sf-muted text-center">
-                    Hvor lenge? (fra valgt dag – trykk endrer)
-                  </div>
+            {/* Dato/tid */}
+            <div className="rounded-xl border border-sf-border p-3 space-y-3 min-w-0 sm:col-span-2">
+              <div className="text-sm font-medium">Dato</div>
 
-                  <div className="flex justify-center flex-wrap gap-2">
-                    {[3, 6, 12].map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => setRepeatMonths(m as 3 | 6 | 12)}
-                        className={`min-w-[110px] rounded-full px-4 py-2 text-sm border ${
-                          repeatMonths === m
-                            ? "bg-[#007C80] text-white border-transparent"
-                            : "bg-white border-sf-border text-sf-text"
-                        }`}
-                      >
-                        + {m} mnd
-                      </button>
-                    ))}
-                  </div>
+              <div className={dateLocked ? "opacity-60 pointer-events-none" : ""}>
+                <DatePicker
+                  value={pickedDate}
+                  onChange={(v) => {
+                    if (dateLocked) return;
+                    setPickedDate(v);
+                    setPickedTime(null);
+                  }}
+                />
+              </div>
 
-                  {plannedFirst && (
-                    <div className="text-xs text-sf-muted pt-1 text-center">
-                      Første: <strong>{fmtDateTime(plannedFirst)}</strong>
-                      {plannedLast ? (
-                        <>
-                          {" "}
-                          • Siste: <strong>{fmtDateTime(plannedLast)}</strong>
-                        </>
-                      ) : null}
-                    </div>
-                  )}
+              <div className="text-sm font-medium">Tidspunkt</div>
+              {slotButtons.length ? (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {slotButtons.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setPickedTime(t)}
+                      className={`rounded-lg border px-3 py-2 text-sm ${
+                        pickedTime === t
+                          ? "bg-[#007C80] text-white border-transparent"
+                          : "bg-white border-sf-border"
+                      }`}
+                      disabled={dateLocked}
+                    >
+                      {t}
+                    </button>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-xs text-sf-muted">Ingen ledige tidspunkter denne dagen.</p>
               )}
             </div>
-          )}
 
-          {/* Notat – skjul på mobil */}
-          <div className="hidden md:block rounded-xl border border-sf-border p-3 space-y-2">
-            <div className="text-sm font-medium">Notat (valgfritt)</div>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-              className="w-full rounded-lg border border-sf-border px-3 py-2 text-sm outline-none"
-              placeholder="F.eks. fokus: rygg / hofte, smerter, mål…"
-            />
+            {/* Gjentak (create) */}
+            {isCreate && (
+              <div className="rounded-xl border border-sf-border p-3 space-y-3 min-w-0 sm:col-span-2">
+                <div className="text-sm font-medium">Gjentak</div>
+
+                <div className="flex justify-center flex-wrap gap-2">
+                  {[
+                    { key: "none", label: "Ingen" },
+                    { key: "weekly", label: "Ukentlig" },
+                    { key: "biweekly", label: "Annenhver uke" },
+                  ].map((r) => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      onClick={() => setRepeat(r.key as BookingRepeat)}
+                      className={`min-w-[140px] rounded-full px-4 py-2 text-sm border ${
+                        repeat === r.key
+                          ? "bg-[#007C80] text-white border-transparent"
+                          : "bg-white border-sf-border text-sf-text"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+
+                {repeat !== "none" && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-sf-muted text-center">
+                      Hvor lenge? (fra valgt dag – trykk endrer)
+                    </div>
+
+                    <div className="flex justify-center flex-wrap gap-2">
+                      {[3, 6, 12].map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setRepeatMonths(m as 3 | 6 | 12)}
+                          className={`min-w-[110px] rounded-full px-4 py-2 text-sm border ${
+                            repeatMonths === m
+                              ? "bg-[#007C80] text-white border-transparent"
+                              : "bg-white border-sf-border text-sf-text"
+                          }`}
+                        >
+                          + {m} mnd
+                        </button>
+                      ))}
+                    </div>
+
+                    {plannedFirst && (
+                      <div className="text-xs text-sf-muted pt-1 text-center break-words">
+                        Første: <strong>{fmtDateTime(plannedFirst)}</strong>
+                        {plannedLast ? (
+                          <>
+                            {" "}
+                            • Siste: <strong>{fmtDateTime(plannedLast)}</strong>
+                          </>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Notat – skjul på mobil */}
+            <div className="hidden md:block rounded-xl border border-sf-border p-3 space-y-2 min-w-0 sm:col-span-2">
+              <div className="text-sm font-medium">Notat (valgfritt)</div>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                className="w-full rounded-lg border border-sf-border px-3 py-2 text-sm outline-none"
+                placeholder="F.eks. fokus: rygg / hofte, smerter, mål…"
+              />
+            </div>
+
+            {error && <p className="col-span-full text-xs text-red-600">{error}</p>}
           </div>
-
-          {error && <p className="text-xs text-red-600">{error}</p>}
         </div>
 
         {/* FOOTER */}

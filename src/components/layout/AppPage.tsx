@@ -57,8 +57,7 @@ export default function AppPage({
       : "flex items-start justify-start gap-3";
 
   return (
-    <main className={`${mainBase} bg-[#F4FBFA] ${className}`}>
-      <div
+  <main className={`${mainBase} bg-[#F4FBFA] overflow-x-clip ${className}`}>      <div
         className={`
           mx-auto max-w-7xl
           px-4 sm:px-6

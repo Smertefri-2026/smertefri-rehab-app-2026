@@ -1,14 +1,8 @@
 // /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/clients/sections/Section2ClientAlerts.tsx
 "use client";
 
-import {
-  AlertTriangle,
-  CheckCircle2,
-  HeartPulse,
-  Utensils,
-  CalendarClock,
-  BarChart,
-} from "lucide-react";
+import React from "react";
+import { AlertTriangle, HeartPulse, Utensils, CalendarClock, BarChart } from "lucide-react";
 
 type Props = {
   painMissingJournal: number;
@@ -46,7 +40,6 @@ function statusLabel(count: number, loading: boolean) {
 }
 
 function statusTone(count: number) {
-  // Litt enkel: ✓ = grønn, >0 = gul, men noen kan være "rød"
   return count === 0 ? "ok" : "warn";
 }
 
@@ -84,9 +77,11 @@ function QuickTile(props: {
       onClick={() => enabled && onClick()}
       disabled={!enabled}
       className={[
-        "min-w-[220px] sm:min-w-0",
-        "w-full",
-        "rounded-2xl border px-3 py-2",
+        // Mobil horisontal: “kort” med fast min-bredde, ikke w-full
+        "shrink-0 min-w-[200px] max-w-[260px]",
+        // Grid fra sm+: da vil vi at de fyller kolonnen
+        "sm:min-w-0 sm:max-w-none sm:w-full",
+        "rounded-2xl border px-3 py-2.5 sm:px-4 sm:py-3",
         "flex items-center gap-3",
         "text-left",
         toneClasses,
@@ -141,12 +136,13 @@ export default function Section2ClientAlerts(props: Props) {
     onHoursMissing,
   } = props;
 
-  // “enabled” = har avvik (og dermed skal vises)
   const enabledPain = painMissingJournal > 0;
   const enabledBaseline = baselineMissing > 0;
   const enabledNutProfile = nutritionMissingProfile > 0;
   const enabledHours = trainingHoursMissing > 0;
   const enabledNutNoLogs = nutritionNoLogs7d > 0;
+
+  // Denne var hardkodet false hos deg – lar den fortsatt være skjult, men behold mønsteret.
   const enabledNutToday = false;
 
   const anyVisible =
@@ -157,7 +153,6 @@ export default function Section2ClientAlerts(props: Props) {
     enabledNutNoLogs ||
     enabledNutToday;
 
-  // Hvis ingenting å vise: skjul hele seksjonen (men behold errors hvis du vil)
   if (!anyVisible && !(testsError || painError || nutError || hoursError)) {
     return null;
   }
@@ -168,74 +163,97 @@ export default function Section2ClientAlerts(props: Props) {
         <h2 className="text-sm font-semibold text-sf-muted">Varsler</h2>
       </div>
 
-      {/* Hurtigmeny: horisontal på mobil, grid på større skjermer */}
       {anyVisible ? (
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible sm:pb-0 sm:mx-0 sm:px-0">
-          {enabledPain ? (
-            <QuickTile
-              title="Mangler smertejournal"
-              icon={<HeartPulse size={18} />}
-              status={statusLabel(painMissingJournal, painLoading)}
-              tone={statusTone(painMissingJournal) === "ok" ? "ok" : "warn"}
-              enabled={enabledPain}
-              onClick={onPainStale}
-            />
-          ) : null}
+        <div className="relative">
+          {/* Mobil: horisontal + snap. Sm+: grid */}
+          <div
+            className={[
+              "flex gap-2 overflow-x-auto pb-2 -mx-1 px-1",
+              "snap-x snap-mandatory",
+              "sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible sm:pb-0 sm:mx-0 sm:px-0",
+            ].join(" ")}
+          >
+            {enabledPain ? (
+              <div className="snap-start">
+                <QuickTile
+                  title="Mangler smertejournal"
+                  icon={<HeartPulse size={18} />}
+                  status={statusLabel(painMissingJournal, painLoading)}
+                  tone={statusTone(painMissingJournal) === "ok" ? "ok" : "warn"}
+                  enabled={enabledPain}
+                  onClick={onPainStale}
+                />
+              </div>
+            ) : null}
 
-          {enabledBaseline ? (
-            <QuickTile
-              title="Mangler baseline"
-              icon={<AlertTriangle size={18} />}
-              status={statusLabel(baselineMissing, testsLoading)}
-              tone={statusTone(baselineMissing) === "ok" ? "ok" : "warn"}
-              enabled={enabledBaseline}
-              onClick={onBaselineMissing}
-            />
-          ) : null}
+            {enabledBaseline ? (
+              <div className="snap-start">
+                <QuickTile
+                  title="Mangler baseline"
+                  icon={<AlertTriangle size={18} />}
+                  status={statusLabel(baselineMissing, testsLoading)}
+                  tone={statusTone(baselineMissing) === "ok" ? "ok" : "warn"}
+                  enabled={enabledBaseline}
+                  onClick={onBaselineMissing}
+                />
+              </div>
+            ) : null}
 
-          {enabledNutProfile ? (
-            <QuickTile
-              title="Kosthold: mangler profil"
-              icon={<Utensils size={18} />}
-              status={statusLabel(nutritionMissingProfile, nutLoading)}
-              tone={statusTone(nutritionMissingProfile) === "ok" ? "ok" : "warn"}
-              enabled={enabledNutProfile}
-              onClick={onNutritionMissingProfile}
-            />
-          ) : null}
+            {enabledNutProfile ? (
+              <div className="snap-start">
+                <QuickTile
+                  title="Kosthold: mangler profil"
+                  icon={<Utensils size={18} />}
+                  status={statusLabel(nutritionMissingProfile, nutLoading)}
+                  tone={statusTone(nutritionMissingProfile) === "ok" ? "ok" : "warn"}
+                  enabled={enabledNutProfile}
+                  onClick={onNutritionMissingProfile}
+                />
+              </div>
+            ) : null}
 
-          {enabledHours ? (
-            <QuickTile
-              title="Mangler treningstimer"
-              icon={<CalendarClock size={18} />}
-              status={statusLabel(trainingHoursMissing, hoursLoading)}
-              tone={statusTone(trainingHoursMissing) === "ok" ? "ok" : "warn"}
-              enabled={enabledHours}
-              onClick={onHoursMissing}
-            />
-          ) : null}
+            {enabledHours ? (
+              <div className="snap-start">
+                <QuickTile
+                  title="Mangler treningstimer"
+                  icon={<CalendarClock size={18} />}
+                  status={statusLabel(trainingHoursMissing, hoursLoading)}
+                  tone={statusTone(trainingHoursMissing) === "ok" ? "ok" : "warn"}
+                  enabled={enabledHours}
+                  onClick={onHoursMissing}
+                />
+              </div>
+            ) : null}
 
-          {enabledNutNoLogs ? (
-            <QuickTile
-              title="Kosthold: ingen logging 7d"
-              icon={<AlertTriangle size={18} />}
-              status={statusLabel(nutritionNoLogs7d, nutLoading)}
-              tone="danger"
-              enabled={enabledNutNoLogs}
-              onClick={onNutritionNoLogs7d}
-            />
-          ) : null}
+            {enabledNutNoLogs ? (
+              <div className="snap-start">
+                <QuickTile
+                  title="Kosthold: ingen logging 7d"
+                  icon={<AlertTriangle size={18} />}
+                  status={statusLabel(nutritionNoLogs7d, nutLoading)}
+                  tone="danger"
+                  enabled={enabledNutNoLogs}
+                  onClick={onNutritionNoLogs7d}
+                />
+              </div>
+            ) : null}
 
-          {enabledNutToday ? (
-            <QuickTile
-              title="Kosthold: logget i dag"
-              icon={<BarChart size={18} />}
-              status={statusLabel(nutritionLoggedToday, nutLoading)}
-              tone="info"
-              enabled={enabledNutToday}
-              onClick={onNutritionLoggedToday}
-            />
-          ) : null}
+            {enabledNutToday ? (
+              <div className="snap-start">
+                <QuickTile
+                  title="Kosthold: logget i dag"
+                  icon={<BarChart size={18} />}
+                  status={statusLabel(nutritionLoggedToday, nutLoading)}
+                  tone="info"
+                  enabled={enabledNutToday}
+                  onClick={onNutritionLoggedToday}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          {/* Valgfritt: “fading edge” på mobil for å vise at det kan scrolles */}
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent sm:hidden" />
         </div>
       ) : null}
 
