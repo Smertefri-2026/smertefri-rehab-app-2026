@@ -2,8 +2,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarClock } from "lucide-react";
 import { Client } from "@/types/client";
+import { supabase } from "@/lib/supabaseClient";
 
 /* ---------------- HELPERS ---------------- */
 
@@ -28,6 +30,29 @@ function calculateAge(birthDate?: string | null): number | null {
   return age;
 }
 
+function formatDateNo(d: Date) {
+  const weekday = d.toLocaleDateString("no-NO", { weekday: "long" });
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${dd}.${mm}`;
+}
+
+function formatTimeHHMM(d: Date) {
+  return d.toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit" });
+}
+
+function prettyDateTime(ts: string | null | undefined) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${formatDateNo(d)} · ${formatTimeHHMM(d)}`;
+}
+
+function isPlaceholder(v: string) {
+  const s = String(v ?? "").trim().toLowerCase();
+  return !s || s === "mangler" || s === "har" || s === "—" || s === "har ikke";
+}
+
 /* ---------------- TYPES ---------------- */
 
 export type ClientCardStatus = {
@@ -43,22 +68,70 @@ type Props = {
   status?: ClientCardStatus | null;
 };
 
-function normalizeNextSessionLabel(v?: string | null) {
-  const raw = String(v ?? "").trim();
-  if (!raw || raw === "—") return "Mangler";
-
-  // Hvis det kommer "Har" fra gammel logikk – vi vil ikke vise "Har"
-  // (du ønsket faktisk dato). Inntil vi har dato: vis "Mangler".
-  if (raw.toLowerCase() === "har") return "Mangler";
-
-  return raw;
-}
+/* ---------------- COMPONENT ---------------- */
 
 export default function ClientCard({ client, href, status: statusProp }: Props) {
-  const age = calculateAge(client.birth_date);
+  const age = calculateAge((client as any).birth_date ?? (client as any).birthDate ?? client.birth_date);
   const initials = `${client.first_name?.[0] ?? ""}${client.last_name?.[0] ?? ""}`.toUpperCase();
 
-  const nextLabel = normalizeNextSessionLabel(statusProp?.nextSession);
+  // Lokal state for detaljsiden (der vi ikke har status fra ClientsPage)
+  const [nextFromDb, setNextFromDb] = useState<string | null>(null);
+
+  // Bare fetch når kortet brukes "standalone" (typisk detaljsiden)
+  const shouldFetchNext = !href && isPlaceholder(String(statusProp?.nextSession ?? ""));
+
+  useEffect(() => {
+    let alive = true;
+
+    const run = async () => {
+      if (!shouldFetchNext) return;
+
+      try {
+        const nowISO = new Date().toISOString();
+
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("start_time,status")
+          .eq("client_id", client.id)
+          .neq("status", "cancelled")
+          .gte("start_time", nowISO)
+          .order("start_time", { ascending: true })
+          .limit(1);
+
+        if (error) throw error;
+
+        const row = (data ?? [])[0] as any;
+        const label = prettyDateTime(row?.start_time ?? null);
+
+        if (!alive) return;
+        setNextFromDb(label ?? null);
+      } catch (e) {
+        if (!alive) return;
+        setNextFromDb(null);
+      }
+    };
+
+    run();
+    return () => {
+      alive = false;
+    };
+  }, [shouldFetchNext, client.id]);
+
+  const nextLabel = useMemo(() => {
+    const raw = String(statusProp?.nextSession ?? "").trim();
+
+    // Hvis statusProp har pen dato-tekst, bruk den
+    if (raw && !isPlaceholder(raw)) {
+      // Hvis den er ISO, prettify
+      const isoLabel = prettyDateTime(raw);
+      return isoLabel ?? raw;
+    }
+
+    // På detaljsiden: bruk DB-resultat hvis vi har det
+    if (nextFromDb) return nextFromDb;
+
+    return "Mangler";
+  }, [statusProp?.nextSession, nextFromDb]);
 
   const content = (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm hover:shadow-md transition">
@@ -87,7 +160,7 @@ export default function ClientCard({ client, href, status: statusProp }: Props) 
           </div>
         </div>
 
-        {/* 📅 Kun Neste time */}
+        {/* 📅 Neste time */}
         <div className="grid grid-cols-1">
           <div className="flex items-center gap-3 rounded-xl bg-sf-soft p-3">
             <CalendarClock size={18} className="text-sf-primary" />
@@ -98,10 +171,10 @@ export default function ClientCard({ client, href, status: statusProp }: Props) 
         </div>
 
         {/* 🧠 Notat */}
-        {client.note?.text && (
+        {(client as any)?.note?.text && (
           <div className="rounded-xl border border-sf-border bg-white p-3">
             <p className="text-sm text-sf-muted">Kommentar:</p>
-            <p className="text-sm">{client.note.text}</p>
+            <p className="text-sm">{(client as any).note.text}</p>
           </div>
         )}
       </div>

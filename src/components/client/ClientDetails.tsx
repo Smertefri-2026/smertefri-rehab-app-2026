@@ -1,6 +1,7 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/components/client/ClientDetails.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Client } from "@/types/client";
 import { supabase } from "@/lib/supabaseClient";
 import { useClients } from "@/stores/clients.store";
@@ -18,24 +19,50 @@ type Props = {
   canEdit?: boolean;
 };
 
-export default function ClientDetails({
-  client,
-  canEdit = true,
-}: Props) {
+function calcAge(birthDateISO: string | null | undefined): number | null {
+  if (!birthDateISO) return null;
+  const d = new Date(birthDateISO);
+  if (Number.isNaN(d.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+    age--;
+  }
+  if (age < 0 || age > 130) return null;
+  return age;
+}
+
+function formatBirthDate(birthDateISO: string | null | undefined) {
+  if (!birthDateISO) return "—";
+  const d = new Date(birthDateISO);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("no-NO", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+export default function ClientDetails({ client, canEdit = true }: Props) {
   const { role } = useRole();
   const { refreshClients } = useClients();
 
   const [trainers, setTrainers] = useState<Trainer[]>([]);
-  const [trainerId, setTrainerId] = useState<string | null>(
-    (client as any).trainer_id ?? null
-  );
+  const [trainerId, setTrainerId] = useState<string | null>((client as any).trainer_id ?? null);
 
   const [form, setForm] = useState({
-    phone: client.phone ?? "",
-    address: client.address ?? "",
-    postal_code: client.postal_code ?? "",
-    city: client.city ?? "",
+    phone: (client as any).phone ?? "",
+    address: (client as any).address ?? "",
+    postal_code: (client as any).postal_code ?? "",
+    city: (client as any).city ?? "",
   });
+
+  // ✅ Email: vis fra client hvis den finnes, ellers fetch fra profiles
+  const [email, setEmail] = useState<string | null>((client as any).email ?? null);
+
+  // ✅ Birth date: vis fra client hvis den finnes, ellers fetch fra profiles
+  const [birthDate, setBirthDate] = useState<string | null>((client as any).birth_date ?? null);
+
+  const age = useMemo(() => calcAge(birthDate), [birthDate]);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -47,31 +74,61 @@ export default function ClientDetails({
     if (role === "admin") {
       fetchAllTrainers()
         .then(setTrainers)
-        .catch((err) => {
-          console.error("Kunne ikke hente trenere", err);
-        });
+        .catch((err) => console.error("Kunne ikke hente trenere", err));
     }
   }, [role]);
+
+  /* ---------------- FETCH EMAIL + BIRTHDATE (fallback) ---------------- */
+
+  useEffect(() => {
+    let alive = true;
+
+    const run = async () => {
+      const existingEmail = (client as any).email;
+      const existingBirth = (client as any).birth_date;
+
+      if (existingEmail) setEmail(existingEmail);
+      if (existingBirth) setBirthDate(existingBirth);
+
+      // Hvis vi allerede har begge, trenger vi ikke hente
+      if (existingEmail && existingBirth) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("email, birth_date")
+          .eq("id", client.id)
+          .single();
+
+        if (error) throw error;
+
+        if (!alive) return;
+        const row: any = data ?? {};
+        if (!existingEmail) setEmail(row.email ?? null);
+        if (!existingBirth) setBirthDate(row.birth_date ?? null);
+      } catch {
+        if (!alive) return;
+        if (!existingEmail) setEmail(null);
+        if (!existingBirth) setBirthDate(null);
+      }
+    };
+
+    run();
+    return () => {
+      alive = false;
+    };
+  }, [client.id, (client as any).email, (client as any).birth_date]);
 
   /* ---------------- ADMIN: FJERN TRENER ---------------- */
 
   async function handleRemoveTrainer() {
-    if (
-      !confirm(
-        "Er du sikker på at du vil fjerne treneren fra denne kunden?"
-      )
-    ) {
-      return;
-    }
+    if (!confirm("Er du sikker på at du vil fjerne treneren fra denne kunden?")) return;
 
     setSaving(true);
     setError(null);
     setSaved(false);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ trainer_id: null })
-      .eq("id", client.id);
+    const { error } = await supabase.from("profiles").update({ trainer_id: null }).eq("id", client.id);
 
     if (error) {
       console.error(error);
@@ -104,10 +161,7 @@ export default function ClientDetails({
       updateData.trainer_id = trainerId;
     }
 
-    const { error } = await supabase
-      .from("profiles")
-      .update(updateData)
-      .eq("id", client.id);
+    const { error } = await supabase.from("profiles").update(updateData).eq("id", client.id);
 
     if (error) {
       console.error(error);
@@ -124,13 +178,20 @@ export default function ClientDetails({
 
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm space-y-6">
-      <h2 className="text-sm font-semibold text-sf-muted">
-        Kundedetaljer
-      </h2>
+      <h2 className="text-sm font-semibold text-sf-muted">Kundedetaljer</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <ReadOnlyField label="Fornavn" value={client.first_name} />
-        <ReadOnlyField label="Etternavn" value={client.last_name} />
+        <ReadOnlyField label="Fornavn" value={(client as any).first_name} />
+        <ReadOnlyField label="Etternavn" value={(client as any).last_name} />
+
+        {/* ✅ Fødselsdato */}
+        <ReadOnlyField label="Fødselsdato" value={birthDate ? formatBirthDate(birthDate) : "—"} />
+
+        {/* ✅ Alder */}
+        <ReadOnlyField label="Alder" value={age == null ? "—" : `${age} år`} />
+
+ {/* ✅ E-post */}
+        <ReadOnlyField label="E-post" value={email} />
 
         <EditableField
           label="Telefon"
@@ -149,9 +210,7 @@ export default function ClientDetails({
         <EditableField
           label="Postnummer"
           value={form.postal_code}
-          onChange={(v) =>
-            setForm({ ...form, postal_code: v })
-          }
+          onChange={(v) => setForm({ ...form, postal_code: v })}
           disabled={!canEdit}
         />
 
@@ -169,9 +228,7 @@ export default function ClientDetails({
 
             <select
               value={trainerId ?? ""}
-              onChange={(e) =>
-                setTrainerId(e.target.value || null)
-              }
+              onChange={(e) => setTrainerId(e.target.value || null)}
               className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
             >
               <option value="">— Ingen trener —</option>
@@ -198,16 +255,8 @@ export default function ClientDetails({
 
       {canEdit && (
         <>
-          {error && (
-            <p className="text-xs text-red-500 text-center">
-              {error}
-            </p>
-          )}
-          {saved && (
-            <p className="text-xs text-green-600 text-center">
-              Lagret ✅
-            </p>
-          )}
+          {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+          {saved && <p className="text-xs text-green-600 text-center">Lagret ✅</p>}
 
           <div className="text-center pt-2">
             <button
@@ -226,19 +275,11 @@ export default function ClientDetails({
 
 /* ---------- helpers ---------- */
 
-function ReadOnlyField({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | number | null;
-}) {
+function ReadOnlyField({ label, value }: { label: string; value?: string | number | null }) {
   return (
     <div>
       <p className="text-xs text-sf-muted">{label}</p>
-      <p className="mt-1 rounded-lg border bg-sf-soft px-3 py-2 text-sm">
-        {value || "—"}
-      </p>
+      <p className="mt-1 rounded-lg border bg-sf-soft px-3 py-2 text-sm">{value || "—"}</p>
     </div>
   );
 }

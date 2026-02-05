@@ -1,3 +1,4 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/clients/sections/Section4ClientPainSummary.tsx
 "use client";
 
 import Link from "next/link";
@@ -26,8 +27,12 @@ export default function Section4ClientPainSummary({ clientId }: Props) {
 
   const missingJournalCount = stats.stale ?? (isStale ? 1 : 0);
 
-  const variant =
-    !loading && missingJournalCount === 0 ? ("success" as const) : ("warning" as const);
+  // ✅ SKJUL når OK (ingen mangler) og ikke loading/error
+  if (!loading && !error && missingJournalCount === 0 && !isHigh && !isUp && !isStale) {
+    return null;
+  }
+
+  const variant = !loading && missingJournalCount === 0 ? ("success" as const) : ("warning" as const);
 
   const icon =
     !loading && missingJournalCount === 0 ? (
@@ -40,13 +45,7 @@ export default function Section4ClientPainSummary({ clientId }: Props) {
       <HeartPulse size={18} />
     );
 
-  const headline = isStale
-    ? "Ingen oppdatering (10d)"
-    : isHigh
-    ? "Høy smerte"
-    : isUp
-    ? "Økende smerte"
-    : "OK";
+  const headline = isStale ? "Ingen oppdatering (10d)" : isHigh ? "Høy smerte" : isUp ? "Økende smerte" : "OK";
 
   return (
     <Link href={`/pain/${clientId}`} className="block">

@@ -34,6 +34,9 @@ type FilterKey =
 type NutritionFilterKey = "none" | "missing" | "missing-profile" | "no-logs-7d" | "logged-today";
 type HoursFilterKey = "none" | "missing";
 
+// ✅ NY: sort
+type SortKey = "next" | "alpha";
+
 /* ---------------- HELPERS ---------------- */
 
 function pickOne<T extends string>(v: string | null, allowed: readonly T[], fallback: T): T {
@@ -103,6 +106,13 @@ function hasAnyMacros(row: any) {
   return kcal > 0 || p > 0 || f > 0 || k > 0;
 }
 
+// ✅ for alfabetisk sort
+function fullNameKey(c: any) {
+  const first = String(c?.first_name ?? "").trim();
+  const last = String(c?.last_name ?? "").trim();
+  return `${last} ${first}`.trim().toLowerCase();
+}
+
 /* ---------------- PAGE ---------------- */
 
 export default function ClientsPage() {
@@ -154,6 +164,9 @@ export default function ClientsPage() {
 
   const activeUnassigned = searchParams.get("unassigned") === "1";
 
+  // ✅ NY: sort (default = next)
+  const activeSort = pickOne<SortKey>(searchParams.get("sort"), ["next", "alpha"] as const, "next");
+
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -183,6 +196,11 @@ export default function ClientsPage() {
     pushParam("unassigned", null);
   }
 
+  // ✅ NY: set sort (vi lagrer "alpha" i url, "next" er default og fjernes)
+  function setSort(next: SortKey) {
+    pushParam("sort", next === "next" ? null : next);
+  }
+
   function resetAllFilters() {
     const sp = new URLSearchParams(searchParams.toString());
     sp.delete("filter");
@@ -190,6 +208,7 @@ export default function ClientsPage() {
     sp.delete("nutrition");
     sp.delete("hours");
     sp.delete("unassigned");
+    sp.delete("sort"); // ✅ NY
     router.push(`${pathname}?${sp.toString()}`);
   }
 
@@ -262,6 +281,8 @@ export default function ClientsPage() {
   //    Dette fikser "Mangler" selv om det finnes time.
   // =========================
   const [nextSessionByClientId, setNextSessionByClientId] = useState<Record<string, string>>({});
+  // ✅ NY (kun for sortering): behold ISO start_time
+  const [nextSessionAtByClientId, setNextSessionAtByClientId] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let alive = true;
@@ -269,6 +290,7 @@ export default function ClientsPage() {
     const run = async () => {
       if (!visibleClientIds.length) {
         setNextSessionByClientId({});
+        setNextSessionAtByClientId({});
         return;
       }
 
@@ -288,21 +310,30 @@ export default function ClientsPage() {
         if (error) throw error;
 
         // plukk første (tidligste) booking per klient
-        const map: Record<string, string> = {};
+        const mapLabel: Record<string, string> = {};
+        const mapISO: Record<string, string> = {};
+
         for (const r of (data ?? []) as any[]) {
           const cid = String(r.client_id ?? "");
           if (!cid) continue;
-          if (map[cid]) continue; // første er tidligst pga order
-          const label = prettyDateTime(r.start_time);
-          if (label) map[cid] = label;
+          if (mapISO[cid]) continue; // første er tidligst pga order
+
+          const iso = String(r.start_time ?? "");
+          const label = prettyDateTime(iso);
+          if (!iso || !label) continue;
+
+          mapISO[cid] = iso;
+          mapLabel[cid] = label;
         }
 
         if (!alive) return;
-        setNextSessionByClientId(map);
+        setNextSessionByClientId(mapLabel);
+        setNextSessionAtByClientId(mapISO);
       } catch (e) {
         if (!alive) return;
         // ved feil: ikke kræsje – bare fall back til "Mangler/Har"
         setNextSessionByClientId({});
+        setNextSessionAtByClientId({});
       }
     };
 
@@ -381,7 +412,7 @@ export default function ClientsPage() {
   }, [visibleClientIds]);
 
   // =========================
-  // FILTER LOGIC (liste)
+  // FILTER + SORT (liste)
   // =========================
   const results = useMemo(() => {
     let list = searched;
@@ -434,7 +465,26 @@ export default function ClientsPage() {
       list = list.filter((c) => !hasUpcomingByClientId[c.id]);
     }
 
-    return list;
+    // ✅ SORTERING (frontend only)
+    const sorted = [...list].sort((a, b) => {
+      if (activeSort === "alpha") {
+        return fullNameKey(a).localeCompare(fullNameKey(b), "no", { sensitivity: "base" });
+      }
+
+      // default = "next"
+      const aISO = nextSessionAtByClientId[a.id] ?? null;
+      const bISO = nextSessionAtByClientId[b.id] ?? null;
+
+      const aT = aISO ? new Date(aISO).getTime() : Number.POSITIVE_INFINITY;
+      const bT = bISO ? new Date(bISO).getTime() : Number.POSITIVE_INFINITY;
+
+      if (aT !== bT) return aT - bT;
+
+      // fallback alfabetisk
+      return fullNameKey(a).localeCompare(fullNameKey(b), "no", { sensitivity: "base" });
+    });
+
+    return sorted;
   }, [
     searched,
     activeUnassigned,
@@ -442,12 +492,14 @@ export default function ClientsPage() {
     activePain,
     activeNutrition,
     activeHours,
+    activeSort,
     testByClientId,
     painByClientId,
     hasProfileByClientId,
     hasAnyLogLast7ByClientId,
     hasLoggedTodayByClientId,
     hasUpcomingByClientId,
+    nextSessionAtByClientId,
   ]);
 
   // =========================
@@ -485,6 +537,19 @@ export default function ClientsPage() {
     <AppPage>
       {/* 🔍 Søk */}
       <Section1ClientSearch value={query} onChange={setQuery} />
+
+      {/* ✅ NY: Sorter dropdown */}
+      <div className="mt-3 flex items-center justify-end">
+        <select
+          value={activeSort}
+          onChange={(e) => setSort(e.target.value as SortKey)}
+          className="rounded-xl border border-sf-border bg-white px-3 py-2 text-sm"
+          title="Sorter kunder"
+        >
+          <option value="next">Sorter: Neste time</option>
+          <option value="alpha">Sorter: Alfabetisk</option>
+        </select>
+      </div>
 
       {/* 🚨 Varsler */}
       <Section2ClientAlerts

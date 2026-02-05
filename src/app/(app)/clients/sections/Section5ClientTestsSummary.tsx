@@ -1,7 +1,8 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/clients/sections/Section5ClientTestsSummary.tsx
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useTestMetricsForClients } from "@/lib/metrics/useTestMetricsForClients";
 
@@ -19,25 +20,19 @@ export default function Section5ClientTestsSummary({ clientId }: Props) {
   });
 
   const t = byClientId[clientId];
+
   const missingBaseline =
     stats.missingBaseline ?? ((t?.missingCategories?.length ?? 0) > 0 || !t ? 1 : 0);
 
-  const pct = Number(t?.avgPct ?? 0); // ✅ null-safe
+  const pct = Number(t?.avgPct ?? 0);
   const daysSinceLast = t?.daysSinceLastTest;
 
-  const variant =
-    !loading && missingBaseline === 0 ? ("success" as const) : ("warning" as const);
+  // ✅ SKJUL når OK (dvs baseline er på plass) og ikke loading/error
+  if (!loading && !error && missingBaseline === 0) {
+    return null;
+  }
 
-  const icon =
-    !loading && missingBaseline === 0 ? (
-      <CheckCircle2 size={18} />
-    ) : pct > 0 ? (
-      <TrendingUp size={18} />
-    ) : pct < 0 ? (
-      <TrendingDown size={18} />
-    ) : (
-      <AlertTriangle size={18} />
-    );
+  const icon = pct > 0 ? <TrendingUp size={18} /> : pct < 0 ? <TrendingDown size={18} /> : <AlertTriangle size={18} />;
 
   const headline =
     missingBaseline > 0
@@ -54,7 +49,7 @@ export default function Section5ClientTestsSummary({ clientId }: Props) {
         title="Tester & fremgang"
         status={statusLabel(missingBaseline, loading)}
         icon={icon}
-        variant={variant}
+        variant="warning"
       >
         {error ? (
           <p className="text-sm text-red-600">Feil: {error}</p>

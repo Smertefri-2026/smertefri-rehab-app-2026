@@ -147,7 +147,7 @@ export default function Section2ClientAlerts(props: Props) {
   const enabledNutProfile = nutritionMissingProfile > 0;
   const enabledHours = trainingHoursMissing > 0;
   const enabledNutNoLogs = nutritionNoLogs7d > 0;
-  const enabledNutToday = nutritionLoggedToday > 0;
+  const enabledNutToday = false;
 
   const anyVisible =
     enabledPain ||

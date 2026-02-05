@@ -1,7 +1,8 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/clients/sections/Section6ClientNutritionSummary.tsx
 "use client";
 
 import Link from "next/link";
-import { Utensils, CheckCircle2 } from "lucide-react";
+import { Utensils } from "lucide-react";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useNutritionMetricsForClients } from "@/lib/metrics/useNutritionMetricsForClients";
 
@@ -19,16 +20,18 @@ export default function Section6ClientNutritionSummary({ clientId }: Props) {
   const hasProfile = Boolean(hasProfileByClientId[clientId]);
   const missing = missingCount ?? (hasProfile ? 0 : 1);
 
-  const variant = !loading && missing === 0 ? ("success" as const) : ("warning" as const);
-  const icon = !loading && missing === 0 ? <CheckCircle2 size={18} /> : <Utensils size={18} />;
+  // ✅ SKJUL når OK (har profil) og ikke loading/error
+  if (!loading && !error && hasProfile) {
+    return null;
+  }
 
   return (
     <Link href={`/nutrition/${clientId}`} className="block">
       <DashboardCard
         title="Kosthold"
         status={statusLabel(missing, loading)}
-        icon={icon}
-        variant={variant}
+        icon={<Utensils size={18} />}
+        variant="warning"
       >
         {error ? (
           <p className="text-sm text-red-600">Feil: {error}</p>
