@@ -157,7 +157,11 @@ export default function TestNewPage() {
     try {
       const raw = localStorage.getItem(draftKey);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { date?: string; values?: Record<string, string>; savedKeys?: string[] };
+      const parsed = JSON.parse(raw) as {
+        date?: string;
+        values?: Record<string, string>;
+        savedKeys?: string[];
+      };
       if (parsed?.date) setDate(parsed.date);
       if (parsed?.values) setValues((prev) => ({ ...prev, ...parsed.values }));
       if (parsed?.savedKeys?.length) setSavedKeys(new Set(parsed.savedKeys));
@@ -369,7 +373,10 @@ export default function TestNewPage() {
 
   async function updateSessionDateIfNeeded(sessId: string) {
     const createdAt = dateToNoonISO(date);
-    const { error } = await supabase.from("test_sessions").update({ created_at: createdAt }).eq("id", sessId);
+    const { error } = await supabase
+      .from("test_sessions")
+      .update({ created_at: createdAt })
+      .eq("id", sessId);
     if (error) throw error;
   }
 
@@ -439,7 +446,7 @@ export default function TestNewPage() {
 
       router.push(`/tests/${encodeURIComponent(clientId)}/${category}`);
     } catch (e: any) {
-      setErr(e?.message ?? "Kunne ikke lagre.");
+      setErr(e?.messagexmessage ?? e?.message ?? "Kunne ikke lagre.");
     } finally {
       setBusy(false);
     }
@@ -453,8 +460,7 @@ export default function TestNewPage() {
   // ✅ tillat: client kun hvis egen side + ingen trener
   const clientSelf = role === "client" && userId && clientId && userId === clientId;
   const clientHasNoTrainer = role === "client" && clientSelf && !myTrainerId;
-  const allowed =
-    role === "trainer" || role === "admin" || clientHasNoTrainer;
+  const allowed = role === "trainer" || role === "admin" || clientHasNoTrainer;
 
   if (!allowed) {
     return (
@@ -543,9 +549,7 @@ export default function TestNewPage() {
                 ) : null}
               </p>
 
-              <span className="text-xs text-sf-muted">
-                {isSaved ? "Lagret ✓" : "Ikke lagret"}
-              </span>
+              <span className="text-xs text-sf-muted">{isSaved ? "Lagret ✓" : "Ikke lagret"}</span>
             </div>
 
             {/* ✅ Kun én input av gangen (mobilvennlig) */}
@@ -580,13 +584,14 @@ export default function TestNewPage() {
                 Forrige
               </button>
 
+              {/* ✅ VIKTIG: Neste = LAGRE & NESTE */}
               <button
                 type="button"
-                onClick={() => setCurrentIndex((i) => Math.min(i + 1, metrics.length - 1))}
+                onClick={() => handleSaveOne(true)}
                 disabled={busy || currentIndex === metrics.length - 1}
                 className="w-full rounded-xl border border-sf-border bg-white py-2.5 text-sm font-medium text-sf-text hover:bg-sf-soft disabled:opacity-50"
               >
-                Neste
+                {busy ? "Lagrer..." : "Neste"}
               </button>
             </div>
 
@@ -622,7 +627,7 @@ export default function TestNewPage() {
             </button>
 
             <p className="text-xs text-sf-muted">
-              Tips: Du kan lagre øvelse for øvelse. Da mister du ikke data om du lukker appen underveis.
+              Tips: Neste lagrer automatisk. Du mister ikke data om du lukker appen underveis.
             </p>
           </div>
         </div>

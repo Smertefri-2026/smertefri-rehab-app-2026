@@ -49,8 +49,6 @@ const CATEGORY_CONFIG: Record<
       { key: "knebøy", label: "Knebøy", sort: 1, unit: "reps" },
       { key: "pushups", label: "Armhevinger", sort: 2, unit: "reps" },
       { key: "situps", label: "Situps", sort: 3, unit: "reps" },
-
-      // ✅ Planke som “final boss”
       { key: "plank_time", label: "Planke – tid", sort: 4, unit: "sek" },
       { key: "plank_breaks", label: "Planke – pauser", sort: 5, unit: "antall" },
     ],
@@ -60,7 +58,6 @@ const CATEGORY_CONFIG: Record<
     subtitle: "1RM progresjon i baseøvelser",
     unitLabel: "kg",
     metrics: [
-      // ✅ Riktig rekkefølge
       { key: "knebøy", label: "Knebøy", sort: 1, unit: "kg" },
       { key: "markløft", label: "Markløft", sort: 2, unit: "kg" },
       { key: "benkpress", label: "Benkpress", sort: 3, unit: "kg" },
@@ -71,10 +68,10 @@ const CATEGORY_CONFIG: Record<
     subtitle: "4-min testers total distanse",
     unitLabel: "m",
     metrics: [
-         { key: "mølle", label: "Mølle", sort: 4, unit: "m" },
-       { key: "roing", label: "Roing", sort: 2, unit: "m" },
+      { key: "mølle", label: "Mølle", sort: 4, unit: "m" },
+      { key: "roing", label: "Roing", sort: 2, unit: "m" },
       { key: "ski", label: "Ski", sort: 3, unit: "m" },
-  { key: "sykkel", label: "Sykkel", sort: 1, unit: "m" },
+      { key: "sykkel", label: "Sykkel", sort: 1, unit: "m" },
     ],
   },
 };
@@ -201,7 +198,7 @@ export default function TestCategoryClientPage() {
   const clientId = params?.id ?? "";
   const category = params?.category as Category;
 
-  const { role, loading: roleLoading } = useRole();
+  const { role, userId, loading: roleLoading } = useRole();
   const { getClientById, loading: clientsLoading } = useClients();
 
   const cfg = CATEGORY_CONFIG[category];
@@ -212,10 +209,40 @@ export default function TestCategoryClientPage() {
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [busyDelete, setBusyDelete] = useState(false);
 
+  // ✅ Kunde-tilgang / trenerkobling
+  const [myTrainerId, setMyTrainerId] = useState<string | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
+
+  // navn (trainer/admin får fra store, client kan falle tilbake til "Klient")
   const client = clientId ? getClientById(clientId) : null;
   const clientName = client
     ? `${client.first_name ?? ""} ${client.last_name ?? ""}`.trim() || "Klient"
     : "Klient";
+
+  // ✅ hent trainer_id for innlogget kunde (for å styre knapp)
+  useEffect(() => {
+    const run = async () => {
+      if (role !== "client") return;
+      if (!userId) return;
+
+      setAccessLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("trainer_id")
+          .eq("id", userId)
+          .single();
+
+        if (error) throw error;
+        setMyTrainerId((data as any)?.trainer_id ?? null);
+      } catch {
+        setMyTrainerId(null);
+      } finally {
+        setAccessLoading(false);
+      }
+    };
+    run();
+  }, [role, userId]);
 
   const refresh = async () => {
     if (!clientId || !cfg) return;
@@ -373,7 +400,7 @@ export default function TestCategoryClientPage() {
     setBusyDelete(false);
   };
 
-  if (roleLoading || clientsLoading) return null;
+  if (roleLoading || clientsLoading || (role === "client" && accessLoading)) return null;
 
   if (!clientId) {
     return (
@@ -381,18 +408,6 @@ export default function TestCategoryClientPage() {
         <AppPage>
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Mangler klient-id i URL.
-          </div>
-        </AppPage>
-      </main>
-    );
-  }
-
-  if (role && role !== "trainer" && role !== "admin") {
-    return (
-      <main className="bg-[#F4FBFA]">
-        <AppPage>
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            Ingen tilgang.
           </div>
         </AppPage>
       </main>
@@ -411,8 +426,27 @@ export default function TestCategoryClientPage() {
     );
   }
 
+  // ✅ Access-regler:
+  // - trainer/admin: alltid
+  // - client: kun egen side (view). Registrer-knapp kun hvis ingen trener.
+  const clientSelf = role === "client" && userId && userId === clientId;
+  const canView = role === "trainer" || role === "admin" || clientSelf;
+  const canRegister = (role === "trainer" || role === "admin") || (clientSelf && !myTrainerId);
+
+  if (!canView) {
+    return (
+      <main className="bg-[#F4FBFA]">
+        <AppPage>
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            Ingen tilgang.
+          </div>
+        </AppPage>
+      </main>
+    );
+  }
+
   const disableEditDelete = !latestSession || latestSession.id === baselineSession?.id;
-  const canEditOrDelete = Boolean(latestSession) && latestSession?.id !== baselineSession?.id;
+  const canEditOrDelete = canRegister && Boolean(latestSession) && latestSession?.id !== baselineSession?.id;
 
   return (
     <main className="bg-[#F4FBFA]">
@@ -435,10 +469,17 @@ export default function TestCategoryClientPage() {
                   {cfg.title} — {clientName}
                 </h1>
                 <p className="text-sm text-sf-muted">{cfg.subtitle}</p>
+
+                {/* Lite hint for kunde med trener */}
+                {role === "client" && clientSelf && myTrainerId ? (
+                  <p className="mt-1 text-xs text-sf-muted">
+                    Testregistrering gjøres av treneren din.
+                  </p>
+                ) : null}
               </div>
             </div>
 
-            {/* HØYRE: actions (mobil: under header, full bredde) */}
+            {/* HØYRE: actions */}
             <div
               className="
                 w-full md:w-auto
@@ -447,25 +488,31 @@ export default function TestCategoryClientPage() {
                 md:flex md:items-center md:justify-end md:gap-2
               "
             >
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(`/tests/${encodeURIComponent(clientId)}/${category}/new`)
-                }
-                className="
-                  inline-flex w-full md:w-auto
-                  items-center justify-center gap-2
-                  rounded-xl bg-[#007C80] px-4 py-2
-                  text-sm font-medium text-white hover:opacity-95
-                "
-              >
-                <Plus size={16} />
-                Registrer ny test
-              </button>
+              {/* ✅ Vis kun hvis kanRegister */}
+              {canRegister ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(`/tests/${encodeURIComponent(clientId)}/${category}/new`)
+                  }
+                  className="
+                    inline-flex w-full md:w-auto
+                    items-center justify-center gap-2
+                    rounded-xl bg-[#007C80] px-4 py-2
+                    text-sm font-medium text-white hover:opacity-95
+                  "
+                >
+                  <Plus size={16} />
+                  Registrer ny test
+                </button>
+              ) : (
+                <div className="hidden sm:block" />
+              )}
 
+              {/* ✅ Edit/Delete kun hvis canRegister */}
               <button
                 type="button"
-                disabled={disableEditDelete}
+                disabled={!canRegister || disableEditDelete}
                 onClick={() =>
                   router.push(
                     `/tests/${encodeURIComponent(clientId)}/${category}/new?sessionId=${encodeURIComponent(
@@ -487,7 +534,7 @@ export default function TestCategoryClientPage() {
 
               <button
                 type="button"
-                disabled={busyDelete || disableEditDelete}
+                disabled={!canRegister || busyDelete || disableEditDelete}
                 onClick={handleDeleteLatest}
                 className="
                   inline-flex w-full md:w-auto
@@ -576,7 +623,10 @@ export default function TestCategoryClientPage() {
                             <div className="text-right text-sf-muted">
                               {r.delta != null && r.pct != null ? (
                                 <span className="text-[#2F6B4F]">
-                                  (+{Math.round(r.delta)} {r.unit ?? cfg.unitLabel} · +{Math.round(r.pct)}%)
+                                  ({r.delta >= 0 ? "+" : ""}
+                                  {Math.round(r.delta)} {r.unit ?? cfg.unitLabel} ·{" "}
+                                  {r.pct >= 0 ? "+" : ""}
+                                  {Math.round(r.pct)}%)
                                 </span>
                               ) : (
                                 <span />
