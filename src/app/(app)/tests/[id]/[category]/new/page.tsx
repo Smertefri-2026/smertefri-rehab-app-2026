@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import AppPage from "@/components/layout/AppPage";
@@ -49,10 +49,10 @@ const CATEGORY_CONFIG: Record<
     subtitle: "4-min testers total distanse",
     unitLabel: "m",
     metrics: [
-         { key: "mølle", label: "Mølle", sort: 4, unit: "m" },
-       { key: "roing", label: "Roing", sort: 2, unit: "m" },
+      { key: "mølle", label: "Mølle", sort: 4, unit: "m" },
+      { key: "roing", label: "Roing", sort: 2, unit: "m" },
       { key: "ski", label: "Ski", sort: 3, unit: "m" },
-  { key: "sykkel", label: "Sykkel", sort: 1, unit: "m" },
+      { key: "sykkel", label: "Sykkel", sort: 1, unit: "m" },
     ],
   },
 };
@@ -78,6 +78,14 @@ function isoToDateInputValue(iso: string) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function isNumericLike(s: string) {
+  if (s == null) return false;
+  const t = String(s).trim();
+  if (!t) return false;
+  const n = Number(t);
+  return Number.isFinite(n);
+}
+
 export default function TestNewPage() {
   const router = useRouter();
   const params = useParams<{ id: string; category: string }>();
@@ -85,8 +93,9 @@ export default function TestNewPage() {
 
   const clientId = params?.id;
   const category = params?.category as Category;
-  const sessionId = search.get("sessionId");
-  const isEdit = Boolean(sessionId);
+
+  const sessionIdFromUrl = search.get("sessionId");
+  const isEdit = Boolean(sessionIdFromUrl);
 
   const cfg = CATEGORY_CONFIG[category];
 
@@ -105,15 +114,104 @@ export default function TestNewPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // ✅ “lagre én og én”
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const currentMetric = metrics[currentIndex];
+
+  // ✅ session id som vi kan opprette on-demand
+  const [sessionId, setSessionId] = useState<string | null>(sessionIdFromUrl);
+  const sessionIdRef = useRef<string | null>(sessionIdFromUrl);
+
+  // ✅ track hvilke øvelser som er lagret
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+
+  // ✅ Kunde-tilgang: kun hvis kunde uten trener
+  const [myTrainerId, setMyTrainerId] = useState<string | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
+
+  // local draft
+  const draftKey = useMemo(() => {
+    const cid = clientId ?? "x";
+    return `sf:testdraft:${cid}:${category}`;
+  }, [clientId, category]);
+
+  const setVal = (k: string, v: string) => {
+    setValues((prev) => ({ ...prev, [k]: v }));
+  };
+
+  // Init values
   useEffect(() => {
     if (!cfg) return;
     const init: Record<string, string> = {};
     for (const m of cfg.metrics) init[m.key] = "";
     setValues(init);
+    setCurrentIndex(0);
+    setSavedKeys(new Set());
   }, [cfg]);
 
+  // Restore draft (kun når vi IKKE redigerer eksisterende session)
   useEffect(() => {
-    if (!cfg || !sessionId) return;
+    if (!cfg) return;
+    if (sessionIdFromUrl) return;
+
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { date?: string; values?: Record<string, string>; savedKeys?: string[] };
+      if (parsed?.date) setDate(parsed.date);
+      if (parsed?.values) setValues((prev) => ({ ...prev, ...parsed.values }));
+      if (parsed?.savedKeys?.length) setSavedKeys(new Set(parsed.savedKeys));
+    } catch {
+      // ignore
+    }
+  }, [cfg, draftKey, sessionIdFromUrl]);
+
+  // Persist draft
+  useEffect(() => {
+    if (!cfg) return;
+    if (sessionIdFromUrl) return;
+    try {
+      localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          date,
+          values,
+          savedKeys: Array.from(savedKeys),
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [cfg, date, values, savedKeys, draftKey, sessionIdFromUrl]);
+
+  // ✅ hent trainer_id for kunde (for å avgjøre tilgang)
+  useEffect(() => {
+    const run = async () => {
+      if (role !== "client") return;
+      if (!userId) return;
+
+      setAccessLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("trainer_id")
+          .eq("id", userId)
+          .single();
+
+        if (error) throw error;
+        setMyTrainerId((data as any)?.trainer_id ?? null);
+      } catch {
+        setMyTrainerId(null);
+      } finally {
+        setAccessLoading(false);
+      }
+    };
+    run();
+  }, [role, userId]);
+
+  // ✅ load existing session (edit)
+  useEffect(() => {
+    if (!cfg || !sessionIdFromUrl) return;
 
     let alive = true;
 
@@ -124,12 +222,12 @@ export default function TestNewPage() {
         supabase
           .from("test_sessions")
           .select("id, created_at")
-          .eq("id", sessionId)
+          .eq("id", sessionIdFromUrl)
           .single(),
         supabase
           .from("test_entries")
           .select("metric_key, value")
-          .eq("session_id", sessionId),
+          .eq("session_id", sessionIdFromUrl),
       ]);
 
       if (!alive) return;
@@ -138,6 +236,10 @@ export default function TestNewPage() {
         setErr(sessRes.error.message);
         return;
       }
+
+      // sync sessionId state
+      setSessionId(sessionIdFromUrl);
+      sessionIdRef.current = sessionIdFromUrl;
 
       if (sessRes.data?.created_at) {
         setDate(isoToDateInputValue(sessRes.data.created_at));
@@ -151,47 +253,130 @@ export default function TestNewPage() {
       const map: Record<string, string> = {};
       for (const m of metrics) map[m.key] = "";
 
+      const saved = new Set<string>();
+
       for (const row of (entRes.data ?? []) as any[]) {
         map[row.metric_key] = String(row.value ?? "");
+        if (row.metric_key) saved.add(String(row.metric_key));
       }
 
       setValues(map);
+      setSavedKeys(saved);
+
+      // start på første som ikke er fylt
+      const firstEmpty = metrics.findIndex((m) => !isNumericLike(map[m.key] ?? ""));
+      setCurrentIndex(firstEmpty >= 0 ? firstEmpty : 0);
     })();
 
     return () => {
       alive = false;
     };
-  }, [cfg, sessionId, metrics]);
+  }, [cfg, sessionIdFromUrl, metrics]);
 
-  const setVal = (k: string, v: string) =>
-    setValues((prev) => ({ ...prev, [k]: v }));
+  /* ---------------- validation ---------------- */
 
-  const validate = () => {
+  const validateOne = (m: Metric) => {
     if (!cfg) return "Ugyldig kategori.";
+    const raw = values[m.key];
+    if (raw == null || raw.trim() === "") return `Mangler verdi for ${m.label}.`;
 
-    for (const m of cfg.metrics) {
-      const raw = values[m.key];
-      if (raw == null || raw.trim() === "") return `Mangler verdi for ${m.label}.`;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return `Ugyldig tall for ${m.label}.`;
 
-      const n = Number(raw);
-      if (!Number.isFinite(n)) return `Ugyldig tall for ${m.label}.`;
-
-      // Litt “smart” validering på planke:
-      if (m.key === "plank_time") {
-        if (n < 0 || n > 240) return "Planke – tid må være mellom 0 og 240 sek.";
-      }
-      if (m.key === "plank_breaks") {
-        if (n < 0) return "Planke – pauser kan ikke være negativ.";
-        if (!Number.isInteger(n)) return "Planke – pauser må være et helt tall.";
-      }
+    if (m.key === "plank_time") {
+      if (n < 0 || n > 240) return "Planke – tid må være mellom 0 og 240 sek.";
+    }
+    if (m.key === "plank_breaks") {
+      if (n < 0) return "Planke – pauser kan ikke være negativ.";
+      if (!Number.isInteger(n)) return "Planke – pauser må være et helt tall.";
     }
 
     return null;
   };
 
-  const handleSave = async () => {
-    if (!cfg || !clientId) return;
+  const validateAll = () => {
+    if (!cfg) return "Ugyldig kategori.";
+    for (const m of cfg.metrics) {
+      const e = validateOne(m);
+      if (e) return e;
+    }
+    return null;
+  };
 
+  /* ---------------- db ops ---------------- */
+
+  async function ensureSession(): Promise<string> {
+    if (!cfg || !clientId) throw new Error("Mangler cfg/clientId");
+    if (!userId) throw new Error("Mangler userId");
+
+    const existing = sessionIdRef.current;
+    if (existing) return existing;
+
+    const createdAt = dateToNoonISO(date);
+
+    const { data: sess, error: sErr } = await supabase
+      .from("test_sessions")
+      .insert({
+        client_id: clientId,
+        category,
+        created_at: createdAt,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+
+    if (sErr || !sess?.id) {
+      throw new Error(sErr?.message ?? "Kunne ikke opprette test.");
+    }
+
+    const newId = String(sess.id);
+    setSessionId(newId);
+    sessionIdRef.current = newId;
+
+    // oppdater URL så refresh ikke mister session
+    const url = `/tests/${encodeURIComponent(clientId)}/${category}/new?sessionId=${encodeURIComponent(newId)}`;
+    router.replace(url);
+
+    return newId;
+  }
+
+  async function upsertEntry(sessId: string, m: Metric) {
+    if (!cfg) throw new Error("Mangler cfg");
+
+    const unit = m.unit ?? cfg.unitLabel;
+    const value = Number(values[m.key]);
+
+    const { error } = await supabase.from("test_entries").upsert(
+      {
+        session_id: sessId,
+        metric_key: m.key,
+        value,
+        unit,
+        sort: m.sort,
+      },
+      // krever UNIQUE(session_id, metric_key) i db (anbefalt)
+      { onConflict: "session_id,metric_key" }
+    );
+
+    if (error) throw error;
+
+    setSavedKeys((prev) => {
+      const next = new Set(prev);
+      next.add(m.key);
+      return next;
+    });
+  }
+
+  async function updateSessionDateIfNeeded(sessId: string) {
+    const createdAt = dateToNoonISO(date);
+    const { error } = await supabase.from("test_sessions").update({ created_at: createdAt }).eq("id", sessId);
+    if (error) throw error;
+  }
+
+  /* ---------------- handlers ---------------- */
+
+  const handleSaveOne = async (goNext: boolean) => {
+    if (!cfg || !clientId || !currentMetric) return;
     setErr(null);
 
     if (!userId) {
@@ -199,96 +384,79 @@ export default function TestNewPage() {
       return;
     }
 
-    const vErr = validate();
+    const vErr = validateOne(currentMetric);
     if (vErr) {
       setErr(vErr);
       return;
     }
 
     setBusy(true);
-
     try {
-      const createdAt = dateToNoonISO(date);
+      const sessId = await ensureSession();
+      await updateSessionDateIfNeeded(sessId);
+      await upsertEntry(sessId, currentMetric);
 
-      if (!isEdit) {
-        const { data: sess, error: sErr } = await supabase
-          .from("test_sessions")
-          .insert({
-            client_id: clientId,
-            category,
-            created_at: createdAt,
-            created_by: userId,
-          })
-          .select("id")
-          .single();
-
-        if (sErr || !sess?.id) {
-          setErr(sErr?.message ?? "Kunne ikke opprette test.");
-          return;
-        }
-
-        const rows = cfg.metrics.map((m) => ({
-          session_id: sess.id,
-          metric_key: m.key,
-          value: Number(values[m.key]),
-          unit: m.unit ?? cfg.unitLabel, // ✅ per øvelse
-          sort: m.sort,
-        }));
-
-        const { error: eErr } = await supabase.from("test_entries").insert(rows);
-        if (eErr) {
-          setErr(eErr.message);
-          return;
-        }
-
-        router.push(`/tests/${encodeURIComponent(clientId)}/${category}`);
-        return;
+      if (goNext) {
+        setCurrentIndex((i) => Math.min(i + 1, metrics.length - 1));
       }
-
-      const { error: upErr } = await supabase
-        .from("test_sessions")
-        .update({ created_at: createdAt })
-        .eq("id", sessionId);
-
-      if (upErr) {
-        setErr(upErr.message);
-        return;
-      }
-
-      const { error: delErr } = await supabase
-        .from("test_entries")
-        .delete()
-        .eq("session_id", sessionId);
-
-      if (delErr) {
-        setErr(delErr.message);
-        return;
-      }
-
-      const rows = cfg.metrics.map((m) => ({
-        session_id: sessionId,
-        metric_key: m.key,
-        value: Number(values[m.key]),
-        unit: m.unit ?? cfg.unitLabel, // ✅ per øvelse
-        sort: m.sort,
-      }));
-
-      const { error: insErr } = await supabase.from("test_entries").insert(rows);
-
-      if (insErr) {
-        setErr(insErr.message);
-        return;
-      }
-
-      router.push(`/tests/${encodeURIComponent(clientId)}/${category}`);
+    } catch (e: any) {
+      setErr(e?.message ?? "Kunne ikke lagre.");
     } finally {
       setBusy(false);
     }
   };
 
-  if (roleLoading || clientsLoading) return null;
+  const handleSaveAll = async () => {
+    if (!cfg || !clientId) return;
+    setErr(null);
 
-  if (role && role !== "trainer" && role !== "admin") {
+    if (!userId) {
+      setErr("Mangler innlogget bruker (userId). Prøv å logge inn på nytt.");
+      return;
+    }
+
+    const vErr = validateAll();
+    if (vErr) {
+      setErr(vErr);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const sessId = await ensureSession();
+      await updateSessionDateIfNeeded(sessId);
+
+      for (const m of cfg.metrics) {
+        await upsertEntry(sessId, m);
+      }
+
+      // draft ferdig
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {
+        // ignore
+      }
+
+      router.push(`/tests/${encodeURIComponent(clientId)}/${category}`);
+    } catch (e: any) {
+      setErr(e?.message ?? "Kunne ikke lagre.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* ---------------- access control ---------------- */
+
+  if (roleLoading || clientsLoading || (role === "client" && accessLoading)) return null;
+
+  // ✅ tillat: trener/admin alltid
+  // ✅ tillat: client kun hvis egen side + ingen trener
+  const clientSelf = role === "client" && userId && clientId && userId === clientId;
+  const clientHasNoTrainer = role === "client" && clientSelf && !myTrainerId;
+  const allowed =
+    role === "trainer" || role === "admin" || clientHasNoTrainer;
+
+  if (!allowed) {
     return (
       <main className="bg-[#F4FBFA]">
         <AppPage>
@@ -311,6 +479,18 @@ export default function TestNewPage() {
       </main>
     );
   }
+
+  const unit = currentMetric?.unit ?? cfg.unitLabel;
+
+  const hint =
+    currentMetric?.key === "plank_time"
+      ? "0–240 (full planke i 4 min = 240)"
+      : currentMetric?.key === "plank_breaks"
+      ? "antall ganger du måtte ned (kne/i bakken)"
+      : "0";
+
+  const isLast = currentIndex === metrics.length - 1;
+  const isSaved = currentMetric ? savedKeys.has(currentMetric.key) : false;
 
   return (
     <main className="bg-[#F4FBFA]">
@@ -350,47 +530,100 @@ export default function TestNewPage() {
               <p className="mt-1 text-xs text-sf-muted">Kun dato (ikke klokkeslett).</p>
             </div>
 
-            <div className="space-y-3">
-              {cfg.metrics.map((m) => {
-                const unit = m.unit ?? cfg.unitLabel;
+            {/* ✅ Progress / navigasjon */}
+            <div className="flex items-center justify-between rounded-xl border border-sf-border bg-sf-soft px-4 py-3">
+              <p className="text-sm">
+                Øvelse <span className="font-medium">{currentIndex + 1}</span> / {metrics.length}
+                {currentMetric ? (
+                  <>
+                    {" "}
+                    • <span className="font-medium">{currentMetric.label}</span>{" "}
+                    <span className="text-sf-muted">({unit})</span>
+                  </>
+                ) : null}
+              </p>
 
-                const hint =
-                  m.key === "plank_time"
-                    ? "0–240 (full planke i 4 min = 240)"
-                    : m.key === "plank_breaks"
-                    ? "antall ganger du måtte ned (kne/i bakken)"
-                    : "0";
-
-                return (
-                  <div key={m.key}>
-                    <label className="block text-sm font-medium text-sf-text mb-1">
-                      {m.label} ({unit})
-                    </label>
-                    <input
-                      inputMode="numeric"
-                      value={values[m.key] ?? ""}
-                      onChange={(e) => setVal(m.key, e.target.value)}
-                      placeholder={hint}
-                      className="w-full rounded-xl border border-sf-border bg-white px-3 py-2 text-sm"
-                    />
-                    {m.key === "plank_time" && (
-                      <p className="mt-1 text-xs text-sf-muted">
-                        Tips: Tenk “total tid i planke innen 4 minutter”. Kort pause = stopp tiden.
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+              <span className="text-xs text-sf-muted">
+                {isSaved ? "Lagret ✓" : "Ikke lagret"}
+              </span>
             </div>
 
+            {/* ✅ Kun én input av gangen (mobilvennlig) */}
+            {currentMetric ? (
+              <div>
+                <label className="block text-sm font-medium text-sf-text mb-1">
+                  {currentMetric.label} ({unit})
+                </label>
+                <input
+                  inputMode="numeric"
+                  value={values[currentMetric.key] ?? ""}
+                  onChange={(e) => setVal(currentMetric.key, e.target.value)}
+                  placeholder={hint}
+                  className="w-full rounded-xl border border-sf-border bg-white px-3 py-2 text-sm"
+                />
+                {currentMetric.key === "plank_time" && (
+                  <p className="mt-1 text-xs text-sf-muted">
+                    Tips: Tenk “total tid i planke innen 4 minutter”. Kort pause = stopp tiden.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {/* ✅ Navigasjon mellom øvelser */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
+                disabled={busy || currentIndex === 0}
+                className="w-full rounded-xl border border-sf-border bg-white py-2.5 text-sm font-medium text-sf-text hover:bg-sf-soft disabled:opacity-50"
+              >
+                Forrige
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCurrentIndex((i) => Math.min(i + 1, metrics.length - 1))}
+                disabled={busy || currentIndex === metrics.length - 1}
+                className="w-full rounded-xl border border-sf-border bg-white py-2.5 text-sm font-medium text-sf-text hover:bg-sf-soft disabled:opacity-50"
+              >
+                Neste
+              </button>
+            </div>
+
+            {/* ✅ Lagre per øvelse */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => handleSaveOne(false)}
+                disabled={busy}
+                className="w-full rounded-xl bg-[#007C80] py-2.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
+              >
+                {busy ? "Lagrer..." : "Lagre øvelse"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveOne(true)}
+                disabled={busy}
+                className="w-full rounded-xl bg-[#007C80] py-2.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
+              >
+                {busy ? "Lagrer..." : isLast ? "Lagre (bli her)" : "Lagre & neste"}
+              </button>
+            </div>
+
+            {/* ✅ Fullfør / lagre alt */}
             <button
               type="button"
-              onClick={handleSave}
+              onClick={handleSaveAll}
               disabled={busy}
-              className="mt-2 w-full rounded-xl bg-[#007C80] py-2.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
+              className="mt-1 w-full rounded-xl border border-sf-border bg-white py-2.5 text-sm font-medium text-sf-text hover:bg-sf-soft disabled:opacity-50"
             >
-              {busy ? "Lagrer..." : "Lagre"}
+              {busy ? "Lagrer..." : "Fullfør / lagre alt"}
             </button>
+
+            <p className="text-xs text-sf-muted">
+              Tips: Du kan lagre øvelse for øvelse. Da mister du ikke data om du lukker appen underveis.
+            </p>
           </div>
         </div>
       </AppPage>
