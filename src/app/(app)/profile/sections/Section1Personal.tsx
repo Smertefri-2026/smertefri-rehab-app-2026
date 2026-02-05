@@ -1,46 +1,18 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/profile/sections/Section1Personal.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { getMyProfile, updateMyProfile } from "@/lib/profile";
 import { DatePicker } from "@/components/ui/DatePicker";
-
-type Profile = {
-  first_name: string;
-  last_name: string;
-  phone: string;
-  birth_date: string;
-  avatar_url?: string | null;
-};
+import { useMyProfileStore } from "@/stores/profile.store";
 
 export default function Section1Personal() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { profile, loading, error: loadError, patchProfileLocal, saveProfile } = useMyProfileStore();
+
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getMyProfile();
-        setProfile({
-          first_name: data.first_name ?? "",
-          last_name: data.last_name ?? "",
-          phone: data.phone ?? "",
-          birth_date: data.birth_date ?? "",
-          avatar_url: data.avatar_url ?? null,
-        });
-      } catch {
-        setError("Kunne ikke laste profil.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
-  }, []);
 
   async function handleSave() {
     if (!profile) return;
@@ -50,7 +22,13 @@ export default function Section1Personal() {
     setSaved(false);
 
     try {
-      await updateMyProfile(profile);
+      await saveProfile({
+        first_name: profile.first_name ?? "",
+        last_name: profile.last_name ?? "",
+        phone: profile.phone ?? "",
+        birth_date: profile.birth_date ?? "",
+        avatar_url: profile.avatar_url ?? null,
+      });
       setSaved(true);
     } catch {
       setError("Kunne ikke lagre profilen.");
@@ -72,17 +50,15 @@ export default function Section1Personal() {
 
       const filePath = `${user.id}.jpg`;
 
-      await supabase.storage
-        .from("avatars")
-        .upload(filePath, file, { upsert: true });
+      await supabase.storage.from("avatars").upload(filePath, file, { upsert: true });
 
-      const { data } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
+      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
-      setProfile((prev) =>
-        prev ? { ...prev, avatar_url: data.publicUrl } : prev
-      );
+      // lokal patch + lagre i db
+      patchProfileLocal({ avatar_url: data.publicUrl });
+      await saveProfile({ avatar_url: data.publicUrl });
+
+      setSaved(true);
     } catch {
       setError("Kunne ikke laste opp bilde.");
     } finally {
@@ -98,15 +74,18 @@ export default function Section1Personal() {
     );
   }
 
-  if (!profile) return null;
+  if (!profile) {
+    return (
+      <section className="rounded-2xl border bg-white p-6 shadow-sm">
+        <p className="text-sm text-red-600">{loadError ?? "Kunne ikke laste profil."}</p>
+      </section>
+    );
+  }
 
-  const initials =
-    (profile.first_name?.[0] ?? "") +
-    (profile.last_name?.[0] ?? "");
+  const initials = (profile.first_name?.[0] ?? "") + (profile.last_name?.[0] ?? "");
 
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm space-y-6">
-
       {/* 🧍 Header */}
       <div className="flex flex-col items-center gap-3 text-center">
         {profile.avatar_url ? (
@@ -140,34 +119,30 @@ export default function Section1Personal() {
         <h3 className="text-sm font-semibold">Personopplysninger</h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
           <Input
             label="Fornavn"
-            value={profile.first_name}
-            onChange={(v) => setProfile({ ...profile, first_name: v })}
+            value={profile.first_name ?? ""}
+            onChange={(v) => patchProfileLocal({ first_name: v })}
           />
 
           <Input
             label="Etternavn"
-            value={profile.last_name}
-            onChange={(v) => setProfile({ ...profile, last_name: v })}
+            value={profile.last_name ?? ""}
+            onChange={(v) => patchProfileLocal({ last_name: v })}
           />
 
           <Input
             label="Telefon"
-            value={profile.phone}
-            onChange={(v) => setProfile({ ...profile, phone: v })}
+            value={profile.phone ?? ""}
+            onChange={(v) => patchProfileLocal({ phone: v })}
           />
 
-          {/* ⭐ NY: Samme kalender som trener */}
           <div>
             <label className="text-xs text-sf-muted">Fødselsdato</label>
             <div className="mt-1">
               <DatePicker
-                value={profile.birth_date}
-                onChange={(v) =>
-                  setProfile({ ...profile, birth_date: v })
-                }
+                value={profile.birth_date ?? ""}
+                onChange={(v) => patchProfileLocal({ birth_date: v })}
               />
             </div>
           </div>
@@ -175,12 +150,8 @@ export default function Section1Personal() {
       </div>
 
       {/* STATUS */}
-      {error && (
-        <p className="text-xs text-red-500 text-center">{error}</p>
-      )}
-      {saved && (
-        <p className="text-xs text-green-600 text-center">Lagret ✅</p>
-      )}
+      {(error || loadError) && <p className="text-xs text-red-500 text-center">{error ?? loadError}</p>}
+      {saved && <p className="text-xs text-green-600 text-center">Lagret ✅</p>}
 
       {/* LAGRE */}
       <div className="text-center">

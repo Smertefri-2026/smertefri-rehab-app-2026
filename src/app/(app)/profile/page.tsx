@@ -1,7 +1,8 @@
-// src/app/(app)/profile/page.tsx
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(app)/profile/page.tsx
 "use client";
 
 import AppPage from "@/components/layout/AppPage";
+import { ProfileProvider } from "@/stores/profile.store";
 
 import Section1Personal from "./sections/Section1Personal";
 import Section2Address from "./sections/Section2Address";
@@ -12,17 +13,19 @@ import Section6DeleteAccount from "./sections/Section6DeleteAccount";
 
 export default function ProfilePage() {
   return (
-    <div className="bg-[#F4FBFA]">
-      <AppPage>
-        <div className="space-y-6">
-          <Section1Personal />
-          <Section2Address />
-          <Section3Role />
-          <Section4Billing />
-          <Section5Security />
-          <Section6DeleteAccount />
-        </div>
-      </AppPage>
-    </div>
+    <ProfileProvider>
+      <div className="bg-[#F4FBFA]">
+        <AppPage>
+          <div className="space-y-6">
+            <Section1Personal />
+            <Section2Address />
+            <Section3Role />
+            <Section4Billing />
+            <Section5Security />
+            <Section6DeleteAccount />
+          </div>
+        </AppPage>
+      </div>
+    </ProfileProvider>
   );
 }
