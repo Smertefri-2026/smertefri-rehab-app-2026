@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRole } from "@/providers/RoleProvider";
 import {
-  createThreadWithMembers,
+  ensureDirectThread,
   findChatUserByEmail,
   searchChatUsersByName,
   type ChatUserSearchResult,
@@ -102,8 +102,8 @@ export default function Section2InviteForm() {
         throw new Error("Du kan ikke starte en samtale med deg selv 🙂");
       }
 
-      // Atomisk: opprett tråd + medlemmer via RPC
-      const threadId = await createThreadWithMembers([selected.id], null);
+      // ✅ Viktig: gjenbruk eksisterende 1–1 tråd hvis den finnes
+      const threadId = await ensureDirectThread(selected.id);
 
       // Send valgfri første melding
       const first = note.trim();
@@ -138,12 +138,13 @@ export default function Section2InviteForm() {
     try {
       const me = await getMeId();
 
-      // 1) Hvis brukeren allerede finnes, start chat direkte
+      // 1) Hvis brukeren allerede finnes, start/gjenbruk chat direkte
       const existing = await findChatUserByEmail(e);
       if (existing?.id) {
         if (existing.id === me) throw new Error("Du kan ikke invitere deg selv 🙂");
 
-        const threadId = await createThreadWithMembers([existing.id], null);
+        // ✅ Viktig: gjenbruk eksisterende 1–1 tråd hvis den finnes
+        const threadId = await ensureDirectThread(existing.id);
 
         const first = note.trim();
         if (first) {
