@@ -39,14 +39,16 @@ export default function Section2InviteForm() {
 
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+
+  // Vi bruker samme boks for error/success, men med type
+  const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState("");
 
   // Debounce søk
   useEffect(() => {
     let alive = true;
-    setErr(null);
+    setMsg(null);
 
     const run = async () => {
       const term = q.trim();
@@ -63,7 +65,7 @@ export default function Section2InviteForm() {
         setSelected((prev) => (prev && res.some((r) => r.id === prev.id) ? prev : null));
       } catch (e: any) {
         if (!alive) return;
-        setErr(e?.message ?? "Kunne ikke søke.");
+        setMsg({ type: "error", text: e?.message ?? "Kunne ikke søke." });
         setResults([]);
       }
     };
@@ -77,32 +79,33 @@ export default function Section2InviteForm() {
 
   const hasNoHits = useMemo(() => q.trim().length >= 2 && results.length === 0, [q, results]);
 
-  async function getMeId() {
+  async function getMe() {
     const { data, error } = await supabase.auth.getUser();
     if (error) throw error;
     const me = data.user?.id;
+    const email = data.user?.email ?? null;
     if (!me) throw new Error("Ikke innlogget (Supabase session mangler).");
-    return me;
+    return { id: me, email };
   }
 
   const startThread = async () => {
-    setErr(null);
+    setMsg(null);
     if (loading) return;
 
     if (!selected?.id) {
-      setErr("Velg en person fra listen.");
+      setMsg({ type: "error", text: "Velg en person fra listen." });
       return;
     }
 
     setBusy(true);
     try {
-      const me = await getMeId();
+      const me = await getMe();
 
-      if (selected.id === me) {
+      if (selected.id === me.id) {
         throw new Error("Du kan ikke starte en samtale med deg selv 🙂");
       }
 
-      // ✅ Viktig: gjenbruk eksisterende 1–1 tråd hvis den finnes
+      // ✅ gjenbruk eksisterende 1–1 tråd hvis den finnes
       const threadId = await ensureDirectThread(selected.id);
 
       // Send valgfri første melding
@@ -110,7 +113,7 @@ export default function Section2InviteForm() {
       if (first) {
         const { error: mErr } = await supabase.from("chat_messages").insert({
           thread_id: threadId,
-          sender_id: me,
+          sender_id: me.id,
           body: first,
         });
         if (mErr) throw mErr;
@@ -118,39 +121,38 @@ export default function Section2InviteForm() {
 
       router.push(`/chat/${threadId}`);
     } catch (e: any) {
-      setErr(e?.message ?? "Kunne ikke opprette samtale.");
+      setMsg({ type: "error", text: e?.message ?? "Kunne ikke opprette samtale." });
     } finally {
       setBusy(false);
     }
   };
 
   const inviteByEmail = async () => {
-    setErr(null);
+    setMsg(null);
     if (loading) return;
 
     const e = inviteEmail.trim().toLowerCase();
     if (!e) {
-      setErr("Skriv inn e-postadressen du vil invitere.");
+      setMsg({ type: "error", text: "Skriv inn e-postadressen du vil invitere." });
       return;
     }
 
     setBusy(true);
     try {
-      const me = await getMeId();
+      const me = await getMe();
 
       // 1) Hvis brukeren allerede finnes, start/gjenbruk chat direkte
       const existing = await findChatUserByEmail(e);
       if (existing?.id) {
-        if (existing.id === me) throw new Error("Du kan ikke invitere deg selv 🙂");
+        if (existing.id === me.id) throw new Error("Du kan ikke invitere deg selv 🙂");
 
-        // ✅ Viktig: gjenbruk eksisterende 1–1 tråd hvis den finnes
         const threadId = await ensureDirectThread(existing.id);
 
         const first = note.trim();
         if (first) {
           const { error: mErr } = await supabase.from("chat_messages").insert({
             thread_id: threadId,
-            sender_id: me,
+            sender_id: me.id,
             body: first,
           });
           if (mErr) throw mErr;
@@ -160,12 +162,24 @@ export default function Section2InviteForm() {
         return;
       }
 
-      // 2) Hvis ikke finnes: Edge Function (senere)
-      throw new Error(
-        "E-postinvitasjon er ikke aktivert ennå. (Vi kan slå den på med en Edge Function.)"
-      );
+      // 2) Hvis ikke finnes: lag invitasjon i DB (e-postsending kan komme senere)
+      const { error: iErr } = await supabase.from("chat_invites").insert({
+        inviter_id: me.id,
+        email: e,
+        note: note.trim() || null,
+        status: "pending",
+      });
+      if (iErr) throw iErr;
+
+      setInviteEmail("");
+      setNote("");
+      setMsg({
+        type: "success",
+        text:
+          "✅ Invitasjon lagret! Personen må registrere seg med samme e-post for å bli koblet til chat. (E-postutsending kan aktiveres senere.)",
+      });
     } catch (e: any) {
-      setErr(e?.message ?? "Kunne ikke invitere.");
+      setMsg({ type: "error", text: e?.message ?? "Kunne ikke invitere." });
     } finally {
       setBusy(false);
     }
@@ -173,9 +187,15 @@ export default function Section2InviteForm() {
 
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm space-y-4">
-      {err && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {err}
+      {msg && (
+        <div
+          className={`rounded-xl border p-3 text-sm ${
+            msg.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
+          {msg.text}
         </div>
       )}
 
@@ -278,7 +298,7 @@ export default function Section2InviteForm() {
           </div>
 
           <p className="text-xs text-sf-muted">
-            (E-postinvitasjon krever en liten Edge Function – vi kan legge den til etter at UI er ferdig.)
+            (Invitasjonen lagres nå i systemet. E-postutsending kan legges på med en Edge Function senere.)
           </p>
         </div>
       )}
