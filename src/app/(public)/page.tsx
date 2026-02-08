@@ -13,6 +13,7 @@ import Seksjon7Kalender from "@/app/(public)/frontpage/Seksjon/Seksjon7Kalender"
 import Seksjon8Medlemskap from "@/app/(public)/frontpage/Seksjon/Seksjon8Medlemskap";
 import Seksjon9Komigang from "@/app/(public)/frontpage/Seksjon/Seksjon9Komigang";
 import Seksjon10FPriser from "@/app/(public)/frontpage/Seksjon/Seksjon10FPriser";
+import Seksjon11Kontakt from "@/app/(public)/frontpage/Seksjon/Seksjon11Kontakt";
 
 export default function HomePage() {
   return (
@@ -29,6 +30,7 @@ export default function HomePage() {
         <Seksjon8Medlemskap />
         <Seksjon9Komigang />
         <Seksjon10FPriser />
+        <Seksjon11Kontakt />
       </main>
 
       <SeksjonFooter />

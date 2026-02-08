@@ -1,6 +1,9 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(public)/frontpage/Seksjon/HeaderFrontpage.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 type HeaderVariant = "frontpage" | "auth";
 
@@ -9,6 +12,7 @@ type Props = {
 };
 
 export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
+  const pathname = usePathname();
   const [isAppDomain, setIsAppDomain] = useState(false);
 
   useEffect(() => {
@@ -27,10 +31,13 @@ export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
 
   const isAuth = variant === "auth" || isAppDomain;
 
+  // ✅ SKJUL på /trenere (så HeaderTrenere får stå alene)
+  const isTrenereRoute = pathname?.startsWith("/trenere");
+  if (!isAuth && isTrenereRoute) return null;
+
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b border-sf-border">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4">
-
         {/* LOGO */}
         <button
           onClick={goToFrontpage}
@@ -48,6 +55,8 @@ export default function HeaderFrontpage({ variant = "frontpage" }: Props) {
             <a href="#kosthold">Kosthold</a>
             <a href="#tester">Tester</a>
             <a href="#priser">Priser</a>
+            <a href="/trenere">Trenere</a>
+            <a href="#kontakt">Kontakt</a>
           </nav>
         )}
 
