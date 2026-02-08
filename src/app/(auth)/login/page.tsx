@@ -1,9 +1,11 @@
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(auth)/login/page.tsx
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import InstallPWAButton from "@/components/pwa/InstallPWAButton";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -101,6 +103,9 @@ export default function LoginPage() {
         >
           {loading ? "Logger inn…" : "Logg inn"}
         </button>
+
+        {/* ✅ Install PWA button (shows only when available) */}
+        <InstallPWAButton />
       </form>
 
       {/* LINKS */}

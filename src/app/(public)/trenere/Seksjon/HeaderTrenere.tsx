@@ -1,5 +1,7 @@
-// src/app/(public)/trenere/Seksjon/HeaderTrenere.tsx
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(public)/trenere/Seksjon/HeaderTrenere.tsx
 "use client";
+
+import { useEffect, useState } from "react";
 
 const NAV = [
   { href: "#hva", label: "Hva er SmerteFri?" },
@@ -11,9 +13,18 @@ const NAV = [
 ];
 
 export default function HeaderTrenere() {
+  const [open, setOpen] = useState(false);
+
   const goFrontpage = () => (window.location.href = "https://smertefri.no");
   const goTrenere = () => (window.location.href = "https://smertefri.no/trenere");
   const goLogin = () => (window.location.href = "https://app.smertefri.no/login");
+
+  // Lukk ved hash-navigasjon
+  useEffect(() => {
+    const onHash = () => setOpen(false);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-sf-border bg-white">
@@ -48,14 +59,60 @@ export default function HeaderTrenere() {
           ))}
         </nav>
 
-        {/* HØYRE: Logg inn */}
-        <button
-          onClick={goLogin}
-          className="rounded-full bg-[#007C80] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90"
-        >
-          Logg inn
-        </button>
+        {/* HØYRE: mobil meny + login */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="md:hidden inline-flex items-center justify-center rounded-full border border-sf-border bg-white px-4 py-2 text-sm font-medium text-[#004F59]"
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? "Lukk meny" : "Åpne meny"}
+            aria-expanded={open}
+          >
+            {open ? "Lukk" : "Meny"}
+          </button>
+
+          <button
+            onClick={goLogin}
+            className="hidden md:inline-flex rounded-full bg-[#007C80] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            Logg inn
+          </button>
+        </div>
       </div>
+
+      {/* Mobilmeny panel */}
+      {open && (
+        <div className="md:hidden border-t border-sf-border bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-4">
+            <nav className="flex flex-col gap-3 font-medium text-[#004F59]">
+              {NAV.map((n) => (
+                <a
+                  key={n.href}
+                  href={n.href}
+                  className="rounded-xl px-3 py-2 hover:bg-sf-soft"
+                  onClick={() => setOpen(false)}
+                >
+                  {n.label}
+                </a>
+              ))}
+
+              <button
+                onClick={goLogin}
+                className="mt-2 w-full rounded-full bg-[#007C80] px-6 py-3 text-sm font-medium text-white hover:opacity-90"
+              >
+                Logg inn
+              </button>
+
+              <button
+                onClick={goFrontpage}
+                className="w-full rounded-full border border-[#007C80] bg-white px-6 py-3 text-sm font-medium text-[#007C80] hover:bg-sf-soft"
+              >
+                Til forsiden
+              </button>
+            </nav>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
