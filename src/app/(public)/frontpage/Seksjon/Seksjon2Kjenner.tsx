@@ -3,7 +3,6 @@
 export default function Seksjon2Kjenner() {
   return (
     <section
-      id="smerte"
       className="bg-white py-24"
     >
       <div className="mx-auto max-w-7xl px-6">

@@ -5,7 +5,7 @@ import Image from "next/image";
 export default function Seksjon3Smerte() {
   return (
     <section
-      id="smerter"
+      id="smerte"
       className="relative w-full overflow-hidden bg-[#F4FBFA]"
     >
       <div className="mx-auto max-w-7xl px-6 py-28">
