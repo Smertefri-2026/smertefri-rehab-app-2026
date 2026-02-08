@@ -18,7 +18,7 @@ export default function Seksjon7Kalender() {
               <div className="absolute inset-0 -z-10 rounded-full bg-[#007C80]/20 blur-3xl scale-110" />
 
               <Image
-                src="/kalender.png"
+                src="/kalender3.png"
                 alt="SmerteFri – kalender for rehab og oppfølging"
                 width={200}
                 height={410}

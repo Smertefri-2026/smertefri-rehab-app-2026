@@ -19,7 +19,7 @@ export default function Seksjon5Kosthold() {
 
             {/* Selve bildet */}
             <Image
-              src="/dashbord.png"
+              src="/kosthold3.png"
               alt="SmerteFri – kosthold som støtte for rehab og trening"
               width={200}
               height={410}

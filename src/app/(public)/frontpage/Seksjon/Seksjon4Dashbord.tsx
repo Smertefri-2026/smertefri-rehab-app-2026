@@ -18,7 +18,7 @@ export default function Seksjon4Dashbord() {
 
             {/* Selve bildet */}
             <Image
-              src="/dashbord.png"
+              src="/dashbord4.png"
               alt="SmerteFri dashboard – oversikt for bruker og rehab-trener"
               width={200}
               height={410}

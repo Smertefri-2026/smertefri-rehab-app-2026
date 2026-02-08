@@ -14,7 +14,7 @@ export default function Seksjon6Tester() {
             <div className="relative flex items-center justify-center">
               <div className="absolute h-[320px] w-[240px] rounded-full bg-[#BFE9DD] blur-3xl opacity-70" />
               <Image
-                src="/tester.png"
+                src="/tester2.png"
                 alt="SmerteFri – tester for trygg progresjon i rehabilitering"
                 width={200}
                 height={410}
