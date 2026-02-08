@@ -67,7 +67,7 @@ export default function Seksjon3Smerte() {
             </div>
 
             <Image
-              src="/smerte3.png"
+              src="/Smerte3.png"
               alt="SmerteFri – smerter og oppfølging i appen"
               width={200}
               height={410}
