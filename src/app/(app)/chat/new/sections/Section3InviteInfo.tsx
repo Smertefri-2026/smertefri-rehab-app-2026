@@ -6,12 +6,11 @@ export default function Section3InviteInfo() {
       <p className="text-sm">🔎 Søk og start samtale med eksisterende brukere.</p>
 
       <p className="text-sm text-sf-muted">
-        Finner du ingen, kan du invitere via e-post. Invitasjonen blir lagret i systemet, og når personen
-        registrerer seg med samme e-post vil dere kunne starte samtale.
+        Du kan starte samtale med brukere som allerede er registrert og som har navn på profilen sin.
       </p>
 
       <p className="text-xs text-sf-muted">
-        (E-postutsending kan kobles på senere med en liten Edge Function.)
+        Finner du ingen, må personen først registrere seg og fylle inn navn – så vil de dukke opp i søket.
       </p>
     </section>
   );
