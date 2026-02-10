@@ -1,86 +1,126 @@
-// src/app/(public)/trenere/Seksjon/Seksjon1HeroTrenere.tsx
+// /Users/oystein/smertefri-rehab-app-2026/src/app/(public)/trenere/Seksjon/Seksjon1HeroTrenere.tsx
+"use client";
+
 import Image from "next/image";
 
 export default function Seksjon1HeroTrenere() {
+  const goToLogin = () => {
+    window.location.href = "https://app.smertefri.no/login";
+  };
+
+  const goToRegisterTrainer = () => {
+    window.location.href = "https://app.smertefri.no/register/trainer";
+  };
+
+  const goToFilms = () => {
+    const el = document.getElementById("filmer");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    else window.location.href = "#filmer";
+  };
+
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50 via-white to-white">
-      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 md:grid-cols-2 md:py-20">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-5xl">
-            SmerteFri Rehab – plattformen for rehab-trenere og smertebehandling
-          </h1>
+    <section className="relative w-full overflow-hidden bg-gradient-to-br from-[#E6F3F6] via-[#F4FBFA] to-[#F8FAFC]">
+      <div className="mx-auto max-w-7xl px-6 py-24">
+        <div className="grid grid-cols-1 gap-20 lg:grid-cols-2 items-center">
+          {/* LEFT */}
+          <div>
+            {/* Pill */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm text-slate-700 shadow-sm border border-sf-border mb-6">
+              <span className="h-2 w-2 rounded-full bg-[#007C80]" />
+              For rehab-trenere · smerte · progresjon · oppfølging
+            </div>
 
-          <p className="mt-4 text-base leading-relaxed text-slate-700 md:text-lg">
-            SmerteFri er utviklet{" "}
-            <span className="font-semibold">kun for rehab-trenere</span>{" "}
-            for å gjøre oppfølging av kunder med smerte og rehabiliteringsbehov
-            enklere, mer strukturert og mer profesjonell.
-            <br />
-            <span className="font-semibold">Dette er ikke et generelt PT-system.</span>{" "}
-            Dette er rehab.
-          </p>
+            {/* Headline */}
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight text-slate-900">
+              Plattformen for{" "}
+              <span className="text-[#007C80]">rehab-trenere</span>
+              <br />
+              som vil jobbe tryggere med smerte
+            </h1>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a
-              href="#bli-med"
-              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
-            >
-              Bli med som rehab-trener
-            </a>
-            <a
-              href="#filmer"
-              className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
-            >
-              Jeg vil bidra med filmer
-            </a>
-          </div>
+            {/* Ingress */}
+            <p className="mt-6 max-w-xl text-lg text-slate-700">
+              SmerteFri er utviklet <span className="font-semibold">for rehab</span> – ikke som et generelt PT-system.
+              Du får et strukturert oppfølgingsverktøy for smerte, tester, progresjon og kommunikasjon,
+              slik at kundene føler trygghet og du får kontroll.
+            </p>
 
-          <p className="mt-3 text-sm text-slate-600">
-            Vi søker trenere med minimum PT-utdanning og Rehab Trainer-kurs (fullført eller pågående).
-          </p>
+            {/* CTA (mer lik kundesiden) */}
+            <div className="mt-8 flex flex-wrap gap-4">
+              <button
+                onClick={goToLogin}
+                className="rounded-full bg-[#007C80] px-8 py-4 text-white font-medium hover:opacity-90 transition"
+              >
+                Logg inn
+              </button>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm">
-              <div className="text-sm font-semibold text-slate-900">CRM for rehab</div>
-              <div className="mt-1 text-sm text-slate-600">
-                Smerte, tester, progresjon og kommunikasjon – samlet.
+              <button
+                onClick={goToRegisterTrainer}
+                className="rounded-full border border-sf-border bg-white px-8 py-4 font-medium text-slate-800 hover:bg-slate-50 transition"
+              >
+                Registrer deg som trener
+              </button>
+
+              <button
+                onClick={goToFilms}
+                className="rounded-full border border-sf-border bg-white px-8 py-4 font-medium text-slate-800 hover:bg-slate-50 transition"
+              >
+                Jeg vil bidra med filmer
+              </button>
+            </div>
+
+            {/* Subline */}
+            <p className="mt-6 text-sm text-slate-600">
+              Vi søker trenere med minimum PT-utdanning og Rehab Trainer-kurs (fullført eller pågående).
+            </p>
+
+            {/* Cards (beholdt – samme som før, men i SmerteFri-look) */}
+            <div className="mt-10 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
+                <div className="text-sm font-semibold text-slate-900">CRM for rehab</div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Smerte, tester, progresjon og kommunikasjon – samlet.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
+                <div className="text-sm font-semibold text-slate-900">Trygg struktur</div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Kundene får oversikt, du får kontroll.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-sf-border bg-white p-4 shadow-sm">
+                <div className="text-sm font-semibold text-slate-900">Filmer & royalty</div>
+                <div className="mt-1 text-sm text-slate-700">
+                  Passiv inntekt via videobibliotek (fase 2).
+                </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm">
-              <div className="text-sm font-semibold text-slate-900">Trygg struktur</div>
-              <div className="mt-1 text-sm text-slate-600">
-                Kundene får oversikt, du får kontroll.
-              </div>
-            </div>
-            <div className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm">
-              <div className="text-sm font-semibold text-slate-900">Filmer & royalty</div>
-              <div className="mt-1 text-sm text-slate-600">
-                Passiv inntekt via videobibliotek (fase 2).
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* HØYRE – MOBILBILDE (samme mønster som kundesiden) */}
-        <div className="relative flex justify-center">
-          {/* Glow / bakgrunn */}
-          <div className="absolute inset-0 flex justify-center">
-            <div className="h-[440px] w-[340px] rounded-full bg-emerald-600/15 blur-[85px]" />
           </div>
 
-          <div className="relative z-10 flex flex-col items-center">
+          {/* RIGHT – MOBILBILDE (viktig: bilde på høyre side) */}
+          <div className="relative flex justify-center">
+            {/* Glow / bakgrunn */}
+            <div className="absolute inset-0 flex justify-center">
+              <div className="h-[440px] w-[340px] rounded-full bg-[#007C80]/15 blur-[85px]" />
+            </div>
+
             <Image
               src="/PTdashbord2.png"
-              alt="SmerteFri – eksempelvisning"
-              width={200}
-              height={410}
+              alt="SmerteFri – trenerdashboard"
+              width={220}
+              height={460}
               className="relative z-10"
               priority
             />
-            <div className="mt-3 text-center text-sm text-slate-600">
-            </div>
           </div>
         </div>
+      </div>
+
+      {/* Scroll hint (valgfritt) */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-sm text-slate-600">
+        Bla ned ↓
       </div>
     </section>
   );
