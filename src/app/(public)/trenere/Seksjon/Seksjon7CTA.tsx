@@ -34,7 +34,7 @@ export default function Seksjon7CTA() {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
   // ✅ Cal.com booking link
-  const bookingUrl = useMemo(() => "https://cal.com/smertefri/15min", []);
+  const bookingUrl = useMemo(() => "https://cal.com/smertefri/25min", []);
 
   // Load Turnstile script + render widget
   useEffect(() => {
@@ -175,7 +175,7 @@ export default function Seksjon7CTA() {
                   rel="noreferrer"
                   className="inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
                 >
-                  Book 15 min møte
+                  Book 25 min møte
                 </a>
                 <p className="mt-3 text-xs text-slate-500">
                   På mobil åpner vi booking i ny fane (best opplevelse).
@@ -186,7 +186,7 @@ export default function Seksjon7CTA() {
             {/* Desktop: innebygd booking alltid */}
             <div className="mt-6 hidden overflow-hidden rounded-3xl border border-black/5 bg-white shadow-sm md:block">
               <div className="border-b border-slate-100 px-5 py-4">
-                <div className="text-sm font-semibold text-slate-900">Book 15 min (innebygd)</div>
+                <div className="text-sm font-semibold text-slate-900">Book 25 min (innebygd)</div>
                 <div className="mt-1 text-xs text-slate-600">
                   Velg tidspunkt som passer – møtet kan være video.
                 </div>
