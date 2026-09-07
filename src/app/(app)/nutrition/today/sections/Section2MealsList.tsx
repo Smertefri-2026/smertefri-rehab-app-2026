@@ -2,12 +2,19 @@
 
 import type { Meal } from "@/modules/nutrition/types";
 import { calcCalories } from "@/modules/nutrition/storage";
+import { supabase } from "@/lib/supabaseClient";
 import { useState, useMemo, useEffect } from "react";
 
 async function aiEstimate(text: string) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+
   const res = await fetch("/api/nutrition/parse", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ text }),
   });
 

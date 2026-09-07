@@ -1,6 +1,8 @@
 // src/app/api/ga/overview/route.ts
 import { NextResponse } from "next/server";
 import { BetaAnalyticsDataClient } from "@google-analytics/data";
+import { requireAuth } from "@/lib/serverAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -60,8 +62,16 @@ function toGAMetrics(report: any): GAMetrics {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const auth = await requireAuth(req, "admin");
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    if (!checkRateLimit(`ga-overview:${auth.user.id}`, 30, 60 * 60 * 1000)) {
+      return NextResponse.json({ error: "For mange forespørsler" }, { status: 429 });
+    }
+
     const propertyId = getEnv("GA4_PROPERTY_ID"); // numbers only
     const clientEmail = getEnv("GA_CLIENT_EMAIL");
     const privateKeyRaw = getEnv("GA_PRIVATE_KEY");
@@ -168,9 +178,7 @@ export async function GET() {
       topSources7d,
     });
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message ?? "Unknown GA error" },
-      { status: 500 }
-    );
+    console.error("ga/overview error:", e);
+    return NextResponse.json({ error: "Kunne ikke hente analysedata" }, { status: 500 });
   }
 }

@@ -14,6 +14,7 @@ import {
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useRole } from "@/providers/RoleProvider";
+import { supabase } from "@/lib/supabaseClient";
 
 type GAMetrics = {
   totalUsers: number;
@@ -125,7 +126,13 @@ export default function Section8Analytics() {
     setGaErr(null);
 
     try {
-      const res = await fetch("/api/ga/overview", { method: "GET" });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const res = await fetch("/api/ga/overview", {
+        method: "GET",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
 
       // Hvis backend feiler og sender HTML/tekst, gi pen feilmelding
       const contentType = res.headers.get("content-type") || "";
