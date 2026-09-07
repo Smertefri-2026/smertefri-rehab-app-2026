@@ -1,0 +1,30 @@
+:root {
+  /* Core */
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+
+  /* Brand */
+  --brand: #007C80;
+  --brand-ink: #004F59;
+  --brand-soft: #E6F3F6;
+
+  /* Radius */
+  --radius: 16px;
+
+  /* Legacy aliases: kept so the ~109 existing files still using the old
+     bg-sf-bg, text-sf-text, border-sf-border, rounded-sf classes keep
+     rendering identically (same values as above, old names). New code
+     should use the plain names: bg, text, border, muted, brand. */
+  --sf-primary: var(--brand);
+  --sf-primary-ink: var(--brand-ink);
+  --sf-primary-soft: var(--brand-soft);
+  --sf-bg: var(--bg);
+  --sf-surface: var(--surface);
+  --sf-border: var(--border);
+  --sf-text: var(--text);
+  --sf-muted: var(--muted);
+  --sf-radius: var(--radius);
+}

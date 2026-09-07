@@ -1,31 +1,10 @@
+@import "../styles/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* =========================
-   SmerteFri Design Tokens
-   ========================= */
-
-:root {
-  /* Brand */
-  --sf-primary: #007C80;
-  --sf-primary-ink: #004F59;
-  --sf-primary-soft: #E6F3F6;
-
-  /* UI */
-  --sf-bg: #f8fafc;
-  --sf-surface: #ffffff;
-  --sf-border: #e2e8f0;
-  --sf-text: #0f172a;
-  --sf-muted: #64748b;
-
-  /* Radius */
-  --sf-radius: 16px;
+html, body {
+  background: var(--bg);
+  color: var(--text);
 }
-
-html,
-body {
-  background-color: var(--sf-bg);
-  color: var(--sf-text);
-}
-
