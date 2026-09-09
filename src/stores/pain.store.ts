@@ -114,7 +114,7 @@ export const usePain = create<State>((set, get) => ({
     // Krever unique (client_id, area_key, entry_date)
     const { error } = await supabase
       .from("pain_entries")
-      .upsert(payload, { onConflict: "client_id,area_key,entry_date" });
+      .upsert(payload as never, { onConflict: "client_id,area_key,entry_date" });
 
     if (error) {
       set({ error: error.message });

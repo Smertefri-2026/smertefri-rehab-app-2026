@@ -23,7 +23,10 @@ export async function fetchBookingsForClient(clientId: string): Promise<Booking[
     .order("start_time", { ascending: true });
 
   if (error) throwSupabase(error, "Kunne ikke hente bookinger for kunde");
-  return data ?? [];
+  // `duration` is `integer` in the DB (constrained to 15/25/50 by a CHECK),
+  // narrower than the app's BookingDuration literal union — cast at this
+  // read boundary rather than widening the domain type.
+  return (data ?? []) as unknown as Booking[];
 }
 
 export async function fetchBookingsForTrainer(trainerId: string): Promise<Booking[]> {
@@ -34,7 +37,7 @@ export async function fetchBookingsForTrainer(trainerId: string): Promise<Bookin
     .order("start_time", { ascending: true });
 
   if (error) throwSupabase(error, "Kunne ikke hente bookinger for trener");
-  return data ?? [];
+  return (data ?? []) as unknown as Booking[];
 }
 
 export async function fetchAllBookings(): Promise<Booking[]> {
@@ -44,7 +47,7 @@ export async function fetchAllBookings(): Promise<Booking[]> {
     .order("start_time", { ascending: true });
 
   if (error) throwSupabase(error, "Kunne ikke hente alle bookinger");
-  return data ?? [];
+  return (data ?? []) as unknown as Booking[];
 }
 
 /* ============================
@@ -72,7 +75,7 @@ export async function createBooking(input: BookingInput): Promise<Booking> {
     .single();
 
   if (error) throwSupabase(error, "Kunne ikke opprette booking");
-  return data as Booking;
+  return data as unknown as Booking;
 }
 
 export async function updateBooking(
@@ -96,7 +99,7 @@ export async function updateBooking(
     .single();
 
   if (error) throwSupabase(error, "Kunne ikke oppdatere booking");
-  return data as Booking;
+  return data as unknown as Booking;
 }
 
 export async function cancelBooking(bookingId: string): Promise<void> {

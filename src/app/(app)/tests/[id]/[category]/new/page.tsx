@@ -9,6 +9,7 @@ import AppPage from "@/components/layout/AppPage";
 import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
 import { useClients } from "@/stores/clients.store";
+import { getActiveTrainerIdForClient } from "@/lib/assignments.api";
 
 type Category = "bodyweight" | "strength" | "cardio";
 type Metric = { key: string; label: string; sort: number; unit?: string };
@@ -196,14 +197,8 @@ export default function TestNewPage() {
 
       setAccessLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("trainer_id")
-          .eq("id", userId)
-          .single();
-
-        if (error) throw error;
-        setMyTrainerId((data as any)?.trainer_id ?? null);
+        const trainerId = await getActiveTrainerIdForClient(userId);
+        setMyTrainerId(trainerId);
       } catch {
         setMyTrainerId(null);
       } finally {

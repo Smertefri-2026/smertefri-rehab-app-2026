@@ -7,6 +7,7 @@ import { CalendarClock, Users } from "lucide-react";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { useBookings } from "@/stores/bookings.store";
 import { getProfilesByIds } from "@/lib/profile";
+import { getActiveTrainerIdForClient } from "@/lib/assignments.api";
 import { supabase } from "@/lib/supabaseClient";
 
 type NameMap = Record<string, string>;
@@ -75,7 +76,7 @@ export default function Section1Header() {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, first_name, last_name, trainer_id")
+          .select("id, first_name, last_name, role")
           .eq("id", userId)
           .single();
 
@@ -84,7 +85,12 @@ export default function Section1Header() {
         const name = `${data?.first_name ?? ""} ${data?.last_name ?? ""}`.trim();
         if (alive) setMyName(name || "Hei");
 
-        if (alive) setMyTrainerId((data?.trainer_id as string) ?? null);
+        if (data?.role === "client") {
+          const trainerId = await getActiveTrainerIdForClient(userId);
+          if (alive) setMyTrainerId(trainerId);
+        } else if (alive) {
+          setMyTrainerId(null);
+        }
       } catch (e: any) {
         console.warn("Kunne ikke hente min profil:", e?.message);
         if (alive) {
@@ -305,13 +311,13 @@ export default function Section1Header() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {!hasTrainer && (
             <DashboardCard
-              title="Ingen trener valgt"
+              title="Rehabtrener på vei"
               icon={<CalendarClock size={18} />}
               variant="info"
-              href="/trainers"
+              href="/trainer"
             >
-              <p>Du har ikke valgt en trener ennå.</p>
-              <p className="text-sm text-sf-muted">Velg en trener for å kunne booke timer.</p>
+              <p>Du har ikke fått tildelt en rehabtrener ennå.</p>
+              <p className="text-sm text-sf-muted">SmerteFri tildeler deg en så snart det er klart.</p>
             </DashboardCard>
           )}
 

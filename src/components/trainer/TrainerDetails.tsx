@@ -4,25 +4,26 @@ import { useState } from "react";
 import { Trainer } from "@/types/trainer";
 import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
-import { useTrainers } from "@/stores/trainers.store";
 
 type Props = {
   trainer: Trainer;
   canEdit?: boolean;
+  /** Kalles etter vellykket lagring, slik at parent kan refetch trenerdata. */
+  onSaved?: () => void;
 };
 
-export default function TrainerDetails({ trainer, canEdit = true }: Props) {
+export default function TrainerDetails({ trainer, canEdit = true, onSaved }: Props) {
   const { role } = useRole();
-  const { refreshTrainers } = useTrainers();
 
   const [form, setForm] = useState({
     phone: trainer.phone ?? "",
     address: trainer.address ?? "",
     postal_code: trainer.postal_code ?? "",
     city: trainer.city ?? "",
-    trainer_bio: trainer.trainer_bio ?? "",
-    trainer_public: trainer.trainer_public ?? true,
+    bio: trainer.bio ?? "",
   });
+
+  const [statusSaving, setStatusSaving] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -35,29 +36,54 @@ export default function TrainerDetails({ trainer, canEdit = true }: Props) {
     setError(null);
     setSaved(false);
 
-    const updateData = {
-      phone: form.phone || null,
-      address: form.address || null,
-      postal_code: form.postal_code || null,
-      city: form.city || null,
-      trainer_bio: form.trainer_bio || null,
-      trainer_public: form.trainer_public,
-    };
+    try {
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .update({
+          phone: form.phone || null,
+          address: form.address || null,
+          postal_code: form.postal_code || null,
+          city: form.city || null,
+        })
+        .eq("id", trainer.id);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update(updateData)
-      .eq("id", trainer.id);
+      if (profileErr) throw profileErr;
 
-    if (error) {
-      console.error(error);
-      setError("Kunne ikke lagre trenerdetaljer.");
-    } else {
-      await refreshTrainers();
+      const { error: trainerErr } = await supabase
+        .from("trainer_profiles")
+        .update({ bio: form.bio || null })
+        .eq("trainer_id", trainer.id);
+
+      if (trainerErr) throw trainerErr;
+
+      onSaved?.();
       setSaved(true);
+    } catch (e: any) {
+      console.error(e);
+      setError("Kunne ikke lagre trenerdetaljer.");
+    } finally {
+      setSaving(false);
     }
+  }
 
-    setSaving(false);
+  async function handleToggleStatus() {
+    if (statusSaving) return;
+    const nextStatus = trainer.status === "active" ? "inactive" : "active";
+
+    setStatusSaving(true);
+    try {
+      const { error } = await supabase.rpc("set_trainer_status", {
+        p_trainer_id: trainer.id,
+        p_status: nextStatus,
+      });
+      if (error) throw error;
+      onSaved?.();
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message ?? "Kunne ikke endre trenerstatus");
+    } finally {
+      setStatusSaving(false);
+    }
   }
 
   const readOnlyMode = !canEdit;
@@ -122,35 +148,48 @@ export default function TrainerDetails({ trainer, canEdit = true }: Props) {
 
           {readOnlyMode ? (
             <p className="mt-1 rounded-lg border bg-sf-soft px-3 py-2 text-sm whitespace-pre-wrap">
-              {trainer.trainer_bio ?? "—"}
+              {trainer.bio ?? "—"}
             </p>
           ) : (
             <textarea
-              value={form.trainer_bio}
-              onChange={(e) => setForm({ ...form, trainer_bio: e.target.value })}
+              value={form.bio}
+              onChange={(e) => setForm({ ...form, bio: e.target.value })}
               rows={4}
               className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
             />
           )}
         </div>
 
-        {/* 👁 ADMIN: SYNLIGHET (kun når man kan redigere) */}
-        {canEdit && role === "admin" && (
+        {/* 👁 ADMIN: STATUS (aktiv/inaktiv — styrer om treneren kan tildeles nye kunder) */}
+        {role === "admin" && (
           <div className="sm:col-span-2 space-y-2">
-            <label className="text-xs text-sf-muted">Synlighet</label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.trainer_public}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    trainer_public: e.target.checked,
-                  })
-                }
-              />
-              Vis trener i kundesøk
-            </label>
+            <label className="text-xs text-sf-muted">Status</label>
+            <div className="flex items-center gap-3">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  trainer.status === "active"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {trainer.status === "active" ? "Aktiv" : "Inaktiv"}
+              </span>
+              <button
+                type="button"
+                onClick={handleToggleStatus}
+                disabled={statusSaving}
+                className="rounded-lg border px-3 py-1.5 text-xs hover:bg-sf-soft disabled:opacity-50"
+              >
+                {statusSaving
+                  ? "Oppdaterer…"
+                  : trainer.status === "active"
+                  ? "Sett som inaktiv"
+                  : "Sett som aktiv"}
+              </button>
+            </div>
+            <p className="text-xs text-sf-muted">
+              Inaktive trenere kan ikke motta nye kundetildelinger.
+            </p>
           </div>
         )}
       </div>

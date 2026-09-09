@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getActiveClientIdsForTrainer, getActiveTrainerIdForClient } from "@/lib/assignments.api";
 
 type Perspective = "trainer" | "client";
 
@@ -81,14 +82,13 @@ export function useAdminContext(role: string | null) {
           }
 
           // Hent kundene til trener → navn i kalender når admin ser "trainer-perspektiv"
-          const { data: clients } = await supabase
-            .from("profiles")
-            .select("id, first_name, last_name")
-            .eq("role", "client")
-            .eq("trainer_id", selected.id);
+          const clientIds = await getActiveClientIdsForTrainer(selected.id);
+          const { data: clients } = clientIds.length
+            ? await supabase.from("profiles").select("id, first_name, last_name").in("id", clientIds)
+            : { data: [] as { id: string; first_name: string | null; last_name: string | null }[] };
 
           const map: Record<string, string> = {};
-          for (const c of (clients ?? []) as any[]) {
+          for (const c of clients ?? []) {
             const n = `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim();
             map[c.id] = n || "Kunde";
           }
@@ -97,12 +97,12 @@ export function useAdminContext(role: string | null) {
           return;
         }
 
-        // Kunde-kontekst: vi må slå opp kundens trainer_id
+        // Kunde-kontekst: vi må slå opp kundens aktivt tildelte trener
         setContextClientId(selected.id);
 
         const { data: c } = await supabase
           .from("profiles")
-          .select("id, first_name, last_name, email, trainer_id")
+          .select("id, first_name, last_name, email")
           .eq("id", selected.id)
           .single();
 
@@ -110,7 +110,7 @@ export function useAdminContext(role: string | null) {
           setSelected((prev) => (prev ? { ...prev, label: fullName(c ?? {}) } : prev));
         }
 
-        const trainerId = (c as any)?.trainer_id ?? null;
+        const trainerId = await getActiveTrainerIdForClient(selected.id);
         if (!cancelled) setContextTrainerId(trainerId);
 
         if (trainerId) {

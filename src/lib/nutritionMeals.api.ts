@@ -27,7 +27,9 @@ export async function listMealsByDay(dayId: string) {
   return (data ?? []) as NutritionMealRow[];
 }
 
-export async function upsertMeal(row: Partial<NutritionMealRow>) {
+export async function upsertMeal(
+  row: Partial<NutritionMealRow> & Pick<NutritionMealRow, "day_id" | "user_id">
+) {
   const { data, error } = await supabase
     .from("nutrition_meals")
     .upsert(row, { onConflict: "id" })

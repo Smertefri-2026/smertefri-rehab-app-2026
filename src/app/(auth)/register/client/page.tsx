@@ -64,7 +64,7 @@ export default function RegisterClientPage() {
         </p>
 
         <p className="mt-2 text-sm text-sf-muted">
-          Opprett konto for å finne riktig rehab-trener og få trygg oppfølging.
+          Opprett konto for å få tildelt en rehab-trener og trygg oppfølging.
           Vi sender deg en e-post for bekreftelse – helt uforpliktende.
         </p>
       </div>

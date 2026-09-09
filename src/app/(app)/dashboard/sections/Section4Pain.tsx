@@ -7,6 +7,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
 import { usePain } from "@/stores/pain.store";
+import { getActiveClientIdsForTrainer } from "@/lib/assignments.api";
 
 import {
   HeartPulse,
@@ -160,13 +161,14 @@ export default function Section4Pain() {
       setIdsError(null);
 
       try {
-        let q = supabase.from("profiles").select("id").eq("role", "client");
-        if (role === "trainer") q = q.eq("trainer_id", userId);
-
-        const { data, error } = await q;
-        if (error) throw error;
-
-        const ids = (data ?? []).map((r: any) => r.id).filter(Boolean);
+        let ids: string[];
+        if (role === "trainer") {
+          ids = await getActiveClientIdsForTrainer(userId);
+        } else {
+          const { data, error } = await supabase.from("profiles").select("id").eq("role", "client");
+          if (error) throw error;
+          ids = (data ?? []).map((r) => r.id).filter(Boolean);
+        }
         setClientIds(ids);
       } catch (e: any) {
         setIdsError(e?.message ?? "Ukjent feil");

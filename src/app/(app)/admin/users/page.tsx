@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import AppPage from "@/components/layout/AppPage";
 import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
+import { getActiveTrainerIdMapForClients } from "@/lib/assignments.api";
 
 type Role = "client" | "trainer" | "admin" | "all";
 
@@ -53,39 +54,42 @@ export default function AdminUsersPage() {
 
     (async () => {
       try {
-        // 1) Hent alle profiles
+        // 1) Hent alle profiles (trainer_id er ikke lenger en kolonne her —
+        //    relasjonen slås opp separat via client_trainer_assignments)
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, role, first_name, last_name, city, trainer_id, created_at, email")
+          .select("id, role, first_name, last_name, city, created_at, email")
           .order("created_at", { ascending: false })
           .limit(500);
 
         if (!alive) return;
         if (error) throw error;
 
-        const list = (data ?? []) as Row[];
+        const rawList = data ?? [];
+
+        // 2) Slå opp aktiv trener per klient
+        const clientIds = rawList.filter((r) => r.role === "client").map((r) => r.id);
+        const trainerIdByClient = await getActiveTrainerIdMapForClients(clientIds);
+
+        const list: Row[] = rawList.map((r) => ({
+          ...r,
+          trainer_id: r.role === "client" ? trainerIdByClient[r.id] ?? null : null,
+        }));
+
+        if (!alive) return;
         setRows(list);
 
-        // 2) Bygg liste av trainer_id som finnes hos klienter
-        const trainerIds = Array.from(
-          new Set(
-            list
-              .filter((r) => (r.role ?? "") === "client")
-              .map((r) => r.trainer_id)
-              .filter(Boolean) as string[]
-          )
-        );
+        // 3) Bygg liste av trainer_id som finnes hos klienter
+        const trainerIds = Array.from(new Set(Object.values(trainerIdByClient)));
 
-        // 3) Bygg count kunder per trainer_id (for "Kunder"-kolonnen)
+        // 4) Bygg count kunder per trainer_id (for "Kunder"-kolonnen)
         const counts: Record<string, number> = {};
-        for (const r of list) {
-          if ((r.role ?? "") !== "client") continue;
-          if (!r.trainer_id) continue;
-          counts[r.trainer_id] = (counts[r.trainer_id] ?? 0) + 1;
+        for (const trainerId of Object.values(trainerIdByClient)) {
+          counts[trainerId] = (counts[trainerId] ?? 0) + 1;
         }
         setClientCountByTrainerId(counts);
 
-        // 4) Hent trenerprofiler og lag map
+        // 5) Hent trenerprofiler og lag map
         if (trainerIds.length === 0) {
           setTrainerById({});
           return;

@@ -10,8 +10,8 @@ import { fetchAllTrainers } from "@/lib/clients.api";
 
 type Trainer = {
   id: string;
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
 };
 
 type Props = {
@@ -122,17 +122,17 @@ export default function ClientDetails({ client, canEdit = true }: Props) {
   /* ---------------- ADMIN: FJERN TRENER ---------------- */
 
   async function handleRemoveTrainer() {
-    if (!confirm("Er du sikker på at du vil fjerne treneren fra denne kunden?")) return;
+    if (!confirm("Er du sikker på at du vil avslutte tildelingen for denne kunden?")) return;
 
     setSaving(true);
     setError(null);
     setSaved(false);
 
-    const { error } = await supabase.from("profiles").update({ trainer_id: null }).eq("id", client.id);
+    const { error } = await supabase.rpc("end_assignment", { p_client_id: client.id });
 
     if (error) {
       console.error(error);
-      setError("Kunne ikke fjerne trener.");
+      setError("Kunne ikke avslutte tildelingen.");
     } else {
       setTrainerId(null);
       await refreshClients();
@@ -149,28 +149,42 @@ export default function ClientDetails({ client, canEdit = true }: Props) {
     setError(null);
     setSaved(false);
 
-    const updateData: any = {
-      phone: form.phone || null,
-      address: form.address || null,
-      postal_code: form.postal_code || null,
-      city: form.city || null,
-    };
-
-    // 🔐 Kun admin kan bytte trener
-    if (role === "admin") {
-      updateData.trainer_id = trainerId;
-    }
-
-    const { error } = await supabase.from("profiles").update(updateData).eq("id", client.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        phone: form.phone || null,
+        address: form.address || null,
+        postal_code: form.postal_code || null,
+        city: form.city || null,
+      })
+      .eq("id", client.id);
 
     if (error) {
       console.error(error);
       setError("Kunne ikke lagre kundedetaljer.");
-    } else {
-      await refreshClients();
-      setSaved(true);
+      setSaving(false);
+      return;
     }
 
+    // 🔐 Kun admin kan tildele/bytte trener, og kun via assign_trainer()
+    // (SECURITY DEFINER) — aldri en direkte skriving mot client_trainer_assignments.
+    const existingTrainerId = (client as any).trainer_id ?? null;
+    if (role === "admin" && trainerId && trainerId !== existingTrainerId) {
+      const { error: assignErr } = await supabase.rpc("assign_trainer", {
+        p_client_id: client.id,
+        p_trainer_id: trainerId,
+      });
+
+      if (assignErr) {
+        console.error(assignErr);
+        setError("Kunne ikke tildele trener.");
+        setSaving(false);
+        return;
+      }
+    }
+
+    await refreshClients();
+    setSaved(true);
     setSaving(false);
   }
 

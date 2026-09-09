@@ -37,6 +37,7 @@ const clientItems: SidebarItem[] = [
   { label: "Smerter", href: "/pain", icon: HeartPulse },
   { label: "Tester", href: "/tests", icon: Activity },
   { label: "Kosthold", href: "/nutrition", icon: Utensils },
+  { label: "Min rehabtrener", href: "/trainer", icon: Users },
   { label: "Meldinger", href: "/chat", icon: MessageCircle },
   { label: "Profil", href: "/profile", icon: User },
 ];

@@ -4,41 +4,27 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useRole } from "@/providers/RoleProvider";
-import { getMyProfile, updateMyProfile } from "@/lib/profile";
-import { removeMyTrainer } from "@/lib/trainerLink.api";
-
-type TrainerProfile = {
-  id?: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  avatar_url?: string | null;
-  city?: string | null;
-  trainer_specialties?: string[] | null;
-};
-
-type Profile = {
-  trainer?: TrainerProfile | null;
-  trainer_id?: string | null;
-
-  trainer_bio?: string | null;
-  trainer_specialties?: string[] | null;
-  trainer_public?: boolean | null;
-
-  [key: string]: any;
-};
+import { getMyProfile, updateMyTrainerProfile, type MyProfile } from "@/lib/profile";
 
 export default function Section3Role() {
   const { role } = useRole();
 
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<MyProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Trener: lokal skjematilstand for bio/spesialiteter
+  const [bio, setBio] = useState("");
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   async function reload() {
     setLoading(true);
     try {
       const data = await getMyProfile();
       setProfile(data);
+      setBio(data.trainer?.bio ?? "");
+      setSpecialties(data.trainer?.specialties ?? []);
     } catch (e: any) {
       console.error("getMyProfile feilet:", e);
       alert(e?.message ?? "Kunne ikke hente profil");
@@ -52,35 +38,10 @@ export default function Section3Role() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleRemoveTrainer() {
-    if (saving) return;
-
-    const ok = confirm(
-      "Vil du fjerne tilknytningen til treneren din? Du kan velge ny trener senere."
-    );
-    if (!ok) return;
-
-    setSaving(true);
-    try {
-      // ✅ Bruk RPC (remove_my_trainer) via lib/trainerLink.api
-      await removeMyTrainer();
-
-      // Oppdater UI fra DB
-      await reload();
-    } catch (e: any) {
-      console.error("Fjern trener feilet:", e);
-      alert(e?.message ?? "Kunne ikke fjerne trener");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   if (!role || loading || !profile) return null;
 
   const trainer = profile.trainer ?? null;
-  const trainerName = trainer
-    ? `${trainer.first_name ?? ""} ${trainer.last_name ?? ""}`.trim()
-    : "";
+  const trainerName = trainer ? `${trainer.first_name ?? ""} ${trainer.last_name ?? ""}`.trim() : "";
 
   return (
     <section className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm">
@@ -91,15 +52,14 @@ export default function Section3Role() {
         {role === "client" && (
           <div className="space-y-4">
             <p className="text-sm text-sf-muted">
-              Du er registrert som kunde, og dette er din trener.
+              Du er registrert som kunde. SmerteFri tildeler deg en rehabtrener.
             </p>
 
-            {trainer || profile.trainer_id ? (
+            {trainer ? (
               <div className="rounded-xl border border-sf-border bg-sf-soft p-4 space-y-3">
-                {/* Trenerheader */}
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center overflow-hidden">
-                    {trainer?.avatar_url ? (
+                    {trainer.avatar_url ? (
                       <img
                         src={trainer.avatar_url}
                         alt="Trener"
@@ -107,86 +67,35 @@ export default function Section3Role() {
                       />
                     ) : (
                       <span className="text-sm font-semibold">
-                        {(trainer?.first_name?.[0] ?? "")}
-                        {(trainer?.last_name?.[0] ?? "")}
+                        {(trainer.first_name?.[0] ?? "")}
+                        {(trainer.last_name?.[0] ?? "")}
                       </span>
                     )}
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">
-                      {trainerName || "Trener valgt"}
-                    </p>
-                    <p className="text-xs text-sf-muted truncate">{trainer?.city ?? ""}</p>
+                    <p className="text-sm font-semibold truncate">{trainerName || "Din trener"}</p>
+                    <p className="text-xs text-sf-muted truncate">{trainer.city ?? ""}</p>
                   </div>
                 </div>
 
-                {/* Spesialiteter */}
-                {trainer?.trainer_specialties?.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {trainer.trainer_specialties.map((s) => (
-                      <span
-                        key={s}
-                        className="rounded-full bg-white px-3 py-1 text-xs border"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-
-                {/* Handlinger */}
-                <div className="flex flex-wrap items-center gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={handleRemoveTrainer}
-                    disabled={saving}
-                    className="rounded-lg border px-4 py-2 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    {saving ? "Fjerner…" : "Fjern trener"}
-                  </button>
-
-                  <Link
-                    href="/trainers"
-                    className="rounded-lg bg-sf-primary px-4 py-2 text-xs text-white"
-                  >
-                    Bytt trener
-                  </Link>
-
-                  <Link
-                    href="/calendar"
-                    className="rounded-lg border px-4 py-2 text-xs"
-                  >
-                    Book time
-                  </Link>
-
-                  {(trainer?.id || profile.trainer_id) && (
-                    <Link
-                      href={`/trainers/${trainer?.id ?? profile.trainer_id}`}
-                      className="rounded-lg border px-4 py-2 text-xs"
-                    >
-                      Se trenerprofil
-                    </Link>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={reload}
-                    className="rounded-lg px-3 py-2 text-xs text-sf-muted hover:bg-sf-soft"
-                  >
-                    Oppdater
-                  </button>
-                </div>
+                <Link
+                  href="/trainer"
+                  className="inline-block rounded-lg bg-sf-primary px-4 py-2 text-xs text-white"
+                >
+                  Se din rehabtrener
+                </Link>
               </div>
             ) : (
-              <div className="rounded-xl border bg-sf-soft p-4">
-                <p className="text-sm">Du har ikke valgt trener ennå.</p>
-                <Link
-                  href="/trainers"
-                  className="inline-block mt-2 rounded-lg bg-sf-primary px-4 py-2 text-xs text-white"
-                >
-                  Finn trener
-                </Link>
+              <div className="rounded-xl border bg-sf-soft p-4 space-y-2">
+                <p className="text-sm">Du har ikke fått tildelt en rehabtrener ennå.</p>
+                <p className="text-xs text-sf-muted">
+                  Ønsker du selv å bli rehabtrener?{" "}
+                  <Link href="/trainer-application" className="text-sf-primary underline">
+                    Søk her
+                  </Link>
+                  .
+                </p>
               </div>
             )}
           </div>
@@ -196,15 +105,15 @@ export default function Section3Role() {
         {role === "trainer" && (
           <div className="space-y-4">
             <p className="text-sm text-sf-muted">
-              Du er registrert som trener. Denne informasjonen vises for kunder.
+              Du er registrert som trener. Denne informasjonen vises for kundene dine.
             </p>
 
             {/* BIO */}
             <div>
               <label className="text-xs font-medium">Kort beskrivelse (maks 300 ord)</label>
               <textarea
-                value={profile.trainer_bio ?? ""}
-                onChange={(e) => setProfile({ ...profile, trainer_bio: e.target.value })}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
                 rows={5}
                 maxLength={1500}
                 className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
@@ -217,15 +126,15 @@ export default function Section3Role() {
               <label className="text-xs font-medium">Spesialiteter</label>
               <div className="mt-2 flex gap-3 flex-wrap">
                 {["Rehabtrening", "Kosthold"].map((s) => {
-                  const selected = (profile.trainer_specialties ?? []).includes(s);
+                  const selected = specialties.includes(s);
                   return (
                     <button
                       key={s}
                       type="button"
                       onClick={() => {
-                        const set = new Set(profile.trainer_specialties ?? []);
+                        const set = new Set(specialties);
                         selected ? set.delete(s) : set.add(s);
-                        setProfile({ ...profile, trainer_specialties: Array.from(set) });
+                        setSpecialties(Array.from(set));
                       }}
                       className={`px-4 py-1 rounded-full text-xs border ${
                         selected ? "bg-sf-primary text-white" : "bg-white text-sf-muted"
@@ -238,31 +147,16 @@ export default function Section3Role() {
               </div>
             </div>
 
-            {/* SYNLIGHET */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={(profile.trainer_public ?? true) !== false}
-                onChange={(e) =>
-                  setProfile({ ...profile, trainer_public: e.target.checked })
-                }
-              />
-              <span className="text-sm">Vis meg i trener-søk</span>
-            </div>
-
             {/* LAGRE */}
             <button
               disabled={saving}
               onClick={async () => {
                 if (saving) return;
                 setSaving(true);
+                setSaved(false);
                 try {
-                  await updateMyProfile({
-                    trainer_bio: profile.trainer_bio ?? null,
-                    trainer_specialties: profile.trainer_specialties ?? [],
-                    trainer_public: (profile.trainer_public ?? true) !== false,
-                  });
-                  alert("Trenerprofil lagret");
+                  await updateMyTrainerProfile({ bio: bio || null, specialties });
+                  setSaved(true);
                 } catch (e: any) {
                   console.error("Lagre trenerprofil feilet:", e);
                   alert(e?.message ?? "Kunne ikke lagre trenerprofil");
@@ -272,7 +166,7 @@ export default function Section3Role() {
               }}
               className="rounded-lg bg-sf-primary px-6 py-2 text-sm text-white disabled:opacity-50"
             >
-              {saving ? "Lagrer…" : "Lagre trenerprofil"}
+              {saving ? "Lagrer…" : saved ? "Lagret ✅" : "Lagre trenerprofil"}
             </button>
           </div>
         )}

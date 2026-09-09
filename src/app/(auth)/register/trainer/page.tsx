@@ -38,12 +38,14 @@ export default function RegisterTrainerPage() {
 
     setLoading(true);
 
+    // NB: rollen settes IKKE her — alle nye brukere starter som 'client'.
+    // Å bli rehabtrener krever en søknad (etter innlogging) som et
+    // menneske hos SmerteFri godkjenner, se /trainer-application.
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/register/email-sent`,
-        data: { role: "trainer" },
       },
     });
 
@@ -70,14 +72,14 @@ export default function RegisterTrainerPage() {
         </h1>
 
         <p className="mt-3 text-lg font-medium text-sf-text">
-          Registrer deg som trener
+          Søk om å bli rehabtrener
         </p>
 
         <p className="mt-3 text-sm text-sf-muted leading-relaxed">
-          Som trener er du med på å skape et system som først hjelper mennesker ut av smerte – og deretter trygt videre til et sterkere, mer funksjonelt liv.
+          Som rehabtrener er du med på å skape et system som først hjelper mennesker ut av smerte – og deretter trygt videre til et sterkere, mer funksjonelt liv.
           <br />
           <br />
-          <strong>SmerteFri bygges som et fagmiljø i vekst.</strong>
+          Opprett en konto her, så sender du selve søknaden (utdanning, erfaring, bio) etter at du har logget inn.
         </p>
       </div>
 
@@ -149,7 +151,7 @@ export default function RegisterTrainerPage() {
           disabled={!passwordsMatch || loading}
           className="w-full rounded-full bg-[#007C80] py-3 font-medium text-white hover:opacity-90 transition disabled:opacity-60"
         >
-          {loading ? "Registrerer…" : "Registrer trener"}
+          {loading ? "Oppretter konto…" : "Opprett konto"}
         </button>
       </form>
 

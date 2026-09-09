@@ -1,11 +1,23 @@
 import { supabase } from "@/lib/supabaseClient";
 import { Client } from "@/types/client";
+import { getActiveClientIdsForTrainer, getActiveTrainerIdMapForClients } from "@/lib/assignments.api";
+
+const PROFILE_FIELDS = `
+  id,
+  first_name,
+  last_name,
+  avatar_url,
+  phone,
+  birth_date,
+  address,
+  postal_code,
+  city,
+  role
+`;
 
 /**
  * 👤 Hent kunder for innlogget trener
- * ✅ Sannhet: trainer_client_links
- *
- * Returnerer kundens profile-rad for alle kunder som er linket til treneren.
+ * ✅ Sannhet: client_trainer_assignments (status = 'active')
  */
 export async function fetchMyClients(): Promise<Client[]> {
   const {
@@ -15,114 +27,50 @@ export async function fetchMyClients(): Promise<Client[]> {
 
   if (authError || !user) throw new Error("Ikke innlogget");
 
-  // ---------- A) Først: prøv "sannhet" = trainer_client_links (uten embed) ----------
-  try {
-    const { data: links, error: linkErr } = await supabase
-      .from("trainer_client_links")
-      .select("client_id, created_at")
-      .eq("trainer_id", user.id)
-      .order("created_at", { ascending: false });
+  const clientIds = await getActiveClientIdsForTrainer(user.id);
+  if (clientIds.length === 0) return [];
 
-    if (linkErr) throw linkErr;
-
-    const clientIds = (links ?? []).map((l: any) => l.client_id).filter(Boolean);
-
-    // Hvis vi har linker: hent klient-profiler via IN()
-    if (clientIds.length > 0) {
-      const { data: profs, error: profErr } = await supabase
-        .from("profiles")
-        .select(`
-          id,
-          first_name,
-          last_name,
-          avatar_url,
-          phone,
-          birth_date,
-          address,
-          postal_code,
-          city,
-          role
-        `)
-        .in("id", clientIds)
-        .eq("role", "client");
-
-      if (profErr) throw profErr;
-
-      // Behold rekkefølge fra links
-      const byId = new Map((profs ?? []).map((p: any) => [p.id, p]));
-      const ordered = clientIds
-        .map((id: string) => byId.get(id))
-        .filter(Boolean)
-        .map((c: any) => ({ ...c, trainer_id: user.id } as Client));
-
-      // Stabil alfabetisk sort (valgfritt)
-      ordered.sort((a, b) => {
-        const an = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim().toLowerCase();
-        const bn = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim().toLowerCase();
-        return an.localeCompare(bn, "nb");
-      });
-
-      return ordered;
-    }
-  } catch (e) {
-    // Ikke stopp – fall tilbake til legacy
-    console.warn("fetchMyClients: link-path feilet, fallback til legacy:", e);
-  }
-
-  // ---------- B) Fallback: legacy = profiles.trainer_id ----------
-  const { data, error } = await supabase
+  const { data: profs, error: profErr } = await supabase
     .from("profiles")
-    .select(`
-      id,
-      first_name,
-      last_name,
-      avatar_url,
-      phone,
-      birth_date,
-      address,
-      postal_code,
-      city,
-      trainer_id
-    `)
-    .eq("trainer_id", user.id)
+    .select(PROFILE_FIELDS)
+    .in("id", clientIds)
     .eq("role", "client");
 
-  if (error) throw error;
+  if (profErr) throw profErr;
 
-  return (data ?? []) as Client[];
+  const ordered = (profs ?? []).map((c) => ({ ...c, trainer_id: user.id } as Client));
+
+  ordered.sort((a, b) => {
+    const an = `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim().toLowerCase();
+    const bn = `${b.first_name ?? ""} ${b.last_name ?? ""}`.trim().toLowerCase();
+    return an.localeCompare(bn, "nb");
+  });
+
+  return ordered;
 }
+
 /**
- * 🔐 Admin – hent ALLE kunder
+ * 🔐 Admin – hent ALLE kunder, med aktivt tildelt trener (om noen) påført.
  */
 export async function fetchAllClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from("profiles")
-    .select(
-      `
-      id,
-      first_name,
-      last_name,
-      avatar_url,
-      phone,
-      birth_date,
-      address,
-      postal_code,
-      city,
-      trainer_id
-    `
-    )
+    .select(PROFILE_FIELDS)
     .eq("role", "client");
 
   if (error) throw error;
 
-  return (data ?? []) as Client[];
+  const clients = data ?? [];
+  const trainerByClientId = await getActiveTrainerIdMapForClients(clients.map((c) => c.id));
+
+  return clients.map((c) => ({ ...c, trainer_id: trainerByClientId[c.id] ?? null } as Client));
 }
 
 /**
- * 🔐 Admin – hent ALLE trenere (for bytte trener)
+ * 🔐 Admin – hent ALLE trenere (for tildeling)
  */
 export async function fetchAllTrainers(): Promise<
-  { id: string; first_name: string; last_name: string }[]
+  { id: string; first_name: string | null; last_name: string | null }[]
 > {
   const { data, error } = await supabase
     .from("profiles")

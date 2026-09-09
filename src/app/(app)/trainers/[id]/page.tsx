@@ -1,11 +1,12 @@
 "use client";
 
-import { notFound } from "next/navigation";
-import { use } from "react";
+import { notFound, useRouter } from "next/navigation";
+import { use, useCallback, useEffect, useState } from "react";
 
 import AppPage from "@/components/layout/AppPage";
 import { useRole } from "@/providers/RoleProvider";
-import { useTrainers } from "@/stores/trainers.store";
+import { getTrainerById } from "@/lib/trainers";
+import type { Trainer } from "@/types/trainer";
 
 import TrainerCard from "@/components/trainer/TrainerCard";
 import TrainerDetails from "@/components/trainer/TrainerDetails";
@@ -17,12 +18,33 @@ type PageProps = {
 };
 
 export default function TrainerDetailPage({ params }: PageProps) {
-  const { role, userId } = useRole();
-  const { getTrainerById, loading } = useTrainers();
-
+  const router = useRouter();
+  const { role, userId, loading: roleLoading } = useRole();
   const { id: trainerId } = use(params);
 
-  if (loading || !role) {
+  const [trainer, setTrainer] = useState<Trainer | null | undefined>(undefined);
+
+  const load = useCallback(() => {
+    getTrainerById(trainerId)
+      .then(setTrainer)
+      .catch((e) => {
+        console.error("Kunne ikke hente trener:", e);
+        setTrainer(null);
+      });
+  }, [trainerId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Klienter velger ikke trener i en markedsplass — de har sin egen side.
+  useEffect(() => {
+    if (!roleLoading && role === "client") {
+      router.replace("/trainer");
+    }
+  }, [roleLoading, role, router]);
+
+  if (roleLoading || !role || trainer === undefined) {
     return (
       <AppPage>
         <p className="text-sm text-sf-muted">Laster trener …</p>
@@ -30,20 +52,20 @@ export default function TrainerDetailPage({ params }: PageProps) {
     );
   }
 
-  const trainer = getTrainerById(trainerId);
-  if (!trainer) notFound();
+  if (role === "client") return null; // redirecter over
+  if (trainer === null) notFound();
 
   const isAdmin = role === "admin";
   const isTrainerSelf = role === "trainer" && userId === trainerId;
 
-  const canEdit = isAdmin; // fortsatt kun admin redigerer her
+  const canEdit = isAdmin || isTrainerSelf;
   const canSeeClients = isAdmin || isTrainerSelf;
 
   return (
     <AppPage>
       <TrainerCard trainer={trainer} />
       <TrainerActions trainerId={trainerId} />
-      <TrainerDetails trainer={trainer} canEdit={canEdit} />
+      <TrainerDetails trainer={trainer} canEdit={canEdit} onSaved={load} />
 
       {canSeeClients && <TrainerClients trainerId={trainerId} />}
     </AppPage>

@@ -4,21 +4,13 @@ import { useEffect, useState } from "react";
 import AppPage from "@/components/layout/AppPage";
 import DashboardCard from "@/components/dashboard/DashboardCard";
 import { Activity } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
+import { countRows } from "@/lib/adminStats";
 
 function isoDaysAgo(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d.toISOString();
-}
-
-async function countRows(table: string, apply?: (q: any) => any): Promise<number> {
-  let q = supabase.from(table).select("*", { count: "exact", head: true });
-  if (apply) q = apply(q);
-  const { count, error } = await q;
-  if (error) throw error;
-  return count ?? 0;
 }
 
 export default function AdminActivityPage() {

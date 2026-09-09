@@ -1,60 +1,68 @@
 import { supabase } from "@/lib/supabaseClient";
+import { Trainer } from "@/types/trainer";
+
+const SELECT = `
+  id,
+  first_name,
+  last_name,
+  email,
+  phone,
+  birth_date,
+  address,
+  postal_code,
+  city,
+  avatar_url,
+  trainer_profiles ( bio, specialties, certifications, status )
+`;
+
+function flatten(row: any): Trainer {
+  const tp = Array.isArray(row.trainer_profiles) ? row.trainer_profiles[0] : row.trainer_profiles;
+  return {
+    id: row.id,
+    first_name: row.first_name,
+    last_name: row.last_name,
+    email: row.email ?? null,
+    phone: row.phone ?? null,
+    birth_date: row.birth_date ?? null,
+    address: row.address ?? null,
+    postal_code: row.postal_code ?? null,
+    city: row.city ?? null,
+    avatar_url: row.avatar_url ?? null,
+    bio: tp?.bio ?? null,
+    specialties: tp?.specialties ?? null,
+    certifications: tp?.certifications ?? null,
+    status: tp?.status ?? null,
+  };
+}
 
 /**
- * 🔍 Hent trenere
- * Brukes av TrainersProvider og /trainers
+ * 🔐 Admin – alle trenere (for administrasjon/tildeling), med
+ * kompetanseprofil (trainer_profiles) joinet inn.
  */
-export async function getPublicTrainers() {
+export async function getAllTrainersForAdmin(): Promise<Trainer[]> {
   const { data, error } = await supabase
     .from("profiles")
-    .select(`
-      id,
-      first_name,
-      last_name,
-      email,
-      phone,
-      birth_date,
-      address,
-      postal_code,
-      city,
-      avatar_url,
-      trainer_bio,
-      trainer_specialties,
-      trainer_public
-    `)
+    .select(SELECT)
     .eq("role", "trainer")
     .order("first_name", { ascending: true });
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map(flatten);
 }
 
 /**
- * 👤 Hent én trener (brukes i /trainers/[id])
- * NB: bruker samme felter som lista for konsistens
+ * Én trener, med kompetanseprofil. RLS avgjør hvem som faktisk kan lese
+ * raden: admin (alle), treneren selv (egen rad), eller en kunde som er
+ * aktivt tildelt nettopp denne treneren.
  */
-export async function getTrainerById(trainerId: string) {
+export async function getTrainerById(trainerId: string): Promise<Trainer | null> {
   const { data, error } = await supabase
     .from("profiles")
-    .select(`
-      id,
-      first_name,
-      last_name,
-      email,
-      phone,
-      birth_date,
-      address,
-      postal_code,
-      city,
-      avatar_url,
-      trainer_bio,
-      trainer_specialties,
-      trainer_public
-    `)
+    .select(SELECT)
     .eq("id", trainerId)
     .eq("role", "trainer")
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
-  return data;
+  return data ? flatten(data) : null;
 }

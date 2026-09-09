@@ -9,6 +9,7 @@ import AppPage from "@/components/layout/AppPage";
 import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
 import { useClients } from "@/stores/clients.store";
+import { getActiveTrainerIdForClient } from "@/lib/assignments.api";
 
 import { Plus } from "lucide-react";
 
@@ -222,14 +223,8 @@ export default function TestsIdPage() {
 
       setAccessLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("trainer_id")
-          .eq("id", userId)
-          .single();
-
-        if (error) throw error;
-        setMyTrainerId((data as any)?.trainer_id ?? null);
+        const trainerId = await getActiveTrainerIdForClient(userId);
+        setMyTrainerId(trainerId);
       } catch {
         setMyTrainerId(null);
       } finally {

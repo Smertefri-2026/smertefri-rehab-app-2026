@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Users, UserCheck, Calendar, Activity, AlertCircle, CheckCircle2 } from "lucide-react";
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
-import { supabase } from "@/lib/supabaseClient";
+import { countRows } from "@/lib/adminStats";
+import { countActiveAssignments } from "@/lib/assignments.api";
 import { useRole } from "@/providers/RoleProvider";
 
 type Counts = {
@@ -23,10 +24,9 @@ type Counts = {
   activity7Bookings: number;
 
   alertsClientsNoTrainer: number;
-  alertsBookingsMissingLinks: number;
 };
 
-const CACHE_KEY = "sf_admin_stats_v2";
+const CACHE_KEY = "sf_admin_stats_v3";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 
 function isoDaysAgo(n: number) {
@@ -39,14 +39,6 @@ function isoDaysAhead(n: number) {
   const d = new Date();
   d.setDate(d.getDate() + n);
   return d.toISOString();
-}
-
-async function countRows(table: string, apply?: (q: any) => any): Promise<number> {
-  let q = supabase.from(table).select("*", { count: "exact", head: true });
-  if (apply) q = apply(q);
-  const { count, error } = await q;
-  if (error) throw error;
-  return count ?? 0;
 }
 
 function readCache(): { ts: number; data: Counts } | null {
@@ -131,8 +123,7 @@ export default function Section7AdminStats() {
         activity7Nutrition,
         activity7Bookings,
 
-        alertsClientsNoTrainer,
-        alertsBookingsMissingLinks,
+        activeAssignments,
       ] = await Promise.all([
         // users
         countRows("profiles", (q) => q.in("role", ["client", "trainer", "admin"])),
@@ -152,9 +143,9 @@ export default function Section7AdminStats() {
         countRows("nutrition_days", (q) => q.gte("updated_at", from7)),
         countRows("bookings", (q) => q.gte("created_at", from7)),
 
-        // alerts
-        countRows("profiles", (q) => q.eq("role", "client").is("trainer_id", null)),
-        countRows("bookings", (q) => q.or("client_id.is.null,trainer_id.is.null")),
+        // alerts: client_trainer_assignments enforces at most one active row
+        // per client, so total clients minus active assignments = unassigned.
+        countActiveAssignments(),
       ]);
 
       const data: Counts = {
@@ -171,8 +162,7 @@ export default function Section7AdminStats() {
         activity7Nutrition,
         activity7Bookings,
 
-        alertsClientsNoTrainer,
-        alertsBookingsMissingLinks,
+        alertsClientsNoTrainer: Math.max(0, clients - activeAssignments),
       };
 
       setCounts(data);
@@ -192,7 +182,7 @@ export default function Section7AdminStats() {
 
   const alertCount = useMemo(() => {
     if (!counts) return 0;
-    return (counts.alertsClientsNoTrainer ?? 0) + (counts.alertsBookingsMissingLinks ?? 0);
+    return counts.alertsClientsNoTrainer ?? 0;
   }, [counts]);
 
   const activityTotal = useMemo(() => {
@@ -309,7 +299,7 @@ export default function Section7AdminStats() {
               <p className="text-sm text-sf-muted">
                 {loading || !counts
                   ? "Sjekker system…"
-                  : `Uten trener: ${counts.alertsClientsNoTrainer} • Bookinger m/ manglende relasjon: ${counts.alertsBookingsMissingLinks}`}
+                  : `Kunder uten rehabtrener: ${counts.alertsClientsNoTrainer}`}
               </p>
               <p className="mt-2 text-xs text-sf-muted">
                 {ready && alertCount > 0 ? "Åpne liste →" : "Ingen å vise"}

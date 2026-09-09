@@ -60,7 +60,7 @@ export default function LoginPage() {
         </p>
 
         <p className="mt-2 text-xs text-sf-muted">
-          Finn riktig rehab-trener, følg progresjon og få struktur på ett sted.
+          Din tildelte rehab-trener, progresjonen din og struktur på ett sted.
         </p>
       </div>
 

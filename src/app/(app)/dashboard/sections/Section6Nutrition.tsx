@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useRole } from "@/providers/RoleProvider";
 import { supabase } from "@/lib/supabaseClient";
+import { getActiveClientIdsForTrainer, getAllAssignedClientIds } from "@/lib/assignments.api";
 
 import {
   Utensils,
@@ -247,19 +248,11 @@ export default function Section6Nutrition() {
       setIdsError(null);
 
       try {
-        let q = supabase.from("profiles").select("id, trainer_id, role").eq("role", "client");
+        // admin: "aktive" klienter = har en aktiv tildeling (client_trainer_assignments)
+        const ids =
+          role === "trainer" ? await getActiveClientIdsForTrainer(userId) : await getAllAssignedClientIds();
 
-        if (role === "trainer") {
-          q = q.eq("trainer_id", userId);
-        } else {
-          // admin: "aktive" klienter = har trainer_id
-          q = q.not("trainer_id", "is", null);
-        }
-
-        const { data, error } = await q;
-        if (error) throw error;
-
-        setClientIds((data ?? []).map((c: any) => c.id).filter(Boolean));
+        setClientIds(ids);
       } catch (e: any) {
         setIdsError(e?.message ?? "Ukjent feil");
         setClientIds([]);
