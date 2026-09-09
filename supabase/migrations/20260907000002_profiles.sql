@@ -45,6 +45,36 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
 
+-- ----------------------------------------------------------------------------
+-- RLS helpers that read `profiles` — defined here (not 0001) because
+-- PostgreSQL validates a LANGUAGE SQL function body against the catalog
+-- at CREATE FUNCTION time, and `profiles` didn't exist until just above.
+-- STABLE, not SECURITY DEFINER for privilege escalation reasons — SECURITY
+-- DEFINER is still needed here purely so the function can read `profiles`
+-- for the *calling* user's own row before any policy would otherwise
+-- grant that (avoiding a chicken-and-egg RLS dependency), not to expose
+-- other users' rows.
+-- ----------------------------------------------------------------------------
+create or replace function current_app_role()
+returns app_role
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select role from profiles where id = auth.uid();
+$$;
+
+create or replace function is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select role = 'admin' from profiles where id = auth.uid()), false);
+$$;
+
 alter table profiles enable row level security;
 
 -- Everyone can read their own profile.
