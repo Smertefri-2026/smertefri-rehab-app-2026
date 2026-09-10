@@ -9,7 +9,8 @@ ref `lclsquqcongfnngtsgik`). Det er et eget miljø, helt adskilt fra produksjon.
 | App / innlogging | `app.smertefri.no` | `app-ny.smertefri.no` |
 | Supabase | prod-prosjekt (egen) | `smertefri-dev-sep-26` |
 | Git-branch | `main` | `feature/nye-smertefri` |
-| Vercel-prosjekt | eksisterende (urørt) | eget, nytt (se under) |
+| Vercel-prosjekt | `smertefri-rehab-app-2026` (urørt) | `smertefri-ny-staging` |
+| Status | live | live på `smertefri-ny-staging.vercel.app` — egne domener venter på DNS |
 
 **Produksjon røres ikke** før eksplisitt cutover-godkjenning: ikke endre
 Production environment variables, ikke koble `smertefri.no`/`app.smertefri.no`
