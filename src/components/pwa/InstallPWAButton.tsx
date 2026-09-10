@@ -15,7 +15,8 @@ function isIos() {
 function isInStandaloneMode() {
   if (typeof window === "undefined") return false;
   // iOS
-  const iosStandalone = (window.navigator as any).standalone === true;
+  const iosStandalone =
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true;
   // other
   const mqStandalone = window.matchMedia?.("(display-mode: standalone)")?.matches;
   return iosStandalone || mqStandalone;
@@ -34,9 +35,8 @@ export default function InstallPWAButton() {
 
   useEffect(() => {
     // Bevisst: klient-only tilstand avsløres først etter hydrering.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
     setMounted(true);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInstalled(standalone);
 
     const onBeforeInstallPrompt = (e: Event) => {
