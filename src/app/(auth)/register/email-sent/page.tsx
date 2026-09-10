@@ -17,43 +17,57 @@ type View = "checking" | "pending" | "confirmed" | "expired";
  * Vi må derfor vise riktig budskap ut fra faktisk tilstand, ikke bare anta
  * at e-posten er bekreftet.
  */
+function readHash() {
+  if (typeof window === "undefined") return { error: false, fromEmailLink: false };
+  const hash = window.location.hash;
+  let error = false;
+  if (hash.includes("error")) {
+    const params = new URLSearchParams(hash.replace(/^#/, ""));
+    error = !!(params.get("error_code") ?? params.get("error"));
+  }
+  const fromEmailLink =
+    hash.includes("access_token") || hash.includes("type=signup") || hash.includes("type=recovery");
+  return { error, fromEmailLink };
+}
+
+function readPendingEmail() {
+  if (typeof window === "undefined") return "";
+  try {
+    return sessionStorage.getItem("sf_pending_email") ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export default function EmailSentPage() {
-  const [view, setView] = useState<View>("checking");
-  const [email] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      return sessionStorage.getItem("sf_pending_email") ?? "";
-    } catch {
-      return "";
-    }
+  const [hash] = useState(readHash);
+  const [email] = useState(readPendingEmail);
+  // Startvisning: alt vi kan avgjøre synkront fra hash + ventende registrering.
+  const [view, setView] = useState<View>(() => {
+    if (hash.error) return "expired";
+    if (hash.fromEmailLink) return "checking"; // effekten avgjør bekreftet/utløpt
+    return readPendingEmail() ? "pending" : "checking";
   });
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [resendError, setResendError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (view !== "checking") return;
     let alive = true;
 
-    // Feil fra en utløpt/ugyldig bekreftelseslenke kommer i URL-hashen.
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
-    if (hash.includes("error")) {
-      const params = new URLSearchParams(hash.replace(/^#/, ""));
-      const code = params.get("error_code") ?? params.get("error");
-      if (code) {
-        setView("expired");
-        return;
-      }
-    }
-
     (async () => {
+      // Kom vi via e-postlenke, gi detectSessionInUrl tid til å bytte tokens.
+      if (hash.fromEmailLink) await new Promise((r) => setTimeout(r, 1500));
+      if (!alive) return;
       const { data } = await supabase.auth.getSession();
       if (!alive) return;
-      setView(data.session ? "confirmed" : "pending");
+      if (data.session) setView("confirmed");
+      else setView(hash.fromEmailLink ? "expired" : "pending");
     })();
 
-    // detectSessionInUrl bytter tokens i hashen til en sesjon asynkront.
+    // Bekreftelse skjer når token-utvekslingen fullfører og gir en SIGNED_IN.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!alive) return;
-      if (session || event === "SIGNED_IN") {
+      if (alive && event === "SIGNED_IN" && session) {
         setView("confirmed");
         try {
           sessionStorage.removeItem("sf_pending_email");
@@ -67,7 +81,9 @@ export default function EmailSentPage() {
       alive = false;
       sub.subscription.unsubscribe();
     };
-  }, []);
+    // view kun lest for gate; bevisst utelatt fra deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hash]);
 
   const handleResend = useCallback(async () => {
     if (!email) {
