@@ -311,13 +311,15 @@ export default function Section1Header() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {!hasTrainer && (
             <DashboardCard
-              title="Rehabtrener på vei"
-              icon={<CalendarClock size={18} />}
+              title="Rehabtrener"
+              icon={<Users size={18} />}
               variant="info"
               href="/trainer"
             >
-              <p>Du har ikke fått tildelt en rehabtrener ennå.</p>
-              <p className="text-sm text-sf-muted">SmerteFri tildeler deg en så snart det er klart.</p>
+              <p>Du er ikke koblet med en rehabtrener akkurat nå.</p>
+              <p className="text-sm text-ink-soft">
+                SmerteFri kobler deg med en som en del av oppstarten.
+              </p>
             </DashboardCard>
           )}
 

@@ -19,9 +19,8 @@ export default function Seksjon8Medlemskap() {
           </h2>
 
           <p className="mt-6 text-lg text-slate-700">
-            SmerteFri er en nasjonal portal som kobler mennesker med smerter
-            sammen med rehab-trenere i ett felles system – uansett nivå,
-            bakgrunn eller utgangspunkt.
+            SmerteFri gir deg struktur, kontinuitet og en tildelt rehabtrener –
+            uansett nivå, bakgrunn eller utgangspunkt.
           </p>
 
           <p className="mt-4 font-medium text-slate-800">

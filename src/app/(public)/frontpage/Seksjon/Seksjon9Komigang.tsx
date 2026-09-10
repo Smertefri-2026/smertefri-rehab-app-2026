@@ -1,127 +1,69 @@
-// src/app/frontpage/Seksjon/Seksjon9Komigang.tsx
-"use client";
+import Link from "next/link";
+
+const steps = [
+  {
+    n: "Steg 1",
+    title: "Opprett konto",
+    body: "Registrer deg og svar på en kort kartlegging av smerte, kapasitet og hverdag.",
+  },
+  {
+    n: "Steg 2",
+    title: "Få tildelt rehabtrener",
+    body: "SmerteFri kobler deg med en godkjent rehabtrener som legger et strukturert løp.",
+  },
+  {
+    n: "Steg 3",
+    title: "Skap trygg progresjon",
+    body: "Følg utviklingen over tid — med tydelige rammer og en trener som justerer underveis.",
+  },
+];
 
 export default function Seksjon9Komigang() {
-  const goToLogin = () => {
-    window.location.href = "https://app.smertefri.no/login";
-  };
-
-  const goToClientRegister = () => {
-    window.location.href = "https://app.smertefri.no/register/client";
-  };
-
-  const goToTrainerRegister = () => {
-    window.location.href = "https://app.smertefri.no/register/trainer";
-  };
-
   return (
-    <section
-      id="kom-i-gang"
-      className="relative bg-white py-24"
-    >
-      <div className="mx-auto max-w-7xl px-6 text-center">
-
-        {/* Overtekst */}
-        <p className="mb-3 text-sm font-medium uppercase tracking-wide text-slate-500">
+    <section id="kom-i-gang" className="border-t border-border bg-surface py-20 sm:py-24">
+      <div className="mx-auto max-w-content px-4 text-center sm:px-6">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-primary">
           Kom i gang
         </p>
-
-        {/* Tittel */}
-        <h2 className="mx-auto max-w-3xl text-3xl md:text-4xl font-semibold tracking-tight text-slate-900">
-          En portal for rehabilitering{" "}
-          <span className="text-[#007C80]">– bygget rundt mennesker</span>
+        <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+          Et rehabiliteringsløp <span className="text-primary">bygget rundt deg</span>
         </h2>
-
-        {/* Intro */}
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600">
-          SmerteFri samler mennesker med smerter og rehab-trenere i ett felles
-          system – med struktur, kontinuitet og faglig forankring.
-          <br />
-          <strong className="text-slate-800">
-            Uansett hvor du starter, starter vi der du er.
-          </strong>
+        <p className="mx-auto mt-5 max-w-2xl text-lg text-ink-soft">
+          Uansett hvor du starter, starter vi der du er — med struktur, kontinuitet og
+          faglig oppfølging.
         </p>
 
-        {/* Steg */}
-        <div className="mt-16 grid gap-8 md:grid-cols-3 text-left">
-
-          {/* Steg 1 */}
-          <div className="rounded-2xl border border-sf-border bg-white p-8 shadow-sm">
-            <p className="mb-2 text-sm font-semibold text-[#007C80]">
-              STEG 1
-            </p>
-            <h3 className="mb-3 text-lg font-semibold text-slate-900">
-              Opprett bruker
-            </h3>
-            <p className="text-slate-600">
-              Registrer deg som kunde eller trener og bli en del av
-              SmerteFri-plattformen.
-            </p>
-          </div>
-
-          {/* Steg 2 */}
-          <div className="rounded-2xl border border-sf-border bg-white p-8 shadow-sm">
-            <p className="mb-2 text-sm font-semibold text-[#007C80]">
-              STEG 2
-            </p>
-            <h3 className="mb-3 text-lg font-semibold text-slate-900">
-              Bygg oversikt og forståelse
-            </h3>
-            <p className="text-slate-600">
-              Kartlegg smerte, kapasitet og hverdag – eller følg kunder
-              gjennom et strukturert rehabiliteringsløp.
-            </p>
-          </div>
-
-          {/* Steg 3 */}
-          <div className="rounded-2xl border border-sf-border bg-white p-8 shadow-sm">
-            <p className="mb-2 text-sm font-semibold text-[#007C80]">
-              STEG 3
-            </p>
-            <h3 className="mb-3 text-lg font-semibold text-slate-900">
-              Skap trygg progresjon
-            </h3>
-            <p className="text-slate-600">
-              Følg utviklingen over tid – alene eller sammen med en
-              rehab-trener i fagmiljøet.
-            </p>
-          </div>
-
+        <div className="mt-14 grid gap-6 text-left md:grid-cols-3">
+          {steps.map((s) => (
+            <div key={s.n} className="rounded-lg border border-border bg-page p-6 shadow-card">
+              <p className="text-sm font-semibold text-primary">{s.n}</p>
+              <h3 className="mb-2 mt-2 text-base font-semibold text-ink">{s.title}</h3>
+              <p className="text-sm leading-relaxed text-ink-soft">{s.body}</p>
+            </div>
+          ))}
         </div>
 
-        {/* CTA */}
-        <div className="mt-16 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-
-          <button
-            onClick={goToLogin}
-            className="rounded-full bg-[#007C80] px-10 py-4 text-white font-medium hover:opacity-90 transition"
+        <div className="mt-14 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <Link
+            href="/register/client"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-8 py-3 text-sm font-semibold text-white hover:bg-primary-ink"
           >
-            Logg inn i appen
-          </button>
-
-          <button
-            onClick={goToClientRegister}
-            className="rounded-full border border-sf-border bg-white px-10 py-4 font-medium text-slate-800 hover:bg-slate-50 transition"
+            Kom i gang
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center rounded-md border border-border-strong bg-surface px-8 py-3 text-sm font-semibold text-ink hover:bg-surface-alt"
           >
-            Bli kunde
-          </button>
-
-          <button
-            onClick={goToTrainerRegister}
-            className="rounded-full border border-[#007C80] px-10 py-4 font-medium text-[#007C80] hover:bg-[#E6F3F6] transition"
-          >
-            Bli rehab-trener
-          </button>
-
+            Logg inn
+          </Link>
         </div>
 
-        {/* Footer-note */}
-        <p className="mt-10 text-sm text-slate-500 italic">
-          SmerteFri er et fagmiljø i vekst.
-          <br />
-          Ikke et treningssenter på nett – men et system bygget for rehabilitering.
+        <p className="mt-8 text-sm text-ink-faint">
+          Er du fysioterapeut eller PT?{" "}
+          <Link href="/bli-rehabtrener" className="font-medium text-primary-ink hover:underline">
+            Bli rehabtrener hos SmerteFri
+          </Link>
         </p>
-
       </div>
     </section>
   );

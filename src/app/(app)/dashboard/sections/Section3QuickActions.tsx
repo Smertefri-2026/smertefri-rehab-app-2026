@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRole } from "@/providers/RoleProvider";
 
 import {
-  LayoutDashboard,
   Calendar,
   HeartPulse,
   Activity,
@@ -13,34 +12,26 @@ import {
   User,
   Users,
   Settings,
-  Shield,
-  BarChart,
+  UserCog,
 } from "lucide-react";
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
-
-/* --------------------------------
-   NAV-ITEM TYPE
--------------------------------- */
 
 type QuickActionItem = {
   label: string;
   href: string;
   icon: React.ElementType;
-  variant?: "default" | "info";
 };
 
-/* --------------------------------
-   SAMME STRUKTUR SOM SIDEBAR
--------------------------------- */
+/* Speiler sidebar-/tabbar-navigasjonen per rolle. */
 
 const clientActions: QuickActionItem[] = [
   { label: "Kalender", href: "/calendar", icon: Calendar },
-  { label: "Smerte", href: "/pain", icon: HeartPulse }, // samme stil som de andre
+  { label: "Smerter", href: "/pain", icon: HeartPulse },
   { label: "Tester", href: "/tests", icon: Activity },
   { label: "Kosthold", href: "/nutrition", icon: Utensils },
+  { label: "Min rehabtrener", href: "/trainer", icon: Users },
   { label: "Meldinger", href: "/chat", icon: MessageCircle },
-  { label: "Profil", href: "/profile", icon: User },
 ];
 
 const trainerActions: QuickActionItem[] = [
@@ -51,50 +42,28 @@ const trainerActions: QuickActionItem[] = [
 ];
 
 const adminActions: QuickActionItem[] = [
-  { label: "Kalender", href: "/calendar", icon: Calendar },
   { label: "Kunder", href: "/clients", icon: Users },
-  { label: "Trenere", href: "/trainers", icon: Users },
-  { label: "Meldinger", href: "/chat", icon: MessageCircle },
-  { label: "Profil", href: "/profile", icon: User },
+  { label: "Rehabtrenere", href: "/trainers", icon: UserCog },
+  { label: "Kalender", href: "/calendar", icon: Calendar },
   { label: "Innstillinger", href: "/settings", icon: Settings },
 ];
-
-/* --------------------------------
-   KOMPONENT
--------------------------------- */
 
 export default function Section3QuickActions() {
   const { role } = useRole();
 
   const items =
-    role === "client"
-      ? clientActions
-      : role === "trainer"
-      ? trainerActions
-      : adminActions;
+    role === "client" ? clientActions : role === "trainer" ? trainerActions : adminActions;
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-semibold text-sf-muted">
-        Hurtignavigasjon
-      </h2>
+      <h2 className="text-sm font-semibold text-ink-soft">Hurtignavigasjon</h2>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {items.map((item) => {
           const Icon = item.icon;
-
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="block"
-            >
-              <DashboardCard
-                title={item.label}
-                icon={<Icon size={22} />}
-                mode="button"
-                variant={item.variant ?? "default"}
-              />
+            <Link key={item.href} href={item.href} className="block">
+              <DashboardCard title={item.label} icon={<Icon size={20} />} mode="button" />
             </Link>
           );
         })}

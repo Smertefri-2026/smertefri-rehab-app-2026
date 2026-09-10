@@ -21,9 +21,8 @@ export default function Seksjon10FPriser() {
 
         {/* Ingress */}
         <p className="mx-auto max-w-2xl text-center text-slate-600 mb-16">
-          SmerteFri er en portal som kobler deg med kompetente rehab-trenere.
-          Prisene gjenspeiler trygg progresjon, personlig oppfølging og et system
-          bygget for faktisk fremgang – ikke volum og hastverk.
+          Prisene gjenspeiler trygg progresjon og personlig oppfølging fra din
+          rehabtrener – bygget for faktisk fremgang, ikke volum og hastverk.
         </p>
 
         {/* Kort */}
@@ -102,9 +101,8 @@ export default function Seksjon10FPriser() {
 
         {/* Fotnote */}
         <p className="mt-12 text-center text-sm text-slate-500 italic">
-          SmerteFri er en portal – ikke et kjedekonsept.
-          Pris og oppfølging kan variere mellom trenere, kompetanse og behov.
-          Du velger selv tempo, nivå og samarbeid.
+          Oppfølgingstimer bookes med din tildelte rehabtrener. Lengde og
+          hyppighet tilpasses behovet ditt.
         </p>
 
       </div>

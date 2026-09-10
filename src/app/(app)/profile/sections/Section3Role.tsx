@@ -87,11 +87,11 @@ export default function Section3Role() {
                 </Link>
               </div>
             ) : (
-              <div className="rounded-xl border bg-sf-soft p-4 space-y-2">
-                <p className="text-sm">Du har ikke fått tildelt en rehabtrener ennå.</p>
-                <p className="text-xs text-sf-muted">
+              <div className="space-y-2 rounded-md border border-border bg-surface-alt p-4">
+                <p className="text-sm">Du er ikke koblet med en rehabtrener akkurat nå.</p>
+                <p className="text-xs text-ink-soft">
                   Ønsker du selv å bli rehabtrener?{" "}
-                  <Link href="/trainer-application" className="text-sf-primary underline">
+                  <Link href="/trainer-application" className="font-medium text-primary-ink hover:underline">
                     Søk her
                   </Link>
                   .

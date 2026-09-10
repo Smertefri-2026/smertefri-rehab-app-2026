@@ -49,7 +49,7 @@ export default function MyTrainerPage() {
   if (roleLoading || role !== "client" || trainer === undefined) {
     return (
       <AppPage>
-        <p className="text-sm text-sf-muted">Laster …</p>
+        <p className="text-sm text-ink-soft">Laster …</p>
       </AppPage>
     );
   }
@@ -57,45 +57,35 @@ export default function MyTrainerPage() {
   if (error) {
     return (
       <AppPage>
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-danger-ink">{error}</p>
       </AppPage>
     );
   }
 
   return (
-    <AppPage>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-lg font-semibold">Min rehabtrener</h1>
-          {!trainer && (
-            <p className="text-sm text-sf-muted">
-              Du har ikke fått tildelt en rehabtrener ennå.
-            </p>
-          )}
+    <AppPage title="Min rehabtrener">
+      {trainer ? (
+        <div className="space-y-6">
+          <TrainerCard trainer={trainer} />
+          <TrainerActions trainerId={trainer.id} />
+          <TrainerDetails trainer={trainer} canEdit={false} />
         </div>
-
-        {trainer ? (
-          <>
-            <TrainerCard trainer={trainer} />
-            <TrainerActions trainerId={trainer.id} />
-            <TrainerDetails trainer={trainer} canEdit={false} />
-          </>
-        ) : (
-          <div className="rounded-2xl border border-sf-border bg-white p-6 text-sm text-sf-muted space-y-3">
-            <p>
-              SmerteFri tildeler deg en rehabtrener basert på kartleggingen din. Du
-              får beskjed så snart dette er klart.
-            </p>
-            <p>
-              Har du fagbakgrunn og ønsker selv å bli rehabtrener hos oss?{" "}
-              <Link href="/trainer-application" className="text-sf-primary underline">
-                Søk her
-              </Link>
-              .
-            </p>
-          </div>
-        )}
-      </div>
+      ) : (
+        <div className="space-y-3 rounded-lg border border-border bg-surface p-6 text-sm text-ink-soft shadow-card">
+          <p>
+            Du er ikke koblet med en rehabtrener akkurat nå. SmerteFri kobler deg
+            med en ut fra kartleggingen din som en del av oppstarten — du får
+            beskjed når hun eller han er på plass.
+          </p>
+          <p>
+            Har du selv fagbakgrunn og vil bli rehabtrener hos oss?{" "}
+            <Link href="/trainer-application" className="font-medium text-primary-ink hover:underline">
+              Søk her
+            </Link>
+            .
+          </p>
+        </div>
+      )}
     </AppPage>
   );
 }
