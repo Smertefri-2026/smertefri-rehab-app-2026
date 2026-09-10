@@ -12,19 +12,10 @@ type View = "checking" | "ready" | "invalid" | "done";
  * brukeren hit med en recovery-sesjon i URL-hashen (detectSessionInUrl
  * bytter den til en sesjon). Da kan vi kalle updateUser({ password }).
  */
-function initialResetView(): View {
-  if (typeof window === "undefined") return "checking";
-  const hash = window.location.hash;
-  if (hash.includes("error")) return "invalid";
-  // Kun gyldig hvis vi faktisk kom fra en recovery-lenke — ikke bare fordi
-  // brukeren tilfeldigvis er innlogget.
-  if (hash.includes("type=recovery") || hash.includes("access_token")) return "checking";
-  return "invalid";
-}
-
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [view, setView] = useState<View>(initialResetView);
+  // SSR + første klient-render viser «checking»; effekten avgjør tilstanden.
+  const [view, setView] = useState<View>("checking");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
@@ -32,7 +23,22 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialResetView() !== "checking") return;
+    // Startvisning må være lik på server og klient (unngå hydreringsfeil);
+    // hash-avhengig tilstand settes derfor her, etter hydrering.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    const hash = window.location.hash;
+    if (hash.includes("error")) {
+      setView("invalid");
+      return;
+    }
+    // Kun gyldig hvis vi faktisk kom fra en recovery-lenke — ikke bare fordi
+    // brukeren tilfeldigvis er innlogget.
+    if (!hash.includes("type=recovery") && !hash.includes("access_token")) {
+      setView("invalid");
+      return;
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+
     let alive = true;
 
     const settle = async () => {
