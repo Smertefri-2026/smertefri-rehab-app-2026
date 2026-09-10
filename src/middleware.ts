@@ -12,6 +12,7 @@ import type { NextRequest } from "next/server";
 
 const APP_PREFIXES = [
   "/dashboard",
+  "/sonen",
   "/calendar",
   "/clients",
   "/chat",

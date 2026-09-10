@@ -11,6 +11,7 @@ import { cn } from "@/ui/cn";
 
 import {
   Home,
+  Gauge,
   Calendar,
   HeartPulse,
   MessageCircle,
@@ -31,9 +32,9 @@ type TabItem = {
 
 const clientTabs: TabItem[] = [
   { label: "Hjem", href: "/dashboard", icon: Home },
-  { label: "Kalender", href: "/calendar", icon: Calendar },
+  { label: "Sonen", href: "/sonen", icon: Gauge },
   { label: "Smerte", href: "/pain", icon: HeartPulse },
-  { label: "Meldinger", href: "/chat", icon: MessageCircle },
+  { label: "Meld.", href: "/chat", icon: MessageCircle },
   { label: "Profil", href: "/profile", icon: User },
 ];
 

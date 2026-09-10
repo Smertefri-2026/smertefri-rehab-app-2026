@@ -6,6 +6,7 @@ import AppPage from "@/components/layout/AppPage";
 
 // DASHBOARD-SEKSJONER
 import Section1Header from "./sections/Section1Header";
+import SectionZoneToday from "./sections/SectionZoneToday";
 import Section2StatusAndNextSteps from "./sections/Section2StatusAndNextSteps";
 import Section3QuickActions from "./sections/Section3QuickActions";
 import Section4Pain from "./sections/Section4Pain";
@@ -22,6 +23,7 @@ export default function DashboardPage() {
   return (
     <AppPage spacing="roomy">
       <Section1Header />
+      <SectionZoneToday />
       <Section2StatusAndNextSteps />
       <Section3QuickActions />
       <Section4Pain />

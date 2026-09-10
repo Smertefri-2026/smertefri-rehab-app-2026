@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRole } from "@/providers/RoleProvider";
 
 import {
+  Gauge,
   Calendar,
   HeartPulse,
   Activity,
@@ -26,6 +27,7 @@ type QuickActionItem = {
 /* Speiler sidebar-/tabbar-navigasjonen per rolle. */
 
 const clientActions: QuickActionItem[] = [
+  { label: "Sonen", href: "/sonen", icon: Gauge },
   { label: "Kalender", href: "/calendar", icon: Calendar },
   { label: "Smerter", href: "/pain", icon: HeartPulse },
   { label: "Tester", href: "/tests", icon: Activity },
