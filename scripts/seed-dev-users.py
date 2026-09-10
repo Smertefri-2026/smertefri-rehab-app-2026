@@ -5,7 +5,8 @@ DEV-ONLY. Oppretter demo-brukere (kunde/trener/admin) i dev-Supabase.
 Kjøres ALDRI mot produksjon:
   - guarden under nekter alt annet enn dev-prosjektet (lclsquqcongfnngtsgik)
   - passord og service-role-nøkkel leses fra miljøet, aldri hardkodet
-  - demo-e-post er @demo.smertefri.no (ingen MX ⇒ kan ikke self-signup i prod)
+  - demo-e-post er @example.com (RFC 7505 null-MX ⇒ ingen e-post sendes,
+    ingen bounces, kan ikke self-signup)
 
 Bruk:
   SF_SERVICE_KEY=...  SEED_PW_KUNDE=...  SEED_PW_TRENER=...  SEED_PW_ADMIN=... \\
@@ -28,11 +29,11 @@ if not SVC:
     sys.exit("Mangler SF_SERVICE_KEY (service_role-nøkkel for dev-prosjektet).")
 
 USERS = [
-    ("kunde@demo.smertefri.no", os.environ.get("SEED_PW_KUNDE"), "client",
+    ("kunde@example.com", os.environ.get("SEED_PW_KUNDE"), "client",
      {"first_name": "Demo", "last_name": "Kunde", "city": "Bergen", "birth_date": "1988-04-12"}),
-    ("trener@demo.smertefri.no", os.environ.get("SEED_PW_TRENER"), "trainer",
+    ("trener@example.com", os.environ.get("SEED_PW_TRENER"), "trainer",
      {"first_name": "Mari", "last_name": "Rehab", "city": "Oslo"}),
-    ("admin@demo.smertefri.no", os.environ.get("SEED_PW_ADMIN"), "admin",
+    ("admin@example.com", os.environ.get("SEED_PW_ADMIN"), "admin",
      {"first_name": "Demo", "last_name": "Admin"}),
 ]
 
