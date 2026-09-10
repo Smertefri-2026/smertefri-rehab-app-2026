@@ -11,20 +11,18 @@ import { cn } from "@/ui/cn";
 
 import {
   LayoutDashboard,
-  Gauge,
-  Footprints,
-  Dumbbell,
+  ClipboardList,
   TrendingUp,
-  Calendar,
-  HeartPulse,
-  Activity,
-  Utensils,
-  MessageCircle,
-  User,
+  UserRound,
   Users,
-  Settings,
+  ListChecks,
+  CalendarDays,
+  MessageCircle,
   Shield,
   UserCog,
+  BookOpen,
+  SlidersHorizontal,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -34,42 +32,36 @@ type SidebarItem = {
   label: string;
   href: string;
   icon: ElementType;
+  /** Vis rød prikk når det finnes uleste meldinger (chat bor inne i denne flaten). */
+  chatBadge?: boolean;
 };
 
 /**
- * Stabil navigasjon per rolle. Rollen bestemmer arbeidsområdet — ikke
- * hvilke funksjoner som er ferdige eller om kunden har fått trener enda.
+ * Stabil navigasjon per rolle: maks fem hovedvalg som beskriver arbeidsområdet.
+ * Alt annet (Sonen, Trappen, dagens program, tester, smertelogg, kalender …)
+ * bor naturlig inne i disse områdene, ikke som egne menypunkter.
  */
 const clientItems: SidebarItem[] = [
   { label: "Hjem", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Sonen", href: "/sonen", icon: Gauge },
-  { label: "Trappen", href: "/trappen", icon: Footprints },
-  { label: "Program", href: "/program", icon: Dumbbell },
+  { label: "Min plan", href: "/min-plan", icon: ClipboardList },
   { label: "Fremgang", href: "/fremgang", icon: TrendingUp },
-  { label: "Kalender", href: "/calendar", icon: Calendar },
-  { label: "Smerter", href: "/pain", icon: HeartPulse },
-  { label: "Tester", href: "/tests", icon: Activity },
-  { label: "Kosthold", href: "/nutrition", icon: Utensils },
-  { label: "Min rehabtrener", href: "/trainer", icon: Users },
-  { label: "Meldinger", href: "/chat", icon: MessageCircle },
-  { label: "Profil", href: "/profile", icon: User },
+  { label: "Min rehabtrener", href: "/trainer", icon: UserRound, chatBadge: true },
 ];
 
 const trainerItems: SidebarItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Kalender", href: "/calendar", icon: Calendar },
+  { label: "Hjem", href: "/dashboard", icon: LayoutDashboard },
   { label: "Kunder", href: "/clients", icon: Users },
-  { label: "Meldinger", href: "/chat", icon: MessageCircle },
-  { label: "Profil", href: "/profile", icon: User },
+  { label: "Oppfølging", href: "/oppfolging", icon: ListChecks },
+  { label: "Kalender", href: "/calendar", icon: CalendarDays },
+  { label: "Meldinger", href: "/chat", icon: MessageCircle, chatBadge: true },
 ];
 
 const adminItems: SidebarItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: Shield },
+  { label: "Oversikt", href: "/dashboard", icon: Shield },
   { label: "Kunder", href: "/clients", icon: Users },
   { label: "Rehabtrenere", href: "/trainers", icon: UserCog },
-  { label: "Kalender", href: "/calendar", icon: Calendar },
-  { label: "Profil", href: "/profile", icon: User },
-  { label: "Innstillinger", href: "/settings", icon: Settings },
+  { label: "Innhold", href: "/admin/innhold", icon: BookOpen },
+  { label: "System", href: "/admin", icon: SlidersHorizontal },
 ];
 
 function UnreadDot({ className }: { className?: string }) {
@@ -108,6 +100,9 @@ export default function Sidebar() {
   const items = role === "client" ? clientItems : role === "trainer" ? trainerItems : adminItems;
   const hasUnread = unreadCount > 0;
 
+  const accountActive =
+    pathname === "/profile" || pathname.startsWith("/profile/");
+
   const handleLogout = async () => {
     const { supabase } = await import("@/lib/supabaseClient");
     await supabase.auth.signOut();
@@ -140,7 +135,7 @@ export default function Sidebar() {
         {items.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
-          const isChat = item.href === "/chat";
+          const showBadge = !!item.chatBadge && hasUnread;
 
           return (
             <Link
@@ -157,14 +152,14 @@ export default function Sidebar() {
             >
               <span className="relative">
                 <Icon size={19} strokeWidth={isActive ? 2.2 : 1.8} />
-                {collapsed && isChat && hasUnread && (
+                {collapsed && showBadge && (
                   <UnreadDot className="absolute -right-1 -top-1 border-2 border-surface" />
                 )}
               </span>
               {!collapsed && (
                 <>
                   <span className="truncate">{item.label}</span>
-                  {isChat && hasUnread && <UnreadDot className="ml-auto" />}
+                  {showBadge && <UnreadDot className="ml-auto" />}
                 </>
               )}
             </Link>
@@ -172,7 +167,22 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="shrink-0 border-t border-border p-2">
+      <div className="shrink-0 space-y-0.5 border-t border-border p-2">
+        <Link
+          href="/profile"
+          title="Profil"
+          className={cn(
+            "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] font-medium transition-colors",
+            accountActive
+              ? "bg-primary-subtle text-primary-ink"
+              : "text-ink-soft hover:bg-surface-alt hover:text-ink",
+            collapsed && "justify-center"
+          )}
+        >
+          <Settings size={18} strokeWidth={accountActive ? 2.2 : 1.8} />
+          {!collapsed && <span>Profil</span>}
+        </Link>
+
         <button
           onClick={handleLogout}
           title="Logg ut"

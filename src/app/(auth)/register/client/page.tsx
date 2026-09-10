@@ -47,6 +47,12 @@ export default function RegisterClientPage() {
       return;
     }
 
+    try {
+      sessionStorage.setItem("sf_pending_email", email);
+    } catch {
+      /* sessionStorage kan være utilgjengelig */
+    }
+
     router.push("/register/email-sent");
   };
 

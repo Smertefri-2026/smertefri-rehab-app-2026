@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { MessageCircle } from "lucide-react";
+
 import AppPage from "@/components/layout/AppPage";
 import { useRole } from "@/providers/RoleProvider";
+import { useChatUnread } from "@/stores/chatUnread.store";
 import { getActiveTrainerIdForClient } from "@/lib/assignments.api";
 import { getTrainerById } from "@/lib/trainers";
 import type { Trainer } from "@/types/trainer";
@@ -17,6 +20,7 @@ import TrainerActions from "@/components/trainer/TrainerActions";
 export default function MyTrainerPage() {
   const router = useRouter();
   const { role, userId, loading: roleLoading } = useRole();
+  const unreadCount = useChatUnread((s) => s.unreadCount);
 
   const [trainer, setTrainer] = useState<Trainer | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +70,18 @@ export default function MyTrainerPage() {
     <AppPage title="Min rehabtrener">
       {trainer ? (
         <div className="space-y-6">
+          {unreadCount > 0 && (
+            <Link
+              href="/chat"
+              className="flex items-center justify-between gap-3 rounded-lg border border-transparent bg-primary-subtle p-4 text-sm font-medium text-primary-ink shadow-card transition hover:shadow-pop"
+            >
+              <span className="flex items-center gap-2">
+                <MessageCircle size={18} />
+                {unreadCount === 1 ? "1 ulest melding" : `${unreadCount} uleste meldinger`}
+              </span>
+              <span className="text-xs">Åpne →</span>
+            </Link>
+          )}
           <TrainerCard trainer={trainer} />
           <TrainerActions trainerId={trainer.id} />
           <TrainerDetails trainer={trainer} canEdit={false} />

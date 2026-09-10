@@ -28,7 +28,7 @@ export default function SectionTrapp() {
 
   return (
     <Link
-      href="/trappen"
+      href="/min-plan#trappen"
       className="block rounded-lg border border-border bg-surface p-5 shadow-card transition hover:shadow-pop"
     >
       <div className="flex items-center justify-between gap-3">

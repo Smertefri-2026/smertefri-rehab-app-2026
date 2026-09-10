@@ -5,18 +5,15 @@ import { useRole } from "@/providers/RoleProvider";
 
 import {
   Gauge,
-  Footprints,
-  Dumbbell,
-  TrendingUp,
-  Calendar,
   HeartPulse,
   Activity,
   Utensils,
+  CalendarDays,
   MessageCircle,
-  User,
   Users,
-  Settings,
-  UserCog,
+  ListChecks,
+  BookOpen,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import DashboardCard from "@/components/dashboard/DashboardCard";
@@ -27,33 +24,31 @@ type QuickActionItem = {
   icon: React.ElementType;
 };
 
-/* Speiler sidebar-/tabbar-navigasjonen per rolle. */
+/*
+ * Snarveier til det som IKKE ligger i hovedmenyen — de daglige småoppgavene
+ * som bor inne i «Min plan», «Oppfølging» osv. Speiler ikke sidebaren.
+ */
 
 const clientActions: QuickActionItem[] = [
-  { label: "Sonen", href: "/sonen", icon: Gauge },
-  { label: "Trappen", href: "/trappen", icon: Footprints },
-  { label: "Program", href: "/program", icon: Dumbbell },
-  { label: "Fremgang", href: "/fremgang", icon: TrendingUp },
-  { label: "Kalender", href: "/calendar", icon: Calendar },
-  { label: "Smerter", href: "/pain", icon: HeartPulse },
+  { label: "Dagens innsjekk", href: "/sonen", icon: Gauge },
+  { label: "Smerteregistrering", href: "/pain", icon: HeartPulse },
   { label: "Tester", href: "/tests", icon: Activity },
   { label: "Kosthold", href: "/nutrition", icon: Utensils },
-  { label: "Min rehabtrener", href: "/trainer", icon: Users },
-  { label: "Meldinger", href: "/chat", icon: MessageCircle },
+  { label: "Kalender", href: "/calendar", icon: CalendarDays },
 ];
 
 const trainerActions: QuickActionItem[] = [
-  { label: "Kalender", href: "/calendar", icon: Calendar },
+  { label: "Oppfølging", href: "/oppfolging", icon: ListChecks },
   { label: "Kunder", href: "/clients", icon: Users },
+  { label: "Kalender", href: "/calendar", icon: CalendarDays },
   { label: "Meldinger", href: "/chat", icon: MessageCircle },
-  { label: "Profil", href: "/profile", icon: User },
 ];
 
 const adminActions: QuickActionItem[] = [
   { label: "Kunder", href: "/clients", icon: Users },
-  { label: "Rehabtrenere", href: "/trainers", icon: UserCog },
-  { label: "Kalender", href: "/calendar", icon: Calendar },
-  { label: "Innstillinger", href: "/settings", icon: Settings },
+  { label: "Rehabtrenere", href: "/trainers", icon: Users },
+  { label: "Innhold", href: "/admin/innhold", icon: BookOpen },
+  { label: "System", href: "/admin", icon: SlidersHorizontal },
 ];
 
 export default function Section3QuickActions() {
@@ -64,7 +59,7 @@ export default function Section3QuickActions() {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-semibold text-ink-soft">Hurtignavigasjon</h2>
+      <h2 className="text-sm font-semibold text-ink-soft">Snarveier</h2>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {items.map((item) => {

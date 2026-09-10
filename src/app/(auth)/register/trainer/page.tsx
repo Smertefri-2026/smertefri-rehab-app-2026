@@ -56,6 +56,12 @@ export default function RegisterTrainerPage() {
       return;
     }
 
+    try {
+      sessionStorage.setItem("sf_pending_email", email);
+    } catch {
+      /* sessionStorage kan være utilgjengelig */
+    }
+
     router.push("/register/email-sent");
   };
 
