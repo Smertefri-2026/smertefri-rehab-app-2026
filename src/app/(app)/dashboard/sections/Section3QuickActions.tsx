@@ -6,6 +6,7 @@ import { useRole } from "@/providers/RoleProvider";
 import {
   Gauge,
   Footprints,
+  Dumbbell,
   Calendar,
   HeartPulse,
   Activity,
@@ -30,6 +31,7 @@ type QuickActionItem = {
 const clientActions: QuickActionItem[] = [
   { label: "Sonen", href: "/sonen", icon: Gauge },
   { label: "Trappen", href: "/trappen", icon: Footprints },
+  { label: "Program", href: "/program", icon: Dumbbell },
   { label: "Kalender", href: "/calendar", icon: Calendar },
   { label: "Smerter", href: "/pain", icon: HeartPulse },
   { label: "Tester", href: "/tests", icon: Activity },

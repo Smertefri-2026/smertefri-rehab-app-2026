@@ -8,6 +8,7 @@ import AppPage from "@/components/layout/AppPage";
 import Section1Header from "./sections/Section1Header";
 import SectionZoneToday from "./sections/SectionZoneToday";
 import SectionTrapp from "./sections/SectionTrapp";
+import SectionProgram from "./sections/SectionProgram";
 import SectionMyTrainer from "./sections/SectionMyTrainer";
 import Section2StatusAndNextSteps from "./sections/Section2StatusAndNextSteps";
 import Section3QuickActions from "./sections/Section3QuickActions";
@@ -27,6 +28,7 @@ export default function DashboardPage() {
       <Section1Header />
       <SectionZoneToday />
       <SectionTrapp />
+      <SectionProgram />
       {role === "client" && <SectionMyTrainer />}
       <Section2StatusAndNextSteps />
       <Section3QuickActions />

@@ -1459,6 +1459,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      advance_program_day: {
+        Args: { p_assignment_id: string }
+        Returns: number
+      }
       assign_trainer: {
         Args: { p_client_id: string; p_reason?: string; p_trainer_id: string }
         Returns: string

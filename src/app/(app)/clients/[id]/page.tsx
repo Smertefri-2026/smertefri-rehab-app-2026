@@ -13,6 +13,7 @@ import Section3ClientOverview from "../sections/Section3ClientOverview";
 import ClientDetails from "@/components/client/ClientDetails";
 import ClientZoneSummary from "@/components/client/ClientZoneSummary";
 import TrappTrainerControl from "@/components/trapp/TrappTrainerControl";
+import ProgramTrainerControl from "@/components/program/ProgramTrainerControl";
 
 import Section4ClientPainSummary from "../sections/Section4ClientPainSummary";
 import Section5ClientTestsSummary from "../sections/Section5ClientTestsSummary";
@@ -52,6 +53,8 @@ export default function ClientDetailPage({ params }: PageProps) {
           <ClientZoneSummary clientId={clientId} />
           <TrappTrainerControl clientId={clientId} />
         </div>
+
+        <ProgramTrainerControl clientId={clientId} />
 
         <Section3ClientOverview clientId={clientId} />
 
