@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Wordmark } from "@/ui/brand/Wordmark";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -6,11 +5,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-screen flex-col bg-page">
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-content items-center justify-between px-4 py-4 sm:px-6">
-          <Link href="/" aria-label="SmerteFri – forsiden">
+          <a href="https://smertefri.no/" aria-label="SmerteFri – forsiden">
             <Wordmark className="text-xl" />
-          </Link>
+          </a>
           <a
-            href="https://smertefri.no"
+            href="https://smertefri.no/"
             className="text-[13.5px] font-medium text-ink-soft hover:text-ink"
           >
             Til smertefri.no

@@ -9,8 +9,11 @@ import { Wordmark } from "@/ui/brand/Wordmark";
  * forhold (om vi har trenere, hvilke funksjoner som er ferdige osv.).
  */
 const navItems = [
-  { href: "/#slik-fungerer-det", label: "Slik fungerer det" },
+  { href: "/#smerte", label: "Smerte" },
+  { href: "/#kosthold", label: "Kosthold" },
+  { href: "/#tester", label: "Tester" },
   { href: "/#priser", label: "Priser" },
+  { href: "/bli-rehabtrener", label: "Trenere" },
   { href: "/#kontakt", label: "Kontakt" },
 ];
 
@@ -47,17 +50,20 @@ export function SiteHeader() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
-  // Relative lenker — på smertefri.no sender middleware disse videre til
+  // Relativ login-lenke — på smertefri.no sender middleware den videre til
   // app.smertefri.no. Lokalt/preview serveres alt fra samme origin.
   const loginHref = "/login";
-  const startHref = "/register/client";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-surface">
       <div className="relative mx-auto flex max-w-content items-center justify-between px-4 py-4 sm:px-6">
-        <Link href="/" onClick={() => setOpen(false)} aria-label="SmerteFri – forsiden">
+        <a
+          href="https://smertefri.no/"
+          onClick={() => setOpen(false)}
+          aria-label="SmerteFri – forsiden"
+        >
           <Wordmark className="text-xl" />
-        </Link>
+        </a>
 
         <nav className="hidden items-center gap-8 md:flex">
           {navItems.map((item) => (
@@ -77,12 +83,6 @@ export function SiteHeader() {
             className="text-[13.5px] font-semibold text-ink-soft hover:text-ink"
           >
             Logg inn
-          </a>
-          <a
-            href={startHref}
-            className="hidden rounded-md bg-primary px-4 py-2 text-[13.5px] font-semibold text-white hover:bg-primary-ink md:inline-flex"
-          >
-            Kom i gang
           </a>
           <button
             ref={toggleRef}
@@ -113,14 +113,14 @@ export function SiteHeader() {
                   {item.label}
                 </Link>
               ))}
+              <a
+                href={loginHref}
+                onClick={() => setOpen(false)}
+                className="rounded-md px-2 py-2.5 text-[14.5px] font-semibold text-ink-soft hover:bg-surface-alt hover:text-ink"
+              >
+                Logg inn
+              </a>
             </nav>
-            <a
-              href={startHref}
-              onClick={() => setOpen(false)}
-              className="mt-3 flex items-center justify-center rounded-md bg-primary px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-primary-ink"
-            >
-              Kom i gang
-            </a>
           </div>
         )}
       </div>
