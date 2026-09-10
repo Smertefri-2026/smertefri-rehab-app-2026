@@ -71,12 +71,18 @@ Vercel viser eksakt målverdi når domenet legges til; bruk den hvis den avviker
 
 ## Supabase — dev-prosjektet (`smertefri-dev-sep-26`)
 
-Authentication → URL Configuration:
+Authentication → URL Configuration — **satt** (via Management API):
 
-- **Site URL**: `https://app-ny.smertefri.no`
-- **Redirect URLs** (legg til): `https://app-ny.smertefri.no/**`,
-  `http://localhost:3000/**`, `http://localhost:3020/**`
-- Custom SMTP (Resend) anbefales for å unngå Supabas­es rate limit på e-post.
+- Site URL: `https://smertefri-ny-staging.vercel.app` (byttes til
+  `https://app-ny.smertefri.no` når DNS er oppe)
+- Redirect URLs: staging + `app-ny`/`ny` + localhost `:3000`/`:3020`
+- `mailer_autoconfirm = false` (e-postbekreftelse påkrevd)
+
+**Gjenstår — custom SMTP:** default Supabase-SMTP er begrenset til noen få
+e-poster/time. Sett Custom SMTP (Authentication → SMTP Settings):
+`smtp.resend.com:465`, bruker `resend`, passord = `RESEND_API_KEY`,
+avsender `rehab@send.smertefri.no` / «SmerteFri». Da fungerer registrering,
+bekreftelse og passord-reset i praksis på staging.
 
 ## Løpende drift
 

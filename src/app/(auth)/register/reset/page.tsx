@@ -12,12 +12,19 @@ type View = "checking" | "ready" | "invalid" | "done";
  * brukeren hit med en recovery-sesjon i URL-hashen (detectSessionInUrl
  * bytter den til en sesjon). Da kan vi kalle updateUser({ password }).
  */
+function initialResetView(): View {
+  if (typeof window === "undefined") return "checking";
+  const hash = window.location.hash;
+  if (hash.includes("error")) return "invalid";
+  // Kun gyldig hvis vi faktisk kom fra en recovery-lenke — ikke bare fordi
+  // brukeren tilfeldigvis er innlogget.
+  if (hash.includes("type=recovery") || hash.includes("access_token")) return "checking";
+  return "invalid";
+}
+
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [view, setView] = useState<View>(() => {
-    if (typeof window === "undefined") return "checking";
-    return window.location.hash.includes("error") ? "invalid" : "checking";
-  });
+  const [view, setView] = useState<View>(initialResetView);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
@@ -25,26 +32,22 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (window.location.hash.includes("error")) return;
+    if (initialResetView() !== "checking") return;
     let alive = true;
 
-    (async () => {
+    const settle = async () => {
       const { data } = await supabase.auth.getSession();
-      if (!alive) return;
-      setView(data.session ? "ready" : "checking");
-    })();
+      if (alive) setView(data.session ? "ready" : "invalid");
+    };
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!alive) return;
-      if (session && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+      if (alive && session && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN")) {
         setView("ready");
       }
     });
 
-    // Ingen sesjon dukket opp innen rimelig tid ⇒ ugyldig/utløpt lenke.
-    const t = setTimeout(() => {
-      if (alive) setView((v) => (v === "checking" ? "invalid" : v));
-    }, 4000);
+    // Gi detectSessionInUrl tid til å bytte hash-tokens til en sesjon.
+    const t = setTimeout(settle, 2000);
 
     return () => {
       alive = false;
