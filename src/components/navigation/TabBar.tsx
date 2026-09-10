@@ -1,4 +1,3 @@
-// /Users/oystein/smertefri-rehab-app-2026/src/components/navigation/TabBar.tsx
 "use client";
 
 import Link from "next/link";
@@ -8,6 +7,7 @@ import { useRef, useState } from "react";
 import type { ElementType } from "react";
 
 import { useChatUnread } from "@/stores/chatUnread.store";
+import { cn } from "@/ui/cn";
 
 import {
   Home,
@@ -20,6 +20,7 @@ import {
   Shield,
   Activity,
   Utensils,
+  UserCog,
 } from "lucide-react";
 
 type TabItem = {
@@ -28,7 +29,6 @@ type TabItem = {
   icon: ElementType;
 };
 
-// 🔹 KUNDE
 const clientTabs: TabItem[] = [
   { label: "Hjem", href: "/dashboard", icon: Home },
   { label: "Kalender", href: "/calendar", icon: Calendar },
@@ -37,7 +37,6 @@ const clientTabs: TabItem[] = [
   { label: "Profil", href: "/profile", icon: User },
 ];
 
-// 🔹 Trener
 const trainerTabs: TabItem[] = [
   { label: "Hjem", href: "/dashboard", icon: Home },
   { label: "Kalender", href: "/calendar", icon: Calendar },
@@ -46,14 +45,11 @@ const trainerTabs: TabItem[] = [
   { label: "Profil", href: "/profile", icon: User },
 ];
 
-// 🔹 Admin
 const adminTabs: TabItem[] = [
   { label: "Admin", href: "/dashboard", icon: Shield },
-  { label: "Kalender", href: "/calendar", icon: Calendar },
   { label: "Kunder", href: "/clients", icon: Users },
-  { label: "Trenere", href: "/trainers", icon: Users },
-  { label: "Meld.", href: "/chat", icon: MessageCircle },
-  { label: "Profil", href: "/profile", icon: User },
+  { label: "Trenere", href: "/trainers", icon: UserCog },
+  { label: "Kalender", href: "/calendar", icon: Calendar },
   { label: "Innst.", href: "/settings", icon: Settings },
 ];
 
@@ -61,12 +57,7 @@ function DotBadge({ show }: { show: boolean }) {
   if (!show) return null;
   return (
     <span
-      className="
-        absolute -top-1 -right-1
-        h-2.5 w-2.5
-        rounded-full bg-[#D45151]
-        border-2 border-white
-      "
+      className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-surface bg-danger"
       aria-label="Uleste meldinger"
     />
   );
@@ -76,20 +67,16 @@ export default function TabBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, loading } = useRole();
-
-  // ✅ Kun leser fra global store (ingen supabase her)
   const unreadCount = useChatUnread((s) => s.unreadCount);
 
   const [showPainMenu, setShowPainMenu] = useState(false);
-
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressedRef = useRef(false);
   const LONG_PRESS_MS = 700;
 
   if (loading || !role) return null;
 
-  const items =
-    role === "client" ? clientTabs : role === "trainer" ? trainerTabs : adminTabs;
+  const items = role === "client" ? clientTabs : role === "trainer" ? trainerTabs : adminTabs;
 
   const clearPressTimer = () => {
     if (pressTimerRef.current) {
@@ -112,23 +99,20 @@ export default function TabBar() {
   return (
     <>
       <nav
-        className="
-          fixed bottom-0 left-0 right-0 z-50 md:hidden
-          border-t border-sf-border bg-white/95 backdrop-blur
-          pb-[env(safe-area-inset-bottom)]
-        "
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
         style={{ minHeight: 72 }}
       >
         <ul className="flex items-stretch justify-between px-2">
           {items.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const isPainTab = role === "client" && item.href === "/pain";
             const isChatTab = item.href === "/chat";
 
-            const baseClass = `flex w-full flex-col items-center justify-center
-              py-3 gap-1 transition select-none
-              ${isActive ? "text-[#007C80]" : "text-slate-500"}`;
+            const baseClass = cn(
+              "flex w-full select-none flex-col items-center justify-center gap-1 py-3 transition-colors",
+              isActive ? "text-primary" : "text-ink-faint"
+            );
 
             if (isPainTab) {
               return (
@@ -149,7 +133,7 @@ export default function TabBar() {
                     }}
                     className={baseClass}
                   >
-                    <Icon size={24} strokeWidth={isActive ? 2.6 : 2.0} />
+                    <Icon size={23} strokeWidth={isActive ? 2.4 : 1.9} />
                     <span className="text-[11px] leading-none">{item.label}</span>
                   </button>
                 </li>
@@ -160,7 +144,7 @@ export default function TabBar() {
               <li key={item.href} className="flex-1">
                 <Link href={item.href} className={baseClass}>
                   <span className="relative">
-                    <Icon size={22} strokeWidth={isActive ? 2.4 : 1.8} />
+                    <Icon size={22} strokeWidth={isActive ? 2.3 : 1.8} />
                     {isChatTab && <DotBadge show={unreadCount > 0} />}
                   </span>
                   <span className="text-[11px] leading-none">{item.label}</span>
@@ -171,17 +155,16 @@ export default function TabBar() {
         </ul>
       </nav>
 
-      {/* LONG PRESS MENY */}
       {role === "client" && showPainMenu && (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/30"
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/30"
           onClick={() => setShowPainMenu(false)}
         >
           <div
-            className="mb-24 w-[92%] max-w-sm rounded-2xl bg-white shadow-xl border border-sf-border p-4"
+            className="mb-24 w-[92%] max-w-sm rounded-lg border border-border bg-surface p-4 shadow-pop"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="mb-3 text-xs text-sf-muted text-center">Velg fokus</p>
+            <p className="mb-3 text-center text-xs text-ink-soft">Velg fokus</p>
 
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -189,7 +172,7 @@ export default function TabBar() {
                   setShowPainMenu(false);
                   router.push("/tests");
                 }}
-                className="flex flex-col items-center gap-2 rounded-xl border border-sf-border p-4 hover:bg-sf-soft transition"
+                className="flex flex-col items-center gap-2 rounded-md border border-border p-4 transition-colors hover:bg-surface-alt"
               >
                 <Activity size={20} />
                 <span className="text-sm font-medium">Tester</span>
@@ -200,7 +183,7 @@ export default function TabBar() {
                   setShowPainMenu(false);
                   router.push("/nutrition");
                 }}
-                className="flex flex-col items-center gap-2 rounded-xl border border-sf-border p-4 hover:bg-sf-soft transition"
+                className="flex flex-col items-center gap-2 rounded-md border border-border p-4 transition-colors hover:bg-surface-alt"
               >
                 <Utensils size={20} />
                 <span className="text-sm font-medium">Kosthold</span>
@@ -209,7 +192,7 @@ export default function TabBar() {
 
             <button
               onClick={() => setShowPainMenu(false)}
-              className="mt-4 w-full rounded-xl border border-sf-border py-2 text-sm text-sf-muted hover:bg-sf-soft"
+              className="mt-4 w-full rounded-md border border-border py-2 text-sm text-ink-soft hover:bg-surface-alt"
             >
               Lukk
             </button>

@@ -1,37 +1,71 @@
-// src/middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+/**
+ * Domenearkitektur (kun i produksjon):
+ *   smertefri.no      → offentlig nettside
+ *   app.smertefri.no  → innlogging + hele appen («Min SmerteFri»)
+ *
+ * Lokalt og på preview-deploys serveres alt fra samme origin — ingen
+ * redirects. AuthGuard beskytter app-sidene klientside uansett.
+ */
+
+const APP_PREFIXES = [
+  "/dashboard",
+  "/calendar",
+  "/clients",
+  "/chat",
+  "/pain",
+  "/tests",
+  "/nutrition",
+  "/profile",
+  "/settings",
+  "/trainer",
+  "/trainers",
+  "/trainer-application",
+  "/admin",
+];
+
+const AUTH_PREFIXES = ["/login", "/register"];
+
+function hasPrefix(pathname: string, prefixes: string[]) {
+  return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 export function middleware(req: NextRequest) {
-  const host = req.headers.get("host") ?? "";
-  const { pathname } = req.nextUrl;
+  const host = (req.headers.get("host") ?? "").toLowerCase();
+  const { pathname, search } = req.nextUrl;
 
-  const isLocalhost =
-    host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  const isProdMarketing = host === "smertefri.no" || host === "www.smertefri.no";
+  const isProdApp = host === "app.smertefri.no";
 
-  const isAppDomain = host.startsWith("app.");
+  // Preview / localhost / alt annet: rør ingenting.
+  if (!isProdMarketing && !isProdApp) return NextResponse.next();
 
-  // 🚀 APP-DOMENE (kun prod)
-  if (isAppDomain) {
-    if (pathname === "/" || pathname.startsWith("/#")) {
-      return NextResponse.redirect(new URL("/login", req.url));
+  const isAppPath = hasPrefix(pathname, APP_PREFIXES);
+  const isAuthPath = hasPrefix(pathname, AUTH_PREFIXES);
+  const isMarketingPath = !isAppPath && !isAuthPath;
+
+  if (isProdApp) {
+    // App-domenet: forsiden går rett inn i appen.
+    if (pathname === "/") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
+    // Markedsføringssider hører hjemme på nettsiden.
+    if (isMarketingPath) {
+      return NextResponse.redirect(new URL(`https://smertefri.no${pathname}${search}`));
+    }
+    return NextResponse.next();
   }
 
-  // 🌍 MARKETING-DOMENE (kun prod, aldri localhost)
-  if (!isAppDomain && !isLocalhost) {
-    if (
-      pathname.startsWith("/dashboard") ||
-      pathname.startsWith("/calendar") ||
-      pathname.startsWith("/clients")
-    ) {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
+  // isProdMarketing: app + innlogging hører hjemme på app-domenet.
+  if (isAppPath || isAuthPath) {
+    return NextResponse.redirect(new URL(`https://app.smertefri.no${pathname}${search}`));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next|favicon.ico).*)"],
+  matcher: ["/((?!_next|api|favicon.ico|manifest.webmanifest|.*\\.).*)"],
 };

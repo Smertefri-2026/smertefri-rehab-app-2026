@@ -459,7 +459,7 @@ export default function TestNewPage() {
 
   if (!allowed) {
     return (
-      <main className="bg-[#F4FBFA]">
+      <main className="bg-page">
         <AppPage>
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Ingen tilgang.
@@ -471,7 +471,7 @@ export default function TestNewPage() {
 
   if (!cfg) {
     return (
-      <main className="bg-[#F4FBFA]">
+      <main className="bg-page">
         <AppPage>
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Ugyldig kategori.
@@ -494,7 +494,7 @@ export default function TestNewPage() {
   const isSaved = currentMetric ? savedKeys.has(currentMetric.key) : false;
 
   return (
-    <main className="bg-[#F4FBFA]">
+    <main className="bg-page">
       <AppPage>
         <div className="mx-auto w-full max-w-xl space-y-5">
           <div className="flex items-center gap-3">

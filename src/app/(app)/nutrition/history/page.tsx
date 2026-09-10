@@ -145,7 +145,7 @@ export default function NutritionHistoryPage() {
   }
 
   return (
-    <div className="bg-[#F4FBFA]">
+    <div className="bg-page">
       <AppPage>
         <div className="space-y-6">
           <div>

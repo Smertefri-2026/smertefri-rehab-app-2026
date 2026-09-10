@@ -8,7 +8,7 @@ import Section2ThreadList from "./sections/Section2ThreadList";
 
 export default function ChatPage() {
   return (
-    <div className="bg-[#F4FBFA] min-h-screen">
+    <div className="bg-page min-h-screen">
       <AppPage>
         <div className="space-y-6">
           {/* 💬 Header + primær handling */}

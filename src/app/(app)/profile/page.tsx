@@ -14,7 +14,7 @@ import Section6DeleteAccount from "./sections/Section6DeleteAccount";
 export default function ProfilePage() {
   return (
     <ProfileProvider>
-      <div className="bg-[#F4FBFA]">
+      <div className="bg-page">
         <AppPage>
           <div className="space-y-6">
             <Section1Personal />

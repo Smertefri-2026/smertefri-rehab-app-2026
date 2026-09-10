@@ -1,4 +1,3 @@
-// /Users/oystein/smertefri-rehab-app-2026/src/app/(auth)/login/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import InstallPWAButton from "@/components/pwa/InstallPWAButton";
+import { Field, Input } from "@/ui/components/Field";
+import { Button } from "@/ui/components/Button";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,7 +14,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,10 +22,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (signInError) {
       setLoading(false);
@@ -33,102 +30,74 @@ export default function LoginPage() {
       return;
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
     setLoading(false);
-    router.replace(`${appUrl}/dashboard`);
+    router.replace("/dashboard");
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-sf-border bg-white p-8 shadow-xl">
-      {/* HEADER */}
+    <div className="w-full max-w-md rounded-lg border border-border bg-surface p-8 shadow-card">
       <div className="mb-8 text-center">
-        <p className="text-sm font-medium uppercase tracking-wide text-sf-muted">
-          Velkommen til
-        </p>
-
-        <h1
-          className="mt-1 text-3xl font-semibold tracking-tight"
-          style={{ fontFamily: "var(--font-montserrat-alternates)" }}
-        >
-          <span className="text-[#007C80]">Smerte</span>
-          <span className="text-[#29A9D6]">Fri</span>
-        </h1>
-
-        <p className="mt-3 text-sm text-sf-muted">
-          Norges første portal bygget for rehab-trenere og mennesker – med og uten smerter.
-        </p>
-
-        <p className="mt-2 text-xs text-sf-muted">
-          Din tildelte rehab-trener, progresjonen din og struktur på ett sted.
+        <h1 className="text-xl font-semibold text-ink">Logg inn</h1>
+        <p className="mt-2 text-sm text-ink-soft">
+          Din rehabtrener, progresjonen din og struktur på ett sted.
         </p>
       </div>
 
-      {/* FORM */}
       <form onSubmit={handleLogin} className="space-y-4">
-        <input
-          type="email"
-          placeholder="E-post"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full rounded-xl border border-sf-border bg-sf-soft px-4 py-3 outline-none focus:border-[#007C80]"
-        />
-
-        <div className="relative">
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Passord"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+        <Field label="E-post">
+          <Input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded-xl border border-sf-border bg-sf-soft px-4 py-3 pr-16 outline-none focus:border-[#007C80]"
           />
+        </Field>
 
-          <button
-            type="button"
-            onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-[#007C80]"
-          >
-            {showPassword ? "Skjul" : "Vis"}
-          </button>
-        </div>
+        <Field label="Passord">
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              className="pr-14"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-medium text-primary-ink"
+            >
+              {showPassword ? "Skjul" : "Vis"}
+            </button>
+          </div>
+        </Field>
 
-        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+        {error && <p className="text-center text-sm text-danger-ink">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-full bg-[#007C80] py-3 font-medium text-white hover:opacity-90 transition disabled:opacity-60"
-        >
+        <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Logger inn…" : "Logg inn"}
-        </button>
+        </Button>
 
-        {/* ✅ Install PWA button (shows only when available) */}
         <InstallPWAButton />
       </form>
 
-      {/* LINKS */}
-      <div className="mt-6 text-center text-sm">
-        <Link href="/register/forgot" className="text-[#007C80] hover:underline">
+      <div className="mt-6 space-y-4 text-center text-sm">
+        <Link href="/register/forgot" className="text-primary-ink hover:underline">
           Glemt passord?
         </Link>
 
-        <div className="mt-4 space-y-1 text-center">
-          <p className="text-sf-muted">Ny bruker?</p>
-
-          <Link
-            href="/register/client"
-            className="block font-medium text-[#007C80] hover:underline"
-          >
-            Registrer deg som kunde
+        <div className="space-y-1">
+          <p className="text-ink-soft">Ny bruker?</p>
+          <Link href="/register/client" className="block font-medium text-primary-ink hover:underline">
+            Opprett konto som kunde
           </Link>
-
           <Link
             href="/register/trainer"
-            className="block text-sm text-sf-muted hover:text-[#007C80] transition"
+            className="block text-ink-faint transition-colors hover:text-primary-ink"
           >
-            Registrer deg som trener
+            Søk om å bli rehabtrener
           </Link>
         </div>
       </div>

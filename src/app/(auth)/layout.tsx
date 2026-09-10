@@ -1,19 +1,24 @@
-import HeaderFrontpage from "@/app/(public)/frontpage/Seksjon/HeaderFrontpage";
+import Link from "next/link";
+import { Wordmark } from "@/ui/brand/Wordmark";
 
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      {/* Header på TOPP */}
-      <HeaderFrontpage variant="auth" />
+    <div className="flex min-h-screen flex-col bg-page">
+      <header className="border-b border-border bg-surface">
+        <div className="mx-auto flex max-w-content items-center justify-between px-4 py-4 sm:px-6">
+          <Link href="/" aria-label="SmerteFri – forsiden">
+            <Wordmark className="text-xl" />
+          </Link>
+          <a
+            href="https://smertefri.no"
+            className="text-[13.5px] font-medium text-ink-soft hover:text-ink"
+          >
+            Til smertefri.no
+          </a>
+        </div>
+      </header>
 
-      {/* Kun innhold sentrert */}
-      <main className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-gradient-to-b from-sf-soft to-white px-4">
-        {children}
-      </main>
-    </>
+      <main className="flex flex-1 items-center justify-center px-4 py-10">{children}</main>
+    </div>
   );
 }

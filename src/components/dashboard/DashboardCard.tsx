@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ReactNode } from "react";
+import { cn } from "@/ui/cn";
 
 type DashboardVariant = "default" | "warning" | "danger" | "info" | "success";
 
@@ -12,17 +13,15 @@ type DashboardCardProps = {
   children?: ReactNode;
   variant?: DashboardVariant;
   mode?: "card" | "button";
-
-  // ✅ gjør hele kortet klikkbart
   href?: string;
 };
 
 const variants: Record<DashboardVariant, string> = {
-  default: "border-sf-border bg-white",
-  warning: "border-yellow-300 bg-yellow-50",
-  danger: "border-red-300 bg-red-50",
-  info: "border-[#BEE6F0] bg-[#E6F3F6]",
-  success: "border-emerald-300 bg-emerald-50", // ✅ NY
+  default: "border-border bg-surface",
+  warning: "border-transparent bg-warning-subtle",
+  danger: "border-transparent bg-danger-subtle",
+  info: "border-transparent bg-primary-subtle",
+  success: "border-transparent bg-success-subtle",
 };
 
 export default function DashboardCard({
@@ -35,65 +34,40 @@ export default function DashboardCard({
   href,
 }: DashboardCardProps) {
   const isButton = mode === "button";
-
-  // ✅ ekstra safe: om noe rart kommer inn, fall tilbake til default
   const variantClass = variants[variant] ?? variants.default;
 
-  const cardClassName = `
-    rounded-2xl border shadow-sm transition
-    ${variantClass}
-    ${
-      isButton
-        ? "p-6 flex flex-col items-center justify-center gap-3 min-h-[110px]"
-        : "p-5"
-    }
-    ${
-      href
-        ? "cursor-pointer hover:shadow-md hover:-translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-[#007C80]/20"
-        : ""
-    }
-    ${
-      isButton && href
-        ? "hover:bg-[#DFF0F6]"
-        : isButton
-        ? "hover:bg-[#DFF0F6] cursor-pointer"
-        : ""
-    }
-  `;
+  const cardClassName = cn(
+    "rounded-lg border shadow-card transition",
+    variantClass,
+    isButton ? "flex min-h-[110px] flex-col items-center justify-center gap-3 p-5" : "p-5",
+    href &&
+      "cursor-pointer hover:shadow-pop hover:-translate-y-px focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page"
+  );
 
   const content = (
     <div className={cardClassName}>
       {(title || icon) && (
         <div
-          className={`flex ${
+          className={cn(
+            "flex",
             isButton
-              ? "flex-col items-center text-center gap-2"
-              : "items-start justify-between gap-4 mb-3"
-          }`}
+              ? "flex-col items-center gap-2 text-center"
+              : "mb-3 items-start justify-between gap-4"
+          )}
         >
-          <div
-            className={`flex ${
-              isButton ? "flex-col items-center gap-2" : "items-center gap-2"
-            }`}
-          >
-            {icon && (
-              <span className={`${isButton ? "text-[#007C80]" : "text-sf-muted"}`}>
-                {icon}
-              </span>
-            )}
-
-            {title && <h3 className="text-sm font-semibold text-sf-text">{title}</h3>}
+          <div className={cn("flex", isButton ? "flex-col items-center gap-2" : "items-center gap-2")}>
+            {icon && <span className={isButton ? "text-primary" : "text-ink-faint"}>{icon}</span>}
+            {title && <h3 className="text-sm font-semibold text-ink">{title}</h3>}
           </div>
 
-          {!isButton && status && <span className="text-xs text-sf-muted">{status}</span>}
+          {!isButton && status && <span className="text-xs text-ink-soft">{status}</span>}
         </div>
       )}
 
-      {!isButton && children && <div className="text-sm text-sf-muted space-y-2">{children}</div>}
+      {!isButton && children && <div className="space-y-2 text-sm text-ink-soft">{children}</div>}
     </div>
   );
 
-  // ✅ Hvis href finnes: gjør kortet til en link
   if (href) {
     return (
       <Link href={href} className="block">

@@ -10,13 +10,11 @@ import { ClientsProvider } from "@/stores/clients.store";
 import { BookingsProvider } from "@/stores/bookings.store";
 import ChatUnreadManager from "@/components/chat/ChatUnreadManager";
 
-
 function MaybeBookingsProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const needsBookings =
-    pathname.startsWith("/calendar") ||
-    pathname.startsWith("/dashboard");
+    pathname.startsWith("/calendar") || pathname.startsWith("/dashboard");
 
   if (!needsBookings) return <>{children}</>;
   return <BookingsProvider>{children}</BookingsProvider>;
@@ -26,18 +24,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <RoleProvider>
       <AuthGuard>
-          <ChatUnreadManager />
+        <ChatUnreadManager />
         <ClientsProvider>
           <MaybeBookingsProvider>
-            <div className="relative flex min-h-screen bg-sf-bg">
+            <div className="relative flex min-h-screen bg-page">
               <Sidebar />
-              <div
-                className="
-                  flex-1 relative overflow-hidden
-                  pb-[calc(env(safe-area-inset-bottom)+72px)]
-                  md:pb-0
-                "
-              >
+              <div className="relative flex-1 overflow-hidden pb-[calc(env(safe-area-inset-bottom)+72px)] md:pb-0">
                 {children}
               </div>
               <TabBar />

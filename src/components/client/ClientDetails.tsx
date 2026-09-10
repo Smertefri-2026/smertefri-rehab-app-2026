@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Client } from "@/types/client";
 import { supabase } from "@/lib/supabaseClient";
-import { useClients } from "@/stores/clients.store";
+import { useClients, notifyClientsChanged } from "@/stores/clients.store";
 import { useRole } from "@/providers/RoleProvider";
 import { fetchAllTrainers } from "@/lib/clients.api";
 
@@ -136,6 +136,7 @@ export default function ClientDetails({ client, canEdit = true }: Props) {
     } else {
       setTrainerId(null);
       await refreshClients();
+      notifyClientsChanged();
       setSaved(true);
     }
 
@@ -184,6 +185,7 @@ export default function ClientDetails({ client, canEdit = true }: Props) {
     }
 
     await refreshClients();
+    notifyClientsChanged();
     setSaved(true);
     setSaving(false);
   }

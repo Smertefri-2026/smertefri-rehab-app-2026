@@ -196,7 +196,7 @@ export default function NutritionTodayPage() {
 
   if (loading || !day) {
     return (
-      <div className="bg-[#F4FBFA]">
+      <div className="bg-page">
         <AppPage>
           <div className="text-sm text-sf-muted">Laster kosthold…</div>
         </AppPage>
@@ -205,7 +205,7 @@ export default function NutritionTodayPage() {
   }
 
   return (
-    <div className="bg-[#F4FBFA]">
+    <div className="bg-page">
       <AppPage>
         <div className="space-y-6">
           <div>

@@ -30,7 +30,7 @@ export default function PainClientPage({
 
   if (loading) {
     return (
-      <main className="bg-[#F4FBFA]">
+      <main className="bg-page">
         <AppPage>
           <p className="p-4 text-sm text-sf-muted">Laster smerter …</p>
         </AppPage>
@@ -42,7 +42,7 @@ export default function PainClientPage({
   if (!client) notFound();
 
   return (
-    <main className="bg-[#F4FBFA]">
+    <main className="bg-page">
       <AppPage>
         <div className="space-y-6">
           <Section0PainHeader

@@ -6,6 +6,7 @@ import {
   reviewTrainerApplication,
   type TrainerApplication,
 } from "@/lib/trainerApplications.api";
+import { notifyClientsChanged } from "@/stores/clients.store";
 
 type Props = {
   onApplicationReviewed?: () => void;
@@ -41,6 +42,8 @@ export default function Section2PendingApplications({ onApplicationReviewed }: P
       await reviewTrainerApplication(id, approve);
       await load();
       onApplicationReviewed?.();
+      // Godkjenning flytter en «client» til «trainer» — la kundelister refetche.
+      notifyClientsChanged();
     } catch (e: any) {
       alert(e?.message ?? "Kunne ikke behandle søknaden");
     } finally {

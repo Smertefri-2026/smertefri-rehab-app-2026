@@ -9,7 +9,7 @@ import Section3NutritionActions from "./sections/Section3NutritionActions";
 
 export default function NutritionPage() {
   return (
-    <div className="bg-[#F4FBFA]">
+    <div className="bg-page">
       <AppPage>
         <div className="space-y-6">
           {/* 🍽 Seksjon 1 – Intro / forklaring */}

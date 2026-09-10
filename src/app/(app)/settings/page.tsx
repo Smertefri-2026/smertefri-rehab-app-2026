@@ -13,7 +13,7 @@ import Section7DangerZone from "./sections/Section7DangerZone";
 
 export default function SettingsPage() {
   return (
-    <div className="bg-[#F4FBFA] min-h-screen">
+    <div className="bg-page min-h-screen">
       <AppPage>
         <div className="space-y-8">
           {/* ⚙️ Header */}

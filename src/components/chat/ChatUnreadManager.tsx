@@ -5,12 +5,21 @@ import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
 import { useChatUnread } from "@/stores/chatUnread.store";
 
+/**
+ * Holder «uleste meldinger»-telleren oppdatert. Kjører kun for kunde og
+ * rehabtrener — admin er ikke deltaker i noen samtale (RLS gir admin ingen
+ * tilgang til chat-tabellene), så en global realtime-subscription der ville
+ * bare gi 403-støy uten nytte.
+ */
 export default function ChatUnreadManager() {
-  const { userId, loading } = useRole();
+  const { userId, role, loading } = useRole();
   const setUnreadCount = useChatUnread((s) => s.setUnreadCount);
 
   const refreshingRef = useRef(false);
   const debounceRef = useRef<number | null>(null);
+  const hasThreadsRef = useRef(false);
+
+  const participatesInChat = role === "client" || role === "trainer";
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -18,25 +27,18 @@ export default function ChatUnreadManager() {
 
     refreshingRef.current = true;
     try {
-      // 1) threads for user
       const { data: rows, error } = await supabase
         .from("chat_members")
-        .select(
-          `
-          thread:chat_threads(
-            id,
-            last_message_at
-          )
-        `
-        )
+        .select(`thread:chat_threads ( id, last_message_at )`)
         .eq("user_id", userId);
 
       if (error) return;
 
-      const threads = (rows ?? []).map((r: any) => r.thread).filter(Boolean) as {
-        id: string;
-        last_message_at: string | null;
-      }[];
+      const threads = (rows ?? [])
+        .map((r) => r.thread as { id: string; last_message_at: string | null } | null)
+        .filter(Boolean) as { id: string; last_message_at: string | null }[];
+
+      hasThreadsRef.current = threads.length > 0;
 
       const ids = threads.map((t) => t.id);
       if (ids.length === 0) {
@@ -44,7 +46,6 @@ export default function ChatUnreadManager() {
         return;
       }
 
-      // 2) reads for those threads
       const { data: reads, error: rErr } = await supabase
         .from("chat_thread_reads")
         .select("thread_id,last_read_at")
@@ -56,7 +57,6 @@ export default function ChatUnreadManager() {
       const readMap = new Map<string, string | null>();
       for (const r of reads ?? []) readMap.set(r.thread_id, r.last_read_at ?? null);
 
-      // 3) compute unread count
       let n = 0;
       for (const t of threads) {
         const lm = t.last_message_at ? new Date(t.last_message_at).getTime() : 0;
@@ -77,43 +77,48 @@ export default function ChatUnreadManager() {
   }, [refresh]);
 
   useEffect(() => {
-    if (loading || !userId) return;
+    if (loading || !userId || !participatesInChat) {
+      setUnreadCount(0);
+      return;
+    }
 
-    refresh();
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    // Realtime: IKKE subscribe på hele chat_messages globalt hvis du kan unngå.
-    // Her gjør vi en “snill” løsning: trigge refresh når chat_messages / reads endres,
-    // men du bør på sikt filtrere (se 3B).
-    const ch = supabase
-      .channel("unread-manager")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, () =>
-        refreshDebounced()
-      )
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_thread_reads" }, () =>
-        refreshDebounced()
-      )
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_thread_reads" }, () =>
-        refreshDebounced()
-      )
-      .subscribe();
+    (async () => {
+      await refresh();
+      // Åpne realtime-kanalen kun hvis brukeren faktisk har en samtale.
+      if (cancelled || !hasThreadsRef.current) return;
 
-    // Ingen polling. Kun focus/visibility.
+      channel = supabase
+        .channel("unread-manager")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, () =>
+          refreshDebounced()
+        )
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_thread_reads" }, () =>
+          refreshDebounced()
+        )
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_thread_reads" }, () =>
+          refreshDebounced()
+        )
+        .subscribe();
+    })();
+
     const onFocus = () => refreshDebounced();
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
-
-    // Manuell signal fra UI
     const onUnreadChanged = () => refreshDebounced();
     window.addEventListener("chat-unread-changed", onUnreadChanged);
 
     return () => {
-      supabase.removeChannel(ch);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
       window.removeEventListener("chat-unread-changed", onUnreadChanged);
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [loading, userId, refresh, refreshDebounced]);
+  }, [loading, userId, participatesInChat, refresh, refreshDebounced, setUnreadCount]);
 
   return null;
 }

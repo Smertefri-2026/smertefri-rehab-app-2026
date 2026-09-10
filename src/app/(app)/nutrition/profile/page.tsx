@@ -70,7 +70,7 @@ export default function NutritionProfilePage() {
   }
 
   return (
-    <div className="bg-[#F4FBFA]">
+    <div className="bg-page">
       <AppPage>
         <div className="space-y-6">
           {/* Topp-navigasjon (samme stil/posisjon som history) */}

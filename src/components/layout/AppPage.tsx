@@ -1,5 +1,5 @@
-// /Users/oystein/smertefri-rehab-app-2026/src/components/layout/AppPage.tsx
 import React from "react";
+import { cn } from "@/ui/cn";
 
 type AppPageProps = {
   children: React.ReactNode;
@@ -26,9 +26,9 @@ type AppPageProps = {
 };
 
 const spacingMap = {
-  tight: "space-y-6",
-  normal: "space-y-8",
-  roomy: "space-y-10",
+  tight: "space-y-5",
+  normal: "space-y-7",
+  roomy: "space-y-9",
 } as const;
 
 export default function AppPage({
@@ -46,7 +46,7 @@ export default function AppPage({
   const mainBase = fullHeight ? "h-full min-h-0" : "min-h-screen";
 
   const bottomPad = withTabBarPadding
-    ? "pb-[calc(env(safe-area-inset-bottom)+72px)] md:pb-10"
+    ? "pb-[calc(env(safe-area-inset-bottom)+72px)] md:pb-12"
     : "pb-0 md:pb-0";
 
   const hasHeader = !!title || !!subtitle || !!actions;
@@ -57,32 +57,27 @@ export default function AppPage({
       : "flex items-start justify-start gap-3";
 
   return (
-  <main className={`${mainBase} bg-[#F4FBFA] overflow-x-clip ${className}`}>      <div
-        className={`
-          mx-auto max-w-7xl
-          px-4 sm:px-6
-          py-6 sm:py-10
-          ${bottomPad}
-          ${spacingMap[spacing]}
-          ${containerClassName}
-        `}
+    <main className={cn(mainBase, "bg-page text-ink overflow-x-clip", className)}>
+      <div
+        className={cn(
+          "mx-auto max-w-content px-4 sm:px-6 py-6 sm:py-10",
+          bottomPad,
+          spacingMap[spacing],
+          containerClassName
+        )}
       >
         {hasHeader && (
           <div className={headerClass}>
-            {actionsAlign === "left" && actions ? (
-              <div className="shrink-0">{actions}</div>
-            ) : null}
+            {actionsAlign === "left" && actions ? <div className="shrink-0">{actions}</div> : null}
 
             <div className="min-w-0">
               {title ? (
-                <h1 className="text-base sm:text-lg font-semibold text-sf-text">{title}</h1>
+                <h1 className="text-lg font-semibold text-ink sm:text-xl">{title}</h1>
               ) : null}
-              {subtitle ? <p className="mt-1 text-sm text-sf-muted">{subtitle}</p> : null}
+              {subtitle ? <p className="mt-1 text-sm text-ink-soft">{subtitle}</p> : null}
             </div>
 
-            {actionsAlign === "right" && actions ? (
-              <div className="shrink-0">{actions}</div>
-            ) : null}
+            {actionsAlign === "right" && actions ? <div className="shrink-0">{actions}</div> : null}
           </div>
         )}
 

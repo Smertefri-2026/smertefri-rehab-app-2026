@@ -38,7 +38,7 @@ export default function PainPage() {
   if (!loading && !clientId) notFound();
 
   return (
-    <main className="bg-[#F4FBFA]">
+    <main className="bg-page">
       <AppPage>
         <div className="space-y-6">
           <Section0PainHeader />

@@ -356,7 +356,7 @@ export default function TestsIdPage() {
   if (isCategory) {
     if (!cfg || !category) {
       return (
-        <main className="bg-[#F4FBFA]">
+        <main className="bg-page">
           <AppPage>
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               Ugyldig kategori.
@@ -368,7 +368,7 @@ export default function TestsIdPage() {
 
     if (role && role !== "client") {
       return (
-        <main className="bg-[#F4FBFA]">
+        <main className="bg-page">
           <AppPage>
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               Trenere/admin: bruk klient-URL <span className="font-mono">/tests/&lt;clientId&gt;</span>.
@@ -381,7 +381,7 @@ export default function TestsIdPage() {
     const canRegister = Boolean(userId) && !myTrainerId;
 
     return (
-      <main className="bg-[#F4FBFA]">
+      <main className="bg-page">
         <AppPage>
           <div className="mx-auto w-full max-w-5xl space-y-5">
             {/* Header + actions */}
@@ -497,7 +497,7 @@ export default function TestsIdPage() {
   // ✅ TRENER/ADMIN-MODUS (id = clientId)
   if (role && role !== "trainer" && role !== "admin") {
     return (
-      <main className="bg-[#F4FBFA]">
+      <main className="bg-page">
         <AppPage>
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Ingen tilgang.
@@ -509,7 +509,7 @@ export default function TestsIdPage() {
 
   if (!clientId) {
     return (
-      <main className="bg-[#F4FBFA]">
+      <main className="bg-page">
         <AppPage>
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Mangler klient-id i URL.
@@ -520,7 +520,7 @@ export default function TestsIdPage() {
   }
 
   return (
-    <main className="bg-[#F4FBFA]">
+    <main className="bg-page">
       <AppPage>
         <div className="mx-auto w-full max-w-4xl space-y-5">
           <div className="flex items-center gap-3">

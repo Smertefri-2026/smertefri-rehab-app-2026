@@ -388,7 +388,7 @@ export default function TestCategoryClientPage() {
 
   if (!clientId) {
     return (
-      <main className="bg-[#F4FBFA]">
+      <main className="bg-page">
         <AppPage>
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Mangler klient-id i URL.
@@ -400,7 +400,7 @@ export default function TestCategoryClientPage() {
 
   if (!cfg) {
     return (
-      <main className="bg-[#F4FBFA]">
+      <main className="bg-page">
         <AppPage>
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Ugyldig kategori.
@@ -416,7 +416,7 @@ export default function TestCategoryClientPage() {
 
   if (!canView) {
     return (
-      <main className="bg-[#F4FBFA]">
+      <main className="bg-page">
         <AppPage>
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             Ingen tilgang.
@@ -430,7 +430,7 @@ export default function TestCategoryClientPage() {
   const canEditOrDelete = canRegister && Boolean(latestSession) && latestSession?.id !== baselineSession?.id;
 
   return (
-    <main className="bg-[#F4FBFA]">
+    <main className="bg-page">
       <AppPage>
         <div className="mx-auto w-full max-w-5xl space-y-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

@@ -210,7 +210,7 @@ export default function TestsPage() {
   if (!canSee) return null;
 
   return (
-    <main className="bg-[#F4FBFA]">
+    <main className="bg-page">
       <AppPage>
         <div className="space-y-6">
           {/* ✅ Info-seksjon (collapsible) */}

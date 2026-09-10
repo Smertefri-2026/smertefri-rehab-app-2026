@@ -4,7 +4,47 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  background: var(--bg);
-  color: var(--text);
+@layer base {
+  html,
+  body {
+    max-width: 100%;
+    /* `clip` (ikke `hidden`) — `hidden` tvinger overflow-y: auto per spec,
+       som gjør html/body til containing block og bryter sticky headers. */
+    overflow-x: clip;
+  }
+
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font-family: var(--font-sans), -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+    font-weight: 650;
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
+  }
+}
+
+/* iOS Safari auto-zoomer på fokus når et felts *beregnede* font-size er
+   under 16px. Kun på telefonbredde, og bevisst ikke maximum-scale=1
+   (som ville blokkert manuell zoom helt). */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }

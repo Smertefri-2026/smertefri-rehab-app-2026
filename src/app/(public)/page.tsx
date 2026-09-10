@@ -1,7 +1,3 @@
-// /Users/oystein/smertefri-rehab-app-2026/src/app/(public)/page.tsx
-
-import SeksjonFooter from "@/app/(public)/frontpage/Seksjon/SeksjonFooter";
-
 import Seksjon1Hero from "@/app/(public)/frontpage/Seksjon/Seksjon1Hero";
 import Seksjon2Kjenner from "@/app/(public)/frontpage/Seksjon/Seksjon2Kjenner";
 import Seksjon3losning from "@/app/(public)/frontpage/Seksjon/Seksjon3løsning";
@@ -17,23 +13,25 @@ import Seksjon11Kontakt from "@/app/(public)/frontpage/Seksjon/Seksjon11Kontakt"
 
 export default function HomePage() {
   return (
-    <>
-      <main id="top" className="w-full">
-        <Seksjon1Hero />
-        <Seksjon2Kjenner />
+    <main id="top" className="w-full">
+      <Seksjon1Hero />
+      <Seksjon2Kjenner />
+      <div id="slik-fungerer-det">
         <Seksjon3losning />
         <Seksjon3Smerte />
         <Seksjon4Dashbord />
         <Seksjon5Kosthold />
         <Seksjon6Tester />
         <Seksjon7Kalender />
-        <Seksjon8Medlemskap />
-        <Seksjon9Komigang />
+      </div>
+      <Seksjon8Medlemskap />
+      <Seksjon9Komigang />
+      <div id="priser">
         <Seksjon10FPriser />
+      </div>
+      <div id="kontakt">
         <Seksjon11Kontakt />
-      </main>
-
-      <SeksjonFooter />
-    </>
+      </div>
+    </main>
   );
 }

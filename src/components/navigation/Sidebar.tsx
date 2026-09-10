@@ -1,4 +1,3 @@
-// /Users/oystein/smertefri-rehab-app-2026/src/components/navigation/Sidebar.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,8 +5,9 @@ import type { ElementType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRole } from "@/providers/RoleProvider";
-
 import { useChatUnread } from "@/stores/chatUnread.store";
+import { Wordmark } from "@/ui/brand/Wordmark";
+import { cn } from "@/ui/cn";
 
 import {
   LayoutDashboard,
@@ -20,6 +20,7 @@ import {
   Users,
   Settings,
   Shield,
+  UserCog,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +32,10 @@ type SidebarItem = {
   icon: ElementType;
 };
 
+/**
+ * Stabil navigasjon per rolle. Rollen bestemmer arbeidsområdet — ikke
+ * hvilke funksjoner som er ferdige eller om kunden har fått trener enda.
+ */
 const clientItems: SidebarItem[] = [
   { label: "Hjem", href: "/dashboard", icon: LayoutDashboard },
   { label: "Kalender", href: "/calendar", icon: Calendar },
@@ -52,23 +57,17 @@ const trainerItems: SidebarItem[] = [
 
 const adminItems: SidebarItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: Shield },
-  { label: "Kalender", href: "/calendar", icon: Calendar },
   { label: "Kunder", href: "/clients", icon: Users },
-  { label: "Trenere", href: "/trainers", icon: Users },
-  { label: "Meldinger", href: "/chat", icon: MessageCircle },
+  { label: "Rehabtrenere", href: "/trainers", icon: UserCog },
+  { label: "Kalender", href: "/calendar", icon: Calendar },
   { label: "Profil", href: "/profile", icon: User },
   { label: "Innstillinger", href: "/settings", icon: Settings },
 ];
 
-function DotBadge({ show }: { show: boolean }) {
-  if (!show) return null;
+function UnreadDot({ className }: { className?: string }) {
   return (
     <span
-      className="
-        ml-auto
-        h-2.5 w-2.5
-        rounded-full bg-[#D45151]
-      "
+      className={cn("h-2 w-2 rounded-full bg-danger", className)}
       aria-label="Uleste meldinger"
     />
   );
@@ -77,67 +76,61 @@ function DotBadge({ show }: { show: boolean }) {
 export default function Sidebar() {
   const pathname = usePathname();
   const { role, loading } = useRole();
-
-  // ✅ Kun leser fra global store (ingen supabase her)
   const unreadCount = useChatUnread((s) => s.unreadCount);
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem("sf_sidebar_collapsed") === "true";
+    try {
+      return localStorage.getItem("sf_sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem("sf_sidebar_collapsed", String(collapsed));
+    try {
+      localStorage.setItem("sf_sidebar_collapsed", String(collapsed));
+    } catch {
+      /* ignore */
+    }
   }, [collapsed]);
 
   if (loading || !role) return null;
 
-  const items =
-    role === "client" ? clientItems : role === "trainer" ? trainerItems : adminItems;
-
+  const items = role === "client" ? clientItems : role === "trainer" ? trainerItems : adminItems;
   const hasUnread = unreadCount > 0;
 
   const handleLogout = async () => {
-    // Beholder samme oppførsel som før (du hadde signOut her).
-    // Hvis du vil gjøre Sidebar helt “supabase-free”, flytter vi signOut til en Auth-hook.
     const { supabase } = await import("@/lib/supabaseClient");
     await supabase.auth.signOut();
-    window.location.href = "/";
+    window.location.href = "/login";
   };
 
   return (
     <aside
-      className={`
-        hidden md:flex sticky top-0 h-screen flex-col border-r border-sf-border bg-white
-        transition-all duration-300
-        ${collapsed ? "w-20" : "w-64"}
-      `}
+      className={cn(
+        "sticky top-0 hidden h-screen flex-col border-r border-border bg-surface transition-all duration-300 md:flex",
+        collapsed ? "w-[68px]" : "w-60"
+      )}
     >
-      {/* TOPP */}
-      <div className="h-20 px-4 flex items-center justify-between border-b border-sf-border shrink-0">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
         {!collapsed && (
-          <span
-            className="text-xl font-semibold tracking-tight"
-            style={{ fontFamily: "var(--font-montserrat-alternates)" }}
-          >
-            <span className="text-[#007C80]">Smerte</span>
-            <span className="text-[#29A9D6]">Fri</span>
-          </span>
+          <Link href="/dashboard" aria-label="SmerteFri">
+            <Wordmark className="text-lg" />
+          </Link>
         )}
-
         <button
           onClick={() => setCollapsed((v) => !v)}
-          className="p-2 rounded-lg hover:bg-sf-soft text-slate-500"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-ink-faint hover:bg-surface-alt hover:text-ink-soft"
           title={collapsed ? "Åpne meny" : "Lukk meny"}
         >
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 
-      {/* NAV */}
-      <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-4">
         {items.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           const isChat = item.href === "/chat";
 
@@ -146,37 +139,24 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               title={item.label}
-              className={`
-                flex items-center gap-3 rounded-xl px-3 py-3
-                text-sm font-medium transition
-                ${
-                  isActive
-                    ? "bg-[#E6F3F6] text-[#007C80]"
-                    : "text-sf-muted hover:bg-sf-soft hover:text-[#007C80]"
-                }
-                ${collapsed ? "justify-center" : ""}
-              `}
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] font-medium transition-colors",
+                isActive
+                  ? "bg-primary-subtle text-primary-ink"
+                  : "text-ink-soft hover:bg-surface-alt hover:text-ink",
+                collapsed && "justify-center"
+              )}
             >
               <span className="relative">
-                <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
-                {/* prikk på ikonet når collapsed */}
+                <Icon size={19} strokeWidth={isActive ? 2.2 : 1.8} />
                 {collapsed && isChat && hasUnread && (
-                  <span
-                    className="
-                      absolute -top-1 -right-1
-                      h-2.5 w-2.5 rounded-full bg-[#D45151]
-                      border-2 border-white
-                    "
-                    aria-label="Uleste meldinger"
-                  />
+                  <UnreadDot className="absolute -right-1 -top-1 border-2 border-surface" />
                 )}
               </span>
-
               {!collapsed && (
                 <>
-                  <span>{item.label}</span>
-                  {/* prikk til høyre når expanded */}
-                  {isChat && <DotBadge show={hasUnread} />}
+                  <span className="truncate">{item.label}</span>
+                  {isChat && hasUnread && <UnreadDot className="ml-auto" />}
                 </>
               )}
             </Link>
@@ -184,16 +164,14 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* LOGG UT */}
-      <div className="border-t border-sf-border p-2 shrink-0">
+      <div className="shrink-0 border-t border-border p-2">
         <button
           onClick={handleLogout}
           title="Logg ut"
-          className={`
-            flex w-full items-center gap-3 rounded-xl px-3 py-3
-            text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition
-            ${collapsed ? "justify-center" : ""}
-          `}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] font-medium text-ink-faint transition-colors hover:bg-danger-subtle hover:text-danger-ink",
+            collapsed && "justify-center"
+          )}
         >
           <LogOut size={18} />
           {!collapsed && <span>Logg ut</span>}

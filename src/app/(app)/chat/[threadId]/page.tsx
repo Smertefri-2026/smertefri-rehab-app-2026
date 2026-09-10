@@ -285,7 +285,7 @@ export default function ChatThreadPage() {
      */
     <div
       className="
-        bg-[#F4FBFA]
+        bg-page
         overflow-hidden
         px-4 sm:px-6
         pt-4 sm:pt-6

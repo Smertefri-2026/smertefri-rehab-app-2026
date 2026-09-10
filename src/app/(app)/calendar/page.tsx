@@ -146,7 +146,7 @@ export default function CalendarPage() {
   if (loading) return null;
 
   return (
-    <div className="bg-[#F4FBFA]">
+    <div className="bg-page">
       <AppPage>
         <div className="space-y-6">
           {/* ✅ ADMIN: søk */}
