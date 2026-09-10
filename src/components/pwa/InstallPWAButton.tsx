@@ -33,7 +33,10 @@ export default function InstallPWAButton() {
   const standalone = useMemo(() => isInStandaloneMode(), []);
 
   useEffect(() => {
+    // Bevisst: klient-only tilstand avsløres først etter hydrering.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInstalled(standalone);
 
     const onBeforeInstallPrompt = (e: Event) => {
