@@ -3,13 +3,7 @@
 import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  HeartPulse,
-  AlertTriangle,
-  CalendarClock,
-  MessageCircle,
-  ChevronRight,
-} from "lucide-react";
+import { ChevronRight, MessageCircle } from "lucide-react";
 
 import AppPage from "@/components/layout/AppPage";
 import { useRole } from "@/providers/RoleProvider";
@@ -19,51 +13,28 @@ import { useChatUnread } from "@/stores/chatUnread.store";
 import { usePainMetricsForClients } from "@/lib/metrics/usePainMetricsForClients";
 import { useTestMetricsForClients } from "@/lib/metrics/useTestMetricsForClients";
 import { useTrainingHoursMetricsForClients } from "@/lib/metrics/useTrainingHoursMetricsForClients";
+import { useFollowupSignals } from "@/lib/followup.api";
+import {
+  prioritizeFollowup,
+  countByPriority,
+  type ClientSignalInput,
+  type FollowupPriority,
+} from "@/lib/followup/prioritize";
 
-type Flag = { label: string; tone: "danger" | "warning" | "info" };
+const PRIORITY_STYLE: Record<FollowupPriority, string> = {
+  høy: "bg-danger-subtle text-danger-ink",
+  middels: "bg-warning-subtle text-warning-ink",
+  lav: "bg-primary-subtle text-primary-ink",
+};
 
 function clientName(c: { first_name?: string | null; last_name?: string | null }) {
   return `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "Uten navn";
 }
 
-function Tile({
-  href,
-  icon,
-  label,
-  count,
-  tone,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  count: number;
-  tone: "danger" | "warning" | "info";
-}) {
-  const bg =
-    tone === "danger"
-      ? "bg-danger-subtle text-danger-ink"
-      : tone === "warning"
-      ? "bg-warning-subtle text-warning-ink"
-      : "bg-primary-subtle text-primary-ink";
-
-  return (
-    <Link
-      href={href}
-      className="flex items-center justify-between gap-3 rounded-lg border border-transparent bg-surface p-4 shadow-card transition hover:shadow-pop"
-    >
-      <span className="flex items-center gap-3 text-sm font-medium text-ink">
-        <span className={`flex h-8 w-8 items-center justify-center rounded-full ${bg}`}>{icon}</span>
-        {label}
-      </span>
-      <span className="text-lg font-semibold text-ink">{count}</span>
-    </Link>
-  );
-}
-
 export default function OppfolgingPage() {
   const router = useRouter();
   const { role, userId, loading: roleLoading } = useRole();
-  const { clients, loading } = useClients();
+  const { clients, loading: clientsLoading } = useClients();
   const unreadCount = useChatUnread((s) => s.unreadCount);
 
   useEffect(() => {
@@ -81,32 +52,34 @@ export default function OppfolgingPage() {
   const pain = usePainMetricsForClients({ clientIds, highThreshold: 7, staleDays: 10 });
   const tests = useTestMetricsForClients({ clientIds, inactiveDays: 30 });
   const hours = useTrainingHoursMetricsForClients({ clientIds, daysAhead: 30 });
+  const signals = useFollowupSignals(clientIds);
 
-  const rows = useMemo(() => {
-    return visibleClients
-      .map((c) => {
-        const p = pain.byClientId[c.id];
-        const t = tests.byClientId[c.id];
-        const hasUpcoming = hours.hasUpcomingByClientId[c.id];
+  const items = useMemo(() => {
+    const input: ClientSignalInput[] = visibleClients.map((c) => {
+      const s = signals.byClientId[c.id];
+      const p = pain.byClientId[c.id];
+      const t = tests.byClientId[c.id];
+      return {
+        clientId: c.id,
+        name: clientName(c),
+        latestZone: s?.latestZone ?? null,
+        latestZoneAcknowledged: s?.latestZoneAcknowledged ?? true,
+        firedRulesToday: s?.firedRulesToday ?? [],
+        checkedInToday: s?.checkedInToday ?? false,
+        daysSinceCheckin: s?.daysSinceCheckin ?? null,
+        yellowCountLast7: s?.yellowCountLast7 ?? 0,
+        painHigh: !!p?.isHigh,
+        painRising: !!p?.isUp,
+        missingBaseline: !t || (t.missingCategories?.length ?? 0) > 0,
+        hasUpcomingBooking: hours.hasUpcomingByClientId[c.id] !== false,
+        calibratorKind: s?.calibratorKind ?? null,
+      };
+    });
+    return prioritizeFollowup(input);
+  }, [visibleClients, signals.byClientId, pain.byClientId, tests.byClientId, hours.hasUpcomingByClientId]);
 
-        const flags: Flag[] = [];
-        if (p?.isHigh) flags.push({ label: "Høy smerte", tone: "danger" });
-        if (p?.isUp) flags.push({ label: "Økende smerte", tone: "warning" });
-        if (p?.isStale) flags.push({ label: "Ingen smertelogg", tone: "warning" });
-        if (!t || (t.missingCategories?.length ?? 0) > 0)
-          flags.push({ label: "Mangler baseline", tone: "info" });
-        if (hasUpcoming === false) flags.push({ label: "Ingen time booket", tone: "info" });
-
-        const severity = flags.reduce(
-          (acc, f) => acc + (f.tone === "danger" ? 3 : f.tone === "warning" ? 2 : 1),
-          0
-        );
-
-        return { client: c, flags, severity };
-      })
-      .filter((r) => r.flags.length > 0)
-      .sort((a, b) => b.severity - a.severity);
-  }, [visibleClients, pain.byClientId, tests.byClientId, hours.hasUpcomingByClientId]);
+  const counts = useMemo(() => countByPriority(items), [items]);
+  const loading = clientsLoading || signals.loading || pain.loading || tests.loading;
 
   if (roleLoading || (role !== "trainer" && role !== "admin")) {
     return (
@@ -116,46 +89,22 @@ export default function OppfolgingPage() {
     );
   }
 
-  const painCount = pain.stats.high + pain.stats.up;
-  const staleCount = pain.stats.stale;
-  const baselineCount = tests.stats.missingBaseline;
-  const noBookingCount = hours.missingUpcomingCount;
-
   return (
     <AppPage
       title="Oppfølging"
-      subtitle="Kundene som trenger et blikk fra deg – prioritert etter hva som haster mest."
+      subtitle="Hvem trenger oppmerksomhet nå, hvorfor, og hva du bør gjøre videre."
     >
-      <div className="space-y-8">
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Tile
-            href="/clients?pain=high"
-            icon={<HeartPulse size={16} />}
-            label="Smerte høy / økende"
-            count={painCount}
-            tone="danger"
-          />
-          <Tile
-            href="/clients?pain=stale"
-            icon={<HeartPulse size={16} />}
-            label="Mangler smertelogg"
-            count={staleCount}
-            tone="warning"
-          />
-          <Tile
-            href="/clients?filter=baseline-missing"
-            icon={<AlertTriangle size={16} />}
-            label="Mangler baseline"
-            count={baselineCount}
-            tone="info"
-          />
-          <Tile
-            href="/clients?hours=missing"
-            icon={<CalendarClock size={16} />}
-            label="Uten kommende time"
-            count={noBookingCount}
-            tone="info"
-          />
+      <div className="space-y-6">
+        <section className="grid grid-cols-3 gap-3">
+          {(["høy", "middels", "lav"] as FollowupPriority[]).map((p) => (
+            <div
+              key={p}
+              className={`rounded-lg border border-transparent p-4 text-center ${PRIORITY_STYLE[p]}`}
+            >
+              <p className="text-2xl font-semibold">{loading ? "–" : counts[p]}</p>
+              <p className="mt-0.5 text-xs font-medium capitalize">{p} prioritet</p>
+            </div>
+          ))}
         </section>
 
         {unreadCount > 0 && (
@@ -165,49 +114,51 @@ export default function OppfolgingPage() {
           >
             <span className="flex items-center gap-3 text-sm font-medium text-primary-ink">
               <MessageCircle size={18} />
-              Du har uleste meldinger
+              {unreadCount === 1 ? "1 ulest melding" : `${unreadCount} uleste meldinger`}
             </span>
             <span className="text-lg font-semibold text-primary-ink">{unreadCount}</span>
           </Link>
         )}
 
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-ink-soft">Trenger oppfølging nå</h2>
-
+        <section className="space-y-2">
           {loading ? (
-            <p className="text-sm text-ink-soft">Laster kunder …</p>
-          ) : rows.length === 0 ? (
+            <p className="text-sm text-ink-soft">Vurderer kundene …</p>
+          ) : signals.error ? (
+            <p className="text-sm text-danger-ink">{signals.error}</p>
+          ) : items.length === 0 ? (
             <p className="rounded-lg border border-border bg-surface p-6 text-sm text-ink-soft shadow-card">
-              Ingen åpne flagg akkurat nå. Alle kundene dine er oppdatert.
+              Ingenting krever oppmerksomhet akkurat nå. Alle kundene dine er i rute.
             </p>
           ) : (
             <ul className="space-y-2">
-              {rows.map(({ client, flags }) => (
-                <li key={client.id}>
+              {items.map((it) => (
+                <li key={it.clientId}>
                   <Link
-                    href={`/clients/${client.id}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface p-4 shadow-card transition hover:shadow-pop"
+                    href={`/clients/${it.clientId}`}
+                    className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface p-4 shadow-card transition hover:shadow-pop"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink">{clientName(client)}</p>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {flags.map((f) => (
-                          <span
-                            key={f.label}
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                              f.tone === "danger"
-                                ? "bg-danger-subtle text-danger-ink"
-                                : f.tone === "warning"
-                                ? "bg-warning-subtle text-warning-ink"
-                                : "bg-primary-subtle text-primary-ink"
-                            }`}
-                          >
-                            {f.label}
-                          </span>
-                        ))}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${PRIORITY_STYLE[it.priority]}`}
+                        >
+                          {it.priority}
+                        </span>
+                        <p className="truncate text-sm font-semibold text-ink">{it.name}</p>
                       </div>
+
+                      <ul className="mt-1.5 space-y-0.5 text-xs text-ink-soft">
+                        {it.reasons.map((r) => (
+                          <li key={r}>· {r}</li>
+                        ))}
+                      </ul>
+
+                      <p className="mt-2 text-[13px] font-medium text-ink">
+                        <span className="text-ink-faint">Neste steg: </span>
+                        {it.action}
+                      </p>
                     </div>
-                    <ChevronRight size={18} className="shrink-0 text-ink-faint" />
+                    <ChevronRight size={18} className="mt-0.5 shrink-0 text-ink-faint" />
                   </Link>
                 </li>
               ))}

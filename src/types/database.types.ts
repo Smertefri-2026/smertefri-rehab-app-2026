@@ -150,6 +150,69 @@ export type Database = {
           },
         ]
       }
+      calibrator_events: {
+        Row: {
+          client_id: string
+          created_at: string
+          decided_at: string | null
+          fired_signals: string[]
+          headline: string
+          id: string
+          input_snapshot: Json
+          reasoning: string
+          suggestion_kind: string
+          suggestion_rule: string
+          trainer_decision: string | null
+          trainer_id: string | null
+          trainer_note: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          decided_at?: string | null
+          fired_signals?: string[]
+          headline: string
+          id?: string
+          input_snapshot: Json
+          reasoning: string
+          suggestion_kind: string
+          suggestion_rule: string
+          trainer_decision?: string | null
+          trainer_id?: string | null
+          trainer_note?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          decided_at?: string | null
+          fired_signals?: string[]
+          headline?: string
+          id?: string
+          input_snapshot?: Json
+          reasoning?: string
+          suggestion_kind?: string
+          suggestion_rule?: string
+          trainer_decision?: string | null
+          trainer_id?: string | null
+          trainer_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calibrator_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calibrator_events_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_members: {
         Row: {
           joined_at: string
