@@ -26,31 +26,36 @@ mot dev-Supabase, ikke deploy til prod-prosjektet.
 Staging og produksjon deler aldri sesjon (Supabase-sesjon ligger i `localStorage`
 på app-domenet).
 
-## Vercel — engangsoppsett (nytt prosjekt)
+## Vercel — engangsoppsett
 
-1. **Nytt prosjekt** i Vercel fra GitHub-repoet `Smertefri-2026/smertefri-rehab-app-2026`.
-   Navn f.eks. `smertefri-ny-staging`. Framework: Next.js (auto).
-2. **Production Branch** = `feature/nye-smertefri`
-   (Settings → Git → Production Branch). Da blir hver push til den branchen en
-   deploy av staging-prosjektet.
-3. **Environment variables** (Settings → Environment Variables) — sett for
-   *Production* (og gjerne Preview) i staging-prosjektet. Verdiene er dev-verdiene
-   fra lokal `.env.local`:
+Prosjektet `smertefri-ny-staging` er opprettet i workspace-et «SmerteFri's
+projects» (samme Hobby-konto som produksjon — eget prosjekt, ikke eget team).
+
+Produksjonsbranch, env-variabler og domener settes med:
+
+```
+python3 scripts/setup-staging-vercel.py
+```
+
+Scriptet leser `VERCEL_TOKEN` fra `.env.local` og rører aldri
+produksjonsprosjektet. Detaljene det setter:
+
+1. **Production Branch** = `feature/nye-smertefri` → hver push til branchen
+   blir en staging-deploy.
+2. **Environment variables** (Production + Preview) fra `.env.local` — dev-verdier:
 
    | Variabel | Verdi |
    |---|---|
    | `NEXT_PUBLIC_SUPABASE_URL` | `https://lclsquqcongfnngtsgik.supabase.co` |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | dev anon-key (fra `.env.local`) |
-   | `OPENAI_API_KEY` | som `.env.local` |
-   | `OPENAI_MODEL` | som `.env.local` |
-   | `NEXT_PUBLIC_GA_ID` | egen staging-property, eller la stå tom for å skru av GA |
-   | `GA_CLIENT_EMAIL` / `GA_PRIVATE_KEY` / `GA4_PROPERTY_ID` | valgfritt på staging |
-   | `RESEND_API_KEY` | som `.env.local` (lead-e-post) |
-   | `LEADS_FROM_EMAIL` / `LEADS_TO_EMAIL` | som `.env.local` |
-   | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | som `.env.local` — men legg `ny.smertefri.no` til i Turnstile-widgetens domeneliste |
+   | `OPENAI_API_KEY` / `OPENAI_MODEL` | som `.env.local` |
+   | `RESEND_API_KEY` / `LEADS_FROM_EMAIL` / `LEADS_TO_EMAIL` | som `.env.local` (lead-e-post) |
+   | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | som `.env.local` — legg også `ny.smertefri.no` til i Turnstile-widgetens domeneliste |
 
-4. **Domener** (Settings → Domains): legg til `ny.smertefri.no` og
-   `app-ny.smertefri.no`.
+   GA-variablene (`NEXT_PUBLIC_GA_ID`, `GA_*`) utelates bevisst på staging så
+   testtrafikk ikke havner i prod-analytics.
+
+3. **Domener**: `ny.smertefri.no` og `app-ny.smertefri.no` (scriptet legger dem til).
 
 ## DNS (hos den som hoster `smertefri.no`-sonen)
 
