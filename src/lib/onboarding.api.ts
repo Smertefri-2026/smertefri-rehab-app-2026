@@ -2,6 +2,7 @@
 import { supabase } from "@/lib/supabaseClient";
 import { isRedFlagCleared } from "@/lib/onboarding/redFlags";
 import { suggestCalibrationProfile, type CalibrationProfile } from "@/lib/onboarding/calibration";
+import { initTrappForSelf } from "@/lib/trapp.api";
 
 export type OnboardingRow = {
   id: string;
@@ -129,6 +130,15 @@ export async function submitOnboarding(
   } else {
     const { error } = await supabase.from("onboarding_assessments").insert(row as never);
     if (error) throw error;
+  }
+
+  if (cleared) {
+    // Sett startpunktet i Trappen (Ro). Ikke la en feil her blokkere flyten.
+    try {
+      await initTrappForSelf(user.id);
+    } catch (e) {
+      console.warn("Kunne ikke initialisere Trappen:", e);
+    }
   }
 
   return { cleared, profile };

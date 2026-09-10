@@ -11,6 +11,8 @@ import ClientCard from "@/components/client/ClientCard";
 import Section2ClientActions from "../sections/Section2ClientActions";
 import Section3ClientOverview from "../sections/Section3ClientOverview";
 import ClientDetails from "@/components/client/ClientDetails";
+import ClientZoneSummary from "@/components/client/ClientZoneSummary";
+import TrappTrainerControl from "@/components/trapp/TrappTrainerControl";
 
 import Section4ClientPainSummary from "../sections/Section4ClientPainSummary";
 import Section5ClientTestsSummary from "../sections/Section5ClientTestsSummary";
@@ -45,6 +47,12 @@ export default function ClientDetailPage({ params }: PageProps) {
         <ClientCard client={client} />
 
         <Section2ClientActions clientId={clientId} />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ClientZoneSummary clientId={clientId} />
+          <TrappTrainerControl clientId={clientId} />
+        </div>
+
         <Section3ClientOverview clientId={clientId} />
 
         {/* ✅ 3-kolonne “dashboard-grid” */}

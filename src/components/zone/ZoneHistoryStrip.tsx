@@ -12,13 +12,20 @@ function shortDate(iso: string): string {
   return d.toLocaleDateString("no-NO", { day: "2-digit", month: "2-digit" });
 }
 
-export default function ZoneHistoryStrip({ zones }: { zones: ZoneHistoryRow[] }) {
+export default function ZoneHistoryStrip({
+  zones,
+  bare = false,
+}: {
+  zones: ZoneHistoryRow[];
+  /** Uten kort-ramme (når den ligger inne i et annet kort). */
+  bare?: boolean;
+}) {
   if (zones.length === 0) return null;
 
   const ordered = [...zones].sort((a, b) => (a.zone_date < b.zone_date ? -1 : 1));
 
-  return (
-    <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
+  const body = (
+    <>
       <h3 className="text-sm font-semibold text-ink">Siste 14 dager</h3>
       <div className="mt-4 flex flex-wrap gap-3">
         {ordered.map((z) => (
@@ -28,6 +35,9 @@ export default function ZoneHistoryStrip({ zones }: { zones: ZoneHistoryRow[] })
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
+
+  if (bare) return <div>{body}</div>;
+  return <div className="rounded-lg border border-border bg-surface p-5 shadow-card">{body}</div>;
 }

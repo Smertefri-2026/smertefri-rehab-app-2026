@@ -12,6 +12,7 @@ import { cn } from "@/ui/cn";
 import {
   LayoutDashboard,
   Gauge,
+  Footprints,
   Calendar,
   HeartPulse,
   Activity,
@@ -40,6 +41,7 @@ type SidebarItem = {
 const clientItems: SidebarItem[] = [
   { label: "Hjem", href: "/dashboard", icon: LayoutDashboard },
   { label: "Sonen", href: "/sonen", icon: Gauge },
+  { label: "Trappen", href: "/trappen", icon: Footprints },
   { label: "Kalender", href: "/calendar", icon: Calendar },
   { label: "Smerter", href: "/pain", icon: HeartPulse },
   { label: "Tester", href: "/tests", icon: Activity },

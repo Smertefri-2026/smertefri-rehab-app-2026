@@ -14,6 +14,7 @@ const APP_PREFIXES = [
   "/dashboard",
   "/onboarding",
   "/sonen",
+  "/trappen",
   "/calendar",
   "/clients",
   "/chat",
