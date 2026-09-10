@@ -16,6 +16,7 @@ const APP_PREFIXES = [
   "/sonen",
   "/trappen",
   "/program",
+  "/fremgang",
   "/calendar",
   "/clients",
   "/chat",

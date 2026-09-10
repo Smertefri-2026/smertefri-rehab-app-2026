@@ -9,6 +9,7 @@ import Section1Header from "./sections/Section1Header";
 import SectionZoneToday from "./sections/SectionZoneToday";
 import SectionTrapp from "./sections/SectionTrapp";
 import SectionProgram from "./sections/SectionProgram";
+import SectionProgress from "./sections/SectionProgress";
 import SectionMyTrainer from "./sections/SectionMyTrainer";
 import Section2StatusAndNextSteps from "./sections/Section2StatusAndNextSteps";
 import Section3QuickActions from "./sections/Section3QuickActions";
@@ -29,6 +30,7 @@ export default function DashboardPage() {
       <SectionZoneToday />
       <SectionTrapp />
       <SectionProgram />
+      <SectionProgress />
       {role === "client" && <SectionMyTrainer />}
       <Section2StatusAndNextSteps />
       <Section3QuickActions />

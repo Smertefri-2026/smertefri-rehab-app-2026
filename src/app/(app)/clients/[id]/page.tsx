@@ -14,6 +14,7 @@ import ClientDetails from "@/components/client/ClientDetails";
 import ClientZoneSummary from "@/components/client/ClientZoneSummary";
 import TrappTrainerControl from "@/components/trapp/TrappTrainerControl";
 import ProgramTrainerControl from "@/components/program/ProgramTrainerControl";
+import ProgressOverview from "@/components/progress/ProgressOverview";
 
 import Section4ClientPainSummary from "../sections/Section4ClientPainSummary";
 import Section5ClientTestsSummary from "../sections/Section5ClientTestsSummary";
@@ -55,6 +56,11 @@ export default function ClientDetailPage({ params }: PageProps) {
         </div>
 
         <ProgramTrainerControl clientId={clientId} />
+
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-ink-soft">Fremgang</h2>
+          <ProgressOverview clientId={clientId} />
+        </section>
 
         <Section3ClientOverview clientId={clientId} />
 
