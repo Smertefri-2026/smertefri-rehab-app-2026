@@ -25,11 +25,15 @@ export default function InstallPWAButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
+  // SSR og første klient-render gir samme (tomme) resultat. Klient-only sjekker
+  // (userAgent, matchMedia) påvirker først visningen etter hydrering.
+  const [mounted, setMounted] = useState(false);
 
   const ios = useMemo(() => isIos(), []);
   const standalone = useMemo(() => isInStandaloneMode(), []);
 
   useEffect(() => {
+    setMounted(true);
     setInstalled(standalone);
 
     const onBeforeInstallPrompt = (e: Event) => {
@@ -50,6 +54,9 @@ export default function InstallPWAButton() {
       window.removeEventListener("appinstalled", onAppInstalled);
     };
   }, [standalone]);
+
+  // Før hydrering: render ingenting (likt server/klient).
+  if (!mounted) return null;
 
   // Skjul hvis allerede installert
   if (installed) return null;
