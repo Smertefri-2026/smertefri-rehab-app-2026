@@ -4,17 +4,15 @@ import type { NextRequest } from "next/server";
 /**
  * Domenearkitektur — samme kodebase, hostname-basert routing:
  *
- *   Produksjon:  smertefri.no       → offentlig nettside
- *                app.smertefri.no   → innlogging + hele appen
- *
- *   Staging:     ny.smertefri.no    → offentlig nettside (staging)
- *                app-ny.smertefri.no → innlogging + app (staging)
+ *   smertefri.no       → offentlig nettside
+ *   app.smertefri.no   → innlogging + hele appen («Min SmerteFri»)
  *
  * Preview-deploys (*.vercel.app) og localhost serveres fra samme origin —
  * ingen redirects. AuthGuard beskytter app-sidene klientside uansett.
  *
- * Staging og produksjon er separate miljøer: staging peker på dev-Supabase
- * (smertefri-dev-sep-26), produksjon på sin egen. De deler aldri sesjon.
+ * Et valgfritt sekundært miljø kan defineres via env-variablene
+ * STAGING_MARKETING_HOST / STAGING_APP_HOST (settes kun på den aktuelle
+ * deployen). Produktkoden inneholder ingen faste sekundærdomener.
  */
 
 const APP_PREFIXES = [
@@ -33,7 +31,6 @@ const APP_PREFIXES = [
   "/tests",
   "/nutrition",
   "/profile",
-  "/settings",
   "/trainer",
   "/trainers",
   "/trainer-application",
@@ -42,11 +39,18 @@ const APP_PREFIXES = [
 
 const AUTH_PREFIXES = ["/login", "/register"];
 
+type HostEnv = { marketing: string; marketingAliases: string[]; app: string };
+
 /** host-par per miljø: marketing-host ↔ app-host. */
-const ENVIRONMENTS = [
+const ENVIRONMENTS: HostEnv[] = [
   { marketing: "smertefri.no", marketingAliases: ["www.smertefri.no"], app: "app.smertefri.no" },
-  { marketing: "ny.smertefri.no", marketingAliases: [], app: "app-ny.smertefri.no" },
-] as const;
+];
+
+const stagingMarketing = process.env.STAGING_MARKETING_HOST?.toLowerCase();
+const stagingApp = process.env.STAGING_APP_HOST?.toLowerCase();
+if (stagingMarketing && stagingApp) {
+  ENVIRONMENTS.push({ marketing: stagingMarketing, marketingAliases: [], app: stagingApp });
+}
 
 function hasPrefix(pathname: string, prefixes: string[]) {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -57,7 +61,7 @@ export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
   const env = ENVIRONMENTS.find(
-    (e) => e.marketing === host || e.app === host || (e.marketingAliases as readonly string[]).includes(host)
+    (e) => e.marketing === host || e.app === host || e.marketingAliases.includes(host)
   );
 
   // Preview / localhost / alt annet: rør ingenting.

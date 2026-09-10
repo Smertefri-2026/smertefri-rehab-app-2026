@@ -1583,6 +1583,13 @@ export type Database = {
         Args: { p_application_id: string; p_approve: boolean; p_notes?: string }
         Returns: undefined
       }
+      set_calibration_profile: {
+        Args: {
+          p_client_id: string
+          p_profile: Database["public"]["Enums"]["calibration_profile"]
+        }
+        Returns: undefined
+      }
       set_trainer_status: {
         Args: {
           p_status: Database["public"]["Enums"]["trainer_status"]

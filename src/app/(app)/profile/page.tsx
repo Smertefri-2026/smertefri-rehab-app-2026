@@ -7,9 +7,9 @@ import { ProfileProvider } from "@/stores/profile.store";
 import Section1Personal from "./sections/Section1Personal";
 import Section2Address from "./sections/Section2Address";
 import Section3Role from "./sections/Section3Role";
-import Section4Billing from "./sections/Section4Billing";
 import Section5Security from "./sections/Section5Security";
 import Section6DeleteAccount from "./sections/Section6DeleteAccount";
+import Section7SignOut from "./sections/Section7SignOut";
 
 export default function ProfilePage() {
   return (
@@ -20,8 +20,8 @@ export default function ProfilePage() {
             <Section1Personal />
             <Section2Address />
             <Section3Role />
-            <Section4Billing />
             <Section5Security />
+            <Section7SignOut />
             <Section6DeleteAccount />
           </div>
         </AppPage>

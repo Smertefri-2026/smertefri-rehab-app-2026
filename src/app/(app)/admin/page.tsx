@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Activity, CalendarClock, Users, Settings } from "lucide-react";
+import { Activity, CalendarClock, Users } from "lucide-react";
 
 import AppPage from "@/components/layout/AppPage";
 import { useRole } from "@/providers/RoleProvider";
@@ -33,12 +33,6 @@ const TOOLS: Tool[] = [
     title: "Brukertabell",
     desc: "Alle brukere med rolle, by og trenerkobling – søk og filtrering.",
     icon: Users,
-  },
-  {
-    href: "/settings",
-    title: "Innstillinger",
-    desc: "Systemstatus, tilgang og driftskonfigurasjon.",
-    icon: Settings,
   },
 ];
 

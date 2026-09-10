@@ -1,102 +1,97 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+
+/** Sikkerhet & innlogging — reelle handlinger mot Supabase Auth. */
 export default function Section5Security() {
-  /**
-   * 🔧 DUMMY STATUS
-   * Kobles senere mot Supabase Auth
-   */
-  const security = {
-    emailVerified: true,
-    passwordLastChanged: "3 måneder siden",
-    twoFactorEnabled: false,
-    sessionsActive: 1,
-  };
+  const [email, setEmail] = useState<string | null>(null);
+  const [resetState, setResetState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (alive) setEmail(data.user?.email ?? null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function handlePasswordReset() {
+    if (!email || resetState === "sending") return;
+    setResetState("sending");
+    setMsg(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/register/reset`,
+    });
+    if (error) {
+      setResetState("error");
+      setMsg(error.message);
+      return;
+    }
+    setResetState("sent");
+  }
+
+  async function handleSignOutEverywhere() {
+    if (signingOut) return;
+    setSigningOut(true);
+    await supabase.auth.signOut({ scope: "global" });
+    window.location.href = "/login";
+  }
 
   return (
-    <section className="rounded-2xl border border-sf-border bg-white p-6 shadow-sm">
+    <section className="rounded-lg border border-border bg-surface p-6 shadow-card">
       <div className="space-y-5">
+        <h3 className="text-sm font-semibold text-ink">Sikkerhet &amp; innlogging</h3>
 
-        {/* 🔐 Header */}
-        <h3 className="text-sm font-semibold text-sf-text">
-          Sikkerhet & innlogging
-        </h3>
-
-        {/* ================== E-POST ================== */}
-        <div className="flex items-center justify-between rounded-xl border border-sf-border p-4">
-          <div>
-            <p className="text-sm font-medium">E-postbekreftelse</p>
-            <p className="text-sm text-sf-muted">
-              {security.emailVerified
-                ? "E-post er bekreftet"
-                : "E-post er ikke bekreftet"}
-            </p>
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-ink">E-post</p>
+            <p className="truncate text-sm text-ink-soft">{email ?? "…"}</p>
           </div>
-
-          {security.emailVerified ? (
-            <span className="text-sm font-medium text-emerald-600">
-              Bekreftet
-            </span>
-          ) : (
-            <button className="rounded-full bg-[#007C80] px-5 py-2 text-sm font-medium text-white hover:opacity-90">
-              Send bekreftelse
-            </button>
-          )}
+          <span className="shrink-0 text-sm font-medium text-success-ink">Bekreftet</span>
         </div>
 
-        {/* ================== PASSORD ================== */}
-        <div className="flex items-center justify-between rounded-xl border border-sf-border p-4">
+        <div className="flex flex-col gap-3 rounded-md border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-medium">Passord</p>
-            <p className="text-sm text-sf-muted">
-              Sist endret: {security.passwordLastChanged}
+            <p className="text-sm font-medium text-ink">Passord</p>
+            <p className="text-sm text-ink-soft">
+              Vi sender en lenke til e-posten din for å sette nytt passord.
             </p>
           </div>
-
-          <button className="rounded-full border border-sf-border px-5 py-2 text-sm hover:bg-sf-soft">
-            Endre passord
-          </button>
-        </div>
-
-        {/* ================== 2FA ================== */}
-        <div className="flex items-center justify-between rounded-xl border border-sf-border p-4">
-          <div>
-            <p className="text-sm font-medium">
-              Tofaktorautentisering (2FA)
-            </p>
-            <p className="text-sm text-sf-muted">
-              {security.twoFactorEnabled
-                ? "Ekstra sikkerhet er aktivert"
-                : "Anbefales for økt sikkerhet"}
-            </p>
-          </div>
-
           <button
-            className={`rounded-full px-5 py-2 text-sm font-medium ${
-              security.twoFactorEnabled
-                ? "border border-sf-border hover:bg-sf-soft"
-                : "bg-[#007C80] text-white hover:opacity-90"
-            }`}
+            type="button"
+            onClick={handlePasswordReset}
+            disabled={!email || resetState === "sending" || resetState === "sent"}
+            className="shrink-0 rounded-md border border-border px-4 py-2 text-[13px] font-medium text-ink-soft transition hover:bg-surface-alt disabled:opacity-50"
           >
-            {security.twoFactorEnabled
-              ? "Administrer"
-              : "Aktiver 2FA"}
+            {resetState === "sending"
+              ? "Sender …"
+              : resetState === "sent"
+              ? "Lenke sendt ✓"
+              : "Endre passord"}
           </button>
         </div>
 
-        {/* ================== ØKTER ================== */}
-        <div className="flex items-center justify-between rounded-xl border border-sf-border p-4">
+        {msg && <p className="text-sm text-danger-ink">{msg}</p>}
+
+        <div className="flex flex-col gap-3 rounded-md border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-medium">Aktive økter</p>
-            <p className="text-sm text-sf-muted">
-              Innlogget på {security.sessionsActive} enhet
-            </p>
+            <p className="text-sm font-medium text-ink">Aktive innlogginger</p>
+            <p className="text-sm text-ink-soft">Logg ut av alle enheter du er innlogget på.</p>
           </div>
-
-          <button className="rounded-full border border-red-200 px-5 py-2 text-sm text-red-600 hover:bg-red-50">
-            Logg ut alle
+          <button
+            type="button"
+            onClick={handleSignOutEverywhere}
+            disabled={signingOut}
+            className="shrink-0 rounded-md border border-transparent bg-danger-subtle px-4 py-2 text-[13px] font-medium text-danger-ink transition hover:opacity-90 disabled:opacity-50"
+          >
+            {signingOut ? "Logger ut …" : "Logg ut overalt"}
           </button>
         </div>
-
       </div>
     </section>
   );

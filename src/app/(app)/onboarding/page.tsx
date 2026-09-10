@@ -141,9 +141,9 @@ export default function OnboardingPage() {
         setBlocked(true);
         return;
       }
-      router.replace("/sonen");
-    } catch (e: any) {
-      setError(e?.message ?? "Kunne ikke lagre kartleggingen");
+      router.replace("/dashboard");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Kunne ikke lagre kartleggingen");
     } finally {
       setSubmitting(false);
     }

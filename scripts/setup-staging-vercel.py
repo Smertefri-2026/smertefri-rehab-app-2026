@@ -37,6 +37,11 @@ ENV_KEYS = [
     "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
     "TURNSTILE_SECRET_KEY",
 ]
+# Sekundærmiljøet defineres kun her, ikke i produktkoden (src/middleware.ts).
+ENV_FIXED = {
+    "STAGING_MARKETING_HOST": "ny.smertefri.no",
+    "STAGING_APP_HOST": "app-ny.smertefri.no",
+}
 ENV_TARGETS = ["production", "preview"]
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -113,8 +118,8 @@ def main():
     for e in existing.get("envs", []):
         by_key.setdefault(e["key"], []).append(e["id"])
 
-    for key in ENV_KEYS:
-        val = env.get(key)
+    pairs = [(k, env.get(k)) for k in ENV_KEYS] + list(ENV_FIXED.items())
+    for key, val in pairs:
         if not val:
             print(f"   – {key}: mangler i .env.local, hopper over")
             continue

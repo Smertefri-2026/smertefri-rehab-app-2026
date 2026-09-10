@@ -6,11 +6,18 @@ import { ArrowUpRight, Minus, ArrowDownRight, Check, X } from "lucide-react";
 import { Button } from "@/ui/components/Button";
 import { cn } from "@/ui/cn";
 import {
+  CALIBRATION_LABEL,
+  type CalibrationProfile,
+} from "@/lib/onboarding/calibration";
+import {
   getCalibratorView,
   logCalibratorDecision,
+  setCalibrationProfile,
   decisionIsFresh,
   type CalibratorView,
 } from "@/lib/calibrator.api";
+
+const PROFILES: CalibrationProfile[] = ["forsiktig", "standard", "aktiv"];
 
 const KIND_META = {
   expand: {
@@ -93,6 +100,20 @@ export default function CalibratorCard({ clientId }: { clientId: string }) {
     }
   }
 
+  async function changeProfile(profile: CalibrationProfile) {
+    if (busy || profile === input.profile) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await setCalibrationProfile(clientId, profile);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Kunne ikke endre profil");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className={cn("space-y-4 rounded-lg border p-6 shadow-card", meta.tone)}>
       <div className="flex items-center justify-between gap-3">
@@ -120,9 +141,29 @@ export default function CalibratorCard({ clientId }: { clientId: string }) {
 
       {!hasEnoughData && (
         <p className="text-xs text-ink-faint">
-          Foreløpig tynt datagrunnlag — forslaget blir sikrere etter noen flere dager med innsjekk.
+          Tynt datagrunnlag så langt — forslaget blir sikrere etter noen flere dager med innsjekk.
         </p>
       )}
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+        <span className="text-xs font-medium text-ink-soft">Kalibreringsprofil:</span>
+        {PROFILES.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => changeProfile(p)}
+            disabled={busy}
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-medium transition disabled:opacity-50",
+              p === input.profile
+                ? "bg-primary text-primary-ink"
+                : "bg-surface/70 text-ink-soft hover:text-ink"
+            )}
+          >
+            {CALIBRATION_LABEL[p]}
+          </button>
+        ))}
+      </div>
 
       {error && <p className="text-sm text-danger-ink">{error}</p>}
 

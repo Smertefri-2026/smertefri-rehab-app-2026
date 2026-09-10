@@ -1,70 +1,93 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (state === "sending") return;
+    setState("sending");
+    setError(null);
+
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/register/reset`,
+    });
+
+    if (err) {
+      setState("error");
+      setError(
+        err.message.toLowerCase().includes("rate")
+          ? "Vent litt før du prøver igjen."
+          : err.message
+      );
+      return;
+    }
+    setState("sent");
+  }
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-sf-border bg-white p-8 shadow-xl text-center">
-      {/* LOGO */}
-      <h1
-        className="text-3xl font-semibold tracking-tight"
-        style={{ fontFamily: "var(--font-montserrat-alternates)" }}
-      >
-        <span className="text-[#007C80]">Smerte</span>
-        <span className="text-[#29A9D6]">Fri</span>
-      </h1>
+    <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 text-center shadow-lg">
+      {state === "sent" ? (
+        <>
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-subtle text-3xl">
+            ✉️
+          </div>
+          <h1 className="mt-6 text-xl font-semibold text-ink">Sjekk e-posten din</h1>
+          <p className="mt-3 text-sm text-ink-soft">
+            Hvis <span className="font-medium text-ink">{email.trim()}</span> har en konto hos
+            oss, har vi sendt en lenke for å sette nytt passord. Sjekk også søppelpost.
+          </p>
+          <p className="mt-6 text-sm">
+            <Link href="/login" className="font-medium text-primary-ink hover:underline">
+              Tilbake til innlogging
+            </Link>
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-subtle text-3xl">
+            🔐
+          </div>
+          <h1 className="mt-6 text-xl font-semibold text-ink">Glemt passord</h1>
+          <p className="mt-3 text-sm text-ink-soft">
+            Skriv inn e-postadressen din, så sender vi deg en lenke for å lage nytt passord.
+          </p>
 
-      {/* ICON */}
-      <div className="mx-auto mt-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#E6F3F6] text-3xl">
-        🔐
-      </div>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="E-post"
+              required
+              autoComplete="email"
+              className="w-full rounded-xl border border-border bg-page px-4 py-3 text-base text-ink outline-none focus:border-primary"
+            />
 
-      {/* TITLE */}
-      <h2 className="mt-6 text-xl font-semibold text-sf-text">Glemt passord</h2>
+            {error && <p className="text-sm text-danger-ink">{error}</p>}
 
-      {/* TEXT */}
-      <p className="mt-3 text-sm text-sf-muted">
-        Skriv inn e-postadressen din, så sender vi deg en lenke for å lage nytt passord.
-      </p>
+            <button
+              type="submit"
+              disabled={state === "sending"}
+              className="w-full rounded-full bg-primary py-3 text-base font-medium text-primary-ink transition hover:opacity-90 disabled:opacity-50"
+            >
+              {state === "sending" ? "Sender …" : "Send lenke"}
+            </button>
+          </form>
 
-      {/* FORM */}
-      <form className="mt-6 space-y-4">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="E-post"
-          required
-          className="w-full rounded-xl border border-sf-border bg-sf-soft px-4 py-3 text-base outline-none focus:border-[#007C80]"
-        />
-
-        <button
-          type="submit"
-          className="w-full rounded-full bg-[#007C80] py-3 text-base font-medium text-white hover:opacity-90 transition"
-          style={{ fontFamily: "var(--font-montserrat-alternates)" }}
-        >
-          Send reset-lenke
-        </button>
-      </form>
-
-      {/* LINKS */}
-      <div className="mt-6 text-sm">
-        <button
-          onClick={() => {
-            window.location.href = "https://app.smertefri.no/login";
-          }}
-          className="font-medium text-[#007C80] hover:underline"
-        >
-          Tilbake til login
-        </button>
-      </div>
-
-      {/* HELP */}
-      <p className="mt-6 text-xs text-sf-muted">
-        Finner du ikke e-posten? Sjekk søppelpost eller prøv igjen senere.
-      </p>
+          <p className="mt-6 text-sm">
+            <Link href="/login" className="font-medium text-primary-ink hover:underline">
+              Tilbake til innlogging
+            </Link>
+          </p>
+        </>
+      )}
     </div>
   );
 }

@@ -126,6 +126,18 @@ export async function getCalibratorView(clientId: string): Promise<CalibratorVie
   };
 }
 
+/** Trener justerer kundens kalibreringsprofil (går gjennom SECURITY DEFINER-RPC). */
+export async function setCalibrationProfile(
+  clientId: string,
+  profile: CalibrationProfile
+): Promise<void> {
+  const { error } = await supabase.rpc("set_calibration_profile", {
+    p_client_id: clientId,
+    p_profile: profile,
+  });
+  if (error) throw error;
+}
+
 /** Trener tar stilling til et forslag. Logges i calibrator_events. */
 export async function logCalibratorDecision(
   clientId: string,
