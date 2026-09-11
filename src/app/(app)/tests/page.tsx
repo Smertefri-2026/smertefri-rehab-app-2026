@@ -12,6 +12,7 @@ import Section1TestsTabs from "./sections/Section1TestsTabs";
 import Section2BodyweightSummary from "./sections/Section2BodyweightSummary";
 import Section3StrengthSummary from "./sections/Section3StrengthSummary";
 import Section4CardioSummary from "./sections/Section4CardioSummary";
+import { getTestCategoryAccess, type TestCategoryAccess } from "@/lib/testCategories.api";
 
 type Category = "bodyweight" | "strength" | "cardio";
 
@@ -92,6 +93,18 @@ export default function TestsPage() {
   const [sessions, setSessions] = useState<TestSession[]>([]);
   const [entriesBySession, setEntriesBySession] = useState<Record<string, TestEntry[]>>({});
   const [err, setErr] = useState<string | null>(null);
+  const [access, setAccess] = useState<TestCategoryAccess | null>(null);
+
+  useEffect(() => {
+    if (role !== "client" || !userId) return;
+    let alive = true;
+    getTestCategoryAccess(userId)
+      .then((a) => alive && setAccess(a))
+      .catch(() => alive && setAccess(null));
+    return () => {
+      alive = false;
+    };
+  }, [role, userId]);
 
   useEffect(() => {
     if (loading || !userId) return;
@@ -222,38 +235,51 @@ export default function TestsPage() {
             </div>
           )}
 
-          <Section2BodyweightSummary
-            periodLabel={fmtDateRange(
-              summaries.bodyweight.baselineAt,
-              summaries.bodyweight.latestAt
+          {access && !access.bodyweight.enabled && !access.bodyweight.hasHistory && !access.strength.enabled &&
+            !access.strength.hasHistory && !access.cardio.enabled && !access.cardio.hasHistory && (
+              <div className="rounded-2xl border border-sf-border bg-white p-5 text-sm text-sf-muted">
+                Rehabtreneren din har ikke aktivert noen tester for deg ennå.
+              </div>
             )}
-            baseline={summaries.bodyweight.baselineValue}
-            latest={summaries.bodyweight.latestValue}
-            deltaPct={summaries.bodyweight.deltaPct}
-            unitLabel={summaries.bodyweight.unitLabel}
-            onOpen={() => router.push("/tests/bodyweight")}
-          />
 
-          <Section3StrengthSummary
-            periodLabel={fmtDateRange(
-              summaries.strength.baselineAt,
-              summaries.strength.latestAt
-            )}
-            baseline={summaries.strength.baselineValue}
-            latest={summaries.strength.latestValue}
-            deltaPct={summaries.strength.deltaPct}
-            unitLabel={summaries.strength.unitLabel}
-            onOpen={() => router.push("/tests/strength")}
-          />
+          {(!access || access.bodyweight.enabled || access.bodyweight.hasHistory) && (
+            <Section2BodyweightSummary
+              periodLabel={fmtDateRange(
+                summaries.bodyweight.baselineAt,
+                summaries.bodyweight.latestAt
+              )}
+              baseline={summaries.bodyweight.baselineValue}
+              latest={summaries.bodyweight.latestValue}
+              deltaPct={summaries.bodyweight.deltaPct}
+              unitLabel={summaries.bodyweight.unitLabel}
+              onOpen={() => router.push("/tests/bodyweight")}
+            />
+          )}
 
-          <Section4CardioSummary
-            periodLabel={fmtDateRange(summaries.cardio.baselineAt, summaries.cardio.latestAt)}
-            baseline={summaries.cardio.baselineValue}
-            latest={summaries.cardio.latestValue}
-            deltaPct={summaries.cardio.deltaPct}
-            unitLabel={summaries.cardio.unitLabel}
-            onOpen={() => router.push("/tests/cardio")}
-          />
+          {(!access || access.strength.enabled || access.strength.hasHistory) && (
+            <Section3StrengthSummary
+              periodLabel={fmtDateRange(
+                summaries.strength.baselineAt,
+                summaries.strength.latestAt
+              )}
+              baseline={summaries.strength.baselineValue}
+              latest={summaries.strength.latestValue}
+              deltaPct={summaries.strength.deltaPct}
+              unitLabel={summaries.strength.unitLabel}
+              onOpen={() => router.push("/tests/strength")}
+            />
+          )}
+
+          {(!access || access.cardio.enabled || access.cardio.hasHistory) && (
+            <Section4CardioSummary
+              periodLabel={fmtDateRange(summaries.cardio.baselineAt, summaries.cardio.latestAt)}
+              baseline={summaries.cardio.baselineValue}
+              latest={summaries.cardio.latestValue}
+              deltaPct={summaries.cardio.deltaPct}
+              unitLabel={summaries.cardio.unitLabel}
+              onOpen={() => router.push("/tests/cardio")}
+            />
+          )}
         </div>
       </AppPage>
     </main>

@@ -24,6 +24,25 @@ import Section8Analytics from "./sections/Section8Analytics";
 export default function DashboardPage() {
   const { role } = useRole();
 
+  if (role === "client") {
+    // Kundens samleside: det hun faktisk trenger i dag, i prioritert
+    // rekkefølge — ikke en vegg av kort. Trappen (fulle 5 trinn), full
+    // fremgang, og smerte-/test-/kostholdskortene er ikke fjernet, bare
+    // ikke duplisert her — de har egne sider (Min plan, Fremgang) og nås
+    // via Snarveier under.
+    return (
+      <AppPage spacing="roomy">
+        <Section1Header />
+        <SectionZoneToday />
+        <SectionProgram />
+        <SectionMyTrainer />
+        <SectionProgress />
+        <Section2StatusAndNextSteps />
+        <Section3QuickActions />
+      </AppPage>
+    );
+  }
+
   return (
     <AppPage spacing="roomy">
       <Section1Header />
@@ -31,7 +50,6 @@ export default function DashboardPage() {
       <SectionTrapp />
       <SectionProgram />
       <SectionProgress />
-      {role === "client" && <SectionMyTrainer />}
       <Section2StatusAndNextSteps />
       <Section3QuickActions />
       <Section4Pain />

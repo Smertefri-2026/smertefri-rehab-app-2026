@@ -72,7 +72,7 @@ export default function ChatThreadPage() {
   const params = useParams<{ threadId: string }>();
   const threadId = params?.threadId;
 
-  const { userId, loading } = useRole();
+  const { userId, role, loading } = useRole();
 
   const [thread, setThread] = useState<ThreadRow | null>(null);
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -314,7 +314,7 @@ export default function ChatThreadPage() {
               ←
             </Link>
 
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1 className="text-lg font-semibold text-sf-text truncate">
                 {headerTitle}
               </h1>
@@ -328,6 +328,15 @@ export default function ChatThreadPage() {
                 </p>
               )}
             </div>
+
+            {(role === "trainer" || role === "admin") && otherProfile?.role === "client" && (
+              <Link
+                href={`/clients/${otherProfile.id}`}
+                className="inline-flex shrink-0 items-center justify-center rounded-full border border-sf-border px-4 py-2 text-sm font-medium text-sf-text hover:bg-sf-soft"
+              >
+                Kundekort →
+              </Link>
+            )}
           </div>
 
           {err && (

@@ -28,7 +28,19 @@ export default function SectionProgram() {
     };
   }, [role, userId]);
 
-  if (role !== "client" || assignment === undefined || !assignment) return null;
+  if (role !== "client" || assignment === undefined) return null;
+
+  if (!assignment) {
+    return (
+      <div className="rounded-lg border border-dashed border-border bg-surface-alt p-5">
+        <h2 className="text-sm font-semibold text-ink-soft">Dagens anbefaling</h2>
+        <p className="mt-1 text-sm text-ink">
+          Du har ikke fått et treningsprogram ennå — det setter rehabtreneren
+          din opp basert på kartleggingen din.
+        </p>
+      </div>
+    );
+  }
 
   const day = assignment.program.days.find((d) => d.day_index === assignment.current_day_index);
 
@@ -38,7 +50,7 @@ export default function SectionProgram() {
       className="block rounded-lg border border-border bg-surface p-5 shadow-card transition hover:shadow-pop"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-ink-soft">Dagens program</h2>
+        <h2 className="text-sm font-semibold text-ink-soft">Dette anbefaler vi i dag</h2>
         {done ? (
           <span className="rounded-full bg-success-subtle px-2.5 py-1 text-xs font-semibold text-success-ink">
             Logget

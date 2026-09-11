@@ -63,6 +63,24 @@ export async function getMyOnboarding(): Promise<OnboardingRow | null> {
   return (data as OnboardingRow) ?? null;
 }
 
+/**
+ * Nyeste kartlegging for en gitt kunde — brukt av rehabtreneren/admin på
+ * kundekortet. RLS (onboarding_select_assigned_trainer/_admin) håndhever
+ * at bare tildelt trener eller admin faktisk får noe tilbake.
+ */
+export async function getClientOnboarding(clientId: string): Promise<OnboardingRow | null> {
+  const { data, error } = await supabase
+    .from("onboarding_assessments")
+    .select("*")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as OnboardingRow) ?? null;
+}
+
 /** Har kunden en fullført kartlegging? Lett spørring for onboarding-gaten. */
 export async function hasCompletedOnboarding(clientId: string): Promise<boolean> {
   const { data, error } = await supabase

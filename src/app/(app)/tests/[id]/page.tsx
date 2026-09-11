@@ -10,6 +10,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
 import { useClients } from "@/stores/clients.store";
 import { getActiveTrainerIdForClient } from "@/lib/assignments.api";
+import {
+  getTestCategoryAccess,
+  setTestCategoryEnabled,
+  type TestCategory,
+  type TestCategoryAccess,
+} from "@/lib/testCategories.api";
 
 import { Plus } from "lucide-react";
 
@@ -216,6 +222,10 @@ export default function TestsIdPage() {
   const [myTrainerId, setMyTrainerId] = useState<string | null>(null);
   const [accessLoading, setAccessLoading] = useState(false);
 
+  // ✅ Trener/admin: hvilke kategorier er aktivert for denne kunden
+  const [categoryAccess, setCategoryAccess] = useState<TestCategoryAccess | null>(null);
+  const [togglingCategory, setTogglingCategory] = useState<TestCategory | null>(null);
+
   useEffect(() => {
     const run = async () => {
       if (role !== "client") return;
@@ -233,6 +243,33 @@ export default function TestsIdPage() {
     };
     run();
   }, [role, userId]);
+
+  // ✅ Trener/admin i klient-plukker-modus: last hvilke kategorier som er aktivert
+  useEffect(() => {
+    if (isCategory) return;
+    if (role !== "trainer" && role !== "admin") return;
+    if (!id) return;
+
+    let alive = true;
+    getTestCategoryAccess(id)
+      .then((a) => alive && setCategoryAccess(a))
+      .catch(() => alive && setCategoryAccess(null));
+    return () => {
+      alive = false;
+    };
+  }, [isCategory, role, id]);
+
+  async function handleToggleCategory(cat: TestCategory, nextEnabled: boolean) {
+    if (!id) return;
+    setTogglingCategory(cat);
+    try {
+      await setTestCategoryEnabled(id, cat, nextEnabled);
+      const fresh = await getTestCategoryAccess(id);
+      setCategoryAccess(fresh);
+    } finally {
+      setTogglingCategory(null);
+    }
+  }
 
   useEffect(() => {
     if (!isCategory) return;
@@ -538,33 +575,51 @@ export default function TestsIdPage() {
             </div>
           </div>
 
+          <p className="text-xs text-sf-muted">
+            Aktiver kategoriene som er relevante for denne kunden — kun aktiverte
+            kategorier (eller kategorier med tidligere resultater) vises på
+            kundens egen testside.
+          </p>
+
           <div className="grid gap-4 sm:grid-cols-3">
-            <button
-              type="button"
-              onClick={() => router.push(`/tests/${encodeURIComponent(clientId)}/bodyweight`)}
-              className="rounded-2xl border border-sf-border bg-white p-5 text-left shadow-sm hover:bg-sf-soft"
-            >
-              <div className="text-sm font-semibold text-sf-text">Egenvekt</div>
-              <div className="text-xs text-sf-muted">4 minutter per øvelse</div>
-            </button>
+            {(
+              [
+                { key: "bodyweight" as const, title: "Egenvekt", subtitle: "4 minutter per øvelse" },
+                { key: "strength" as const, title: "Styrke", subtitle: "1RM progresjon i baseøvelser" },
+                { key: "cardio" as const, title: "Kondis", subtitle: "4-min distanse" },
+              ]
+            ).map((c) => {
+              const access = categoryAccess?.[c.key];
+              const enabled = !!access?.enabled;
+              return (
+                <div
+                  key={c.key}
+                  className="rounded-2xl border border-sf-border bg-white p-5 shadow-sm"
+                >
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/tests/${encodeURIComponent(clientId)}/${c.key}`)}
+                    className="block w-full text-left"
+                  >
+                    <div className="text-sm font-semibold text-sf-text">{c.title}</div>
+                    <div className="text-xs text-sf-muted">{c.subtitle}</div>
+                  </button>
 
-            <button
-              type="button"
-              onClick={() => router.push(`/tests/${encodeURIComponent(clientId)}/strength`)}
-              className="rounded-2xl border border-sf-border bg-white p-5 text-left shadow-sm hover:bg-sf-soft"
-            >
-              <div className="text-sm font-semibold text-sf-text">Styrke</div>
-              <div className="text-xs text-sf-muted">1RM progresjon i baseøvelser</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => router.push(`/tests/${encodeURIComponent(clientId)}/cardio`)}
-              className="rounded-2xl border border-sf-border bg-white p-5 text-left shadow-sm hover:bg-sf-soft"
-            >
-              <div className="text-sm font-semibold text-sf-text">Kondis</div>
-              <div className="text-xs text-sf-muted">4-min distanse</div>
-            </button>
+                  <label className="mt-3 flex items-center justify-between gap-2 border-t border-sf-border pt-3 text-xs">
+                    <span className="text-sf-muted">
+                      {enabled ? "Aktiv for kunden" : access?.hasHistory ? "Har historikk (synlig)" : "Ikke aktivert"}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      disabled={togglingCategory === c.key}
+                      onChange={(e) => handleToggleCategory(c.key, e.target.checked)}
+                      className="h-4 w-4 accent-[#007C80]"
+                    />
+                  </label>
+                </div>
+              );
+            })}
           </div>
         </div>
       </AppPage>

@@ -350,6 +350,42 @@ export type Database = {
           },
         ]
       }
+      client_test_categories: {
+        Row: {
+          category: Database["public"]["Enums"]["test_category"]
+          client_id: string
+          created_at: string
+          enabled_by: string | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["test_category"]
+          client_id: string
+          created_at?: string
+          enabled_by?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["test_category"]
+          client_id?: string
+          created_at?: string
+          enabled_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_test_categories_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_test_categories_enabled_by_fkey"
+            columns: ["enabled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_trainer_assignments: {
         Row: {
           assigned_at: string
