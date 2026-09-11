@@ -12,6 +12,7 @@ import Section0PainHeader from "./sections/Section0PainHeader";
 import Section1PainSelector from "./sections/Section1PainSelector";
 import Section2PainActive from "./sections/Section2PainActive";
 import Section3PainHistory from "./sections/Section3PainHistory";
+import PainExerciseSuggestions from "@/components/pain/PainExerciseSuggestions";
 
 export default function PainPage() {
   const [clientId, setClientId] = useState<string | null>(null);
@@ -42,6 +43,8 @@ export default function PainPage() {
       <AppPage>
         <div className="space-y-6">
           <Section0PainHeader />
+
+          <PainExerciseSuggestions />
 
           <Section1PainSelector
             areas={PAIN_AREAS}

@@ -12,6 +12,7 @@ import Section2ClientActions from "../sections/Section2ClientActions";
 import Section3ClientOverview from "../sections/Section3ClientOverview";
 import ClientDetails from "@/components/client/ClientDetails";
 import ClientOnboardingSummary from "@/components/client/ClientOnboardingSummary";
+import ClientBookingHistory from "@/components/client/ClientBookingHistory";
 import ClientZoneSummary from "@/components/client/ClientZoneSummary";
 import CalibratorCard from "@/components/calibrator/CalibratorCard";
 import AiSummaryCard from "@/components/ai/AiSummaryCard";
@@ -55,7 +56,13 @@ export default function ClientDetailPage({ params }: PageProps) {
 
         <AiSummaryCard clientId={clientId} audience="trainer" />
 
-        <ClientOnboardingSummary clientId={clientId} />
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-sf-muted">Om kunden</h2>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ClientOnboardingSummary clientId={clientId} />
+            <ClientBookingHistory clientId={clientId} />
+          </div>
+        </section>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ClientZoneSummary clientId={clientId} />
