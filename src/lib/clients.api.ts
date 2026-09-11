@@ -70,7 +70,7 @@ export async function fetchAllClients(): Promise<Client[]> {
  * 🔐 Admin – hent ALLE trenere (for tildeling)
  */
 export async function fetchAllTrainers(): Promise<
-  { id: string; first_name: string | null; last_name: string | null }[]
+  { id: string; first_name: string | null; last_name: string | null; email: string | null }[]
 > {
   const { data, error } = await supabase
     .from("profiles")
@@ -78,7 +78,8 @@ export async function fetchAllTrainers(): Promise<
       `
       id,
       first_name,
-      last_name
+      last_name,
+      email
     `
     )
     .eq("role", "trainer")

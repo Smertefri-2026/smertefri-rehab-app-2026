@@ -12,6 +12,7 @@ type Trainer = {
   id: string;
   first_name: string | null;
   last_name: string | null;
+  email: string | null;
 };
 
 type Props = {
@@ -248,11 +249,14 @@ export default function ClientDetails({ client, canEdit = true }: Props) {
               className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
             >
               <option value="">— Ingen trener —</option>
-              {trainers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.first_name} {t.last_name}
-                </option>
-              ))}
+              {trainers.map((t) => {
+                const name = `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim();
+                return (
+                  <option key={t.id} value={t.id}>
+                    {name || t.email || "Trener uten navn"}
+                  </option>
+                );
+              })}
             </select>
 
             {trainerId && (

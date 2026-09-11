@@ -83,7 +83,7 @@ export default function Section1Header() {
         if (error) throw error;
 
         const name = `${data?.first_name ?? ""} ${data?.last_name ?? ""}`.trim();
-        if (alive) setMyName(name || "Hei");
+        if (alive) setMyName(name);
 
         if (data?.role === "client") {
           const trainerId = await getActiveTrainerIdForClient(userId);
@@ -94,7 +94,7 @@ export default function Section1Header() {
       } catch (e: any) {
         console.warn("Kunne ikke hente min profil:", e?.message);
         if (alive) {
-          setMyName("Hei");
+          setMyName("");
           setMyTrainerId(null);
         }
       }
@@ -297,7 +297,7 @@ export default function Section1Header() {
     <section className="space-y-6">
       {/* ================= HEADER ================= */}
       <div>
-        <h1 className="text-xl font-semibold text-sf-text">Hei, {myName || "Hei"} 👋</h1>
+        <h1 className="text-xl font-semibold text-sf-text">Hei{myName ? `, ${myName}` : ""} 👋</h1>
 
         <p className="text-sm text-sf-muted mt-1">
           {role === "client" && "Din personlige oversikt"}
