@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import AppPage from "@/components/layout/AppPage";
 import { useRole } from "@/providers/RoleProvider";
 import ProgressOverview from "@/components/progress/ProgressOverview";
+import AiSummaryCard from "@/components/ai/AiSummaryCard";
 
 export default function FremgangPage() {
   const router = useRouter();
@@ -25,7 +26,10 @@ export default function FremgangPage() {
 
   return (
     <AppPage title="Fremgang" subtitle="Hvordan det har gått over tid — smerte, soner, gjennomføring og milepæler.">
-      <ProgressOverview clientId={userId} />
+      <div className="space-y-6">
+        <AiSummaryCard clientId={userId} audience="customer" />
+        <ProgressOverview clientId={userId} />
+      </div>
     </AppPage>
   );
 }

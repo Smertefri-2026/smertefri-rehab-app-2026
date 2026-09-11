@@ -13,6 +13,7 @@ import Section3ClientOverview from "../sections/Section3ClientOverview";
 import ClientDetails from "@/components/client/ClientDetails";
 import ClientZoneSummary from "@/components/client/ClientZoneSummary";
 import CalibratorCard from "@/components/calibrator/CalibratorCard";
+import AiSummaryCard from "@/components/ai/AiSummaryCard";
 import TrappTrainerControl from "@/components/trapp/TrappTrainerControl";
 import ProgramTrainerControl from "@/components/program/ProgramTrainerControl";
 import ProgressOverview from "@/components/progress/ProgressOverview";
@@ -50,6 +51,8 @@ export default function ClientDetailPage({ params }: PageProps) {
         <ClientCard client={client} />
 
         <Section2ClientActions clientId={clientId} />
+
+        <AiSummaryCard clientId={clientId} audience="trainer" />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ClientZoneSummary clientId={clientId} />
