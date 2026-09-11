@@ -39,7 +39,13 @@ export async function getAuthedUser(req: Request): Promise<AuthedUser | null> {
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return null;
 
-  const { data: profile } = await supabase
+  // RLS-scoped klient: profiles-oppslaget må kjøre SOM brukeren (auth.uid()
+  // må være satt), ellers treffer ingen select-policy og role blir alltid
+  // null — uansett faktisk rolle.
+  const scoped = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data: profile } = await scoped
     .from("profiles")
     .select("role, email")
     .eq("id", data.user.id)
