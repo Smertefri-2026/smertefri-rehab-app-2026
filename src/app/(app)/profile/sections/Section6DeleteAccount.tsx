@@ -1,10 +1,14 @@
 "use client";
 
+import { useRole } from "@/providers/RoleProvider";
+
 /**
  * Sletting av konto. Håndteres på forespørsel i V1 — en selvbetjent
  * sletteflyt (Supabase Auth + soft-delete + karantene) kommer senere.
  */
 export default function Section6DeleteAccount() {
+  const { role } = useRole();
+
   return (
     <section className="rounded-lg border border-transparent bg-danger-subtle p-6 shadow-card">
       <div className="space-y-3">
@@ -26,10 +30,12 @@ export default function Section6DeleteAccount() {
           med e-postadressen kontoen er registrert på, så behandler vi den.
         </p>
 
-        <p className="text-xs text-danger-ink">
-          Vil du bare ta en pause? Rehabtreneren din kan sette opplegget i
-          vedlikeholdsmodus uten at du mister noe.
-        </p>
+        {role === "client" && (
+          <p className="text-xs text-danger-ink">
+            Vil du bare ta en pause? Rehabtreneren din kan sette opplegget i
+            vedlikeholdsmodus uten at du mister noe.
+          </p>
+        )}
       </div>
     </section>
   );

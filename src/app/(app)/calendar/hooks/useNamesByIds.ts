@@ -38,7 +38,7 @@ export function useNamesByIds({ bookings, extraIds = [] }: Args) {
         const map: Record<string, string> = {};
         for (const r of rows) {
           const n = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
-          map[r.id] = n || r.id;
+          map[r.id] = n || r.email || r.id;
         }
 
         if (!cancelled) {

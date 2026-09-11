@@ -21,10 +21,10 @@ export default function TrappLadder({
         const passed = info.index < currentIndex;
         const isCurrent = info.index === currentIndex;
         return (
-          <li key={stage} className="flex-1">
+          <li key={stage} className="min-w-0 flex-1">
             <div
               className={cn(
-                "rounded-md border px-2 py-2 text-center transition-colors",
+                "rounded-md border px-1.5 py-2 text-center transition-colors",
                 isCurrent
                   ? "border-primary bg-primary-subtle"
                   : passed
@@ -34,9 +34,10 @@ export default function TrappLadder({
             >
               <span
                 className={cn(
-                  "block text-[11px] font-semibold uppercase tracking-wide",
+                  "block truncate text-[10px] font-semibold uppercase tracking-wide sm:text-[11px]",
                   isCurrent ? "text-primary-ink" : passed ? "text-primary-ink/70" : "text-ink-faint"
                 )}
+                title={info.label}
               >
                 {info.label}
               </span>

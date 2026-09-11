@@ -61,9 +61,13 @@ export default function TrainerCard({ trainer, href }: Props) {
           <p className="text-base font-semibold text-sf-text">
             {trainer.first_name} {trainer.last_name}
           </p>
-          <p className="text-sm text-sf-muted">
-            {age !== null ? `${age} år` : "—"} • {trainer.city ?? "—"}
-          </p>
+          {(age !== null || trainer.city) && (
+            <p className="text-sm text-sf-muted">
+              {[age !== null ? `${age} år` : null, trainer.city ?? null]
+                .filter(Boolean)
+                .join(" • ")}
+            </p>
+          )}
         </div>
       </div>
 
