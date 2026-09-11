@@ -12,9 +12,14 @@ import { supabase } from "@/lib/supabaseClient";
 
 type NameMap = Record<string, string>;
 
-function fullNameRow(r: { id: string; first_name: string | null; last_name: string | null }) {
+function fullNameRow(r: {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email?: string | null;
+}) {
   const n = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
-  return n || r.id;
+  return n || r.email || r.id;
 }
 
 function sameDay(a: Date, b: Date) {
