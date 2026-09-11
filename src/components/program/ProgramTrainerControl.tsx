@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/ui/components/Button";
 import { Select } from "@/ui/components/Field";
 import { cn } from "@/ui/cn";
@@ -92,7 +93,12 @@ export default function ProgramTrainerControl({ clientId }: { clientId: string }
 
   return (
     <section className="space-y-4 rounded-lg border border-border bg-surface p-6 shadow-card">
-      <h2 className="text-sm font-semibold text-ink-soft">Program</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-ink-soft">Program</h2>
+        <Link href={`/clients/${clientId}/program`} className="text-xs font-medium text-primary-ink hover:underline">
+          Åpne programbygger →
+        </Link>
+      </div>
 
       {assignment ? (
         <>

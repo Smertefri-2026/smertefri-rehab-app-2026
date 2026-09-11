@@ -241,6 +241,263 @@ export async function swapExercise(dayExerciseId: string, newExerciseId: string)
   if (error) throw error;
 }
 
+// ----------------------------------------------------------------------------
+// Programbygger — trener redigerer et tildelt (ikke-mal) program direkte.
+// Alt her skriver til programs/program_days/program_day_exercises, som
+// enhver trener/admin allerede har full skrivetilgang til (RLS, 0005).
+// ----------------------------------------------------------------------------
+
+async function endActiveAssignment(clientId: string) {
+  const { error } = await supabase
+    .from("program_assignments")
+    .update({ status: "completed" } as never)
+    .eq("client_id", clientId)
+    .eq("status", "active");
+  if (error) throw error;
+}
+
+/** Trener lager et helt nytt, tomt program (ikke fra mal) og tildeler det. */
+export async function createBlankProgram(input: {
+  clientId: string;
+  name: string;
+  description?: string | null;
+  relevantStage?: TrappStage | null;
+  bodyArea?: string | null;
+}): Promise<{ programId: string }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Ikke innlogget");
+
+  const { data: prog, error: progErr } = await supabase
+    .from("programs")
+    .insert({
+      name: input.name,
+      description: input.description ?? null,
+      is_template: false,
+      relevant_stage: input.relevantStage ?? null,
+      body_area: input.bodyArea ?? null,
+      created_by: user.id,
+    } as never)
+    .select("id")
+    .single();
+  if (progErr) throw progErr;
+  const programId = (prog as { id: string }).id;
+
+  const { error: dayErr } = await supabase
+    .from("program_days")
+    .insert({ program_id: programId, day_index: 1, title: "Dag 1" } as never);
+  if (dayErr) throw dayErr;
+
+  await endActiveAssignment(input.clientId);
+
+  const { error: aErr } = await supabase.from("program_assignments").insert({
+    client_id: input.clientId,
+    program_id: programId,
+    assigned_by: user.id,
+    current_day_index: 1,
+    status: "active",
+  } as never);
+  if (aErr) throw aErr;
+
+  return { programId };
+}
+
+export async function updateProgramMeta(
+  programId: string,
+  patch: { name?: string; description?: string | null }
+): Promise<void> {
+  const { error } = await supabase.from("programs").update(patch as never).eq("id", programId);
+  if (error) throw error;
+}
+
+export async function addProgramDay(programId: string, title?: string): Promise<ProgramDay> {
+  const { data: days, error: daysErr } = await supabase
+    .from("program_days")
+    .select("day_index")
+    .eq("program_id", programId)
+    .order("day_index", { ascending: false })
+    .limit(1);
+  if (daysErr) throw daysErr;
+  const nextIndex = ((days?.[0] as { day_index: number } | undefined)?.day_index ?? 0) + 1;
+
+  const { data, error } = await supabase
+    .from("program_days")
+    .insert({ program_id: programId, day_index: nextIndex, title: title ?? `Dag ${nextIndex}` } as never)
+    .select("id, day_index, title")
+    .single();
+  if (error) throw error;
+  return { ...(data as { id: string; day_index: number; title: string | null }), exercises: [] };
+}
+
+export async function removeProgramDay(dayId: string): Promise<void> {
+  const { error } = await supabase.from("program_days").delete().eq("id", dayId);
+  if (error) throw error;
+}
+
+export async function updateProgramDayTitle(dayId: string, title: string): Promise<void> {
+  const { error } = await supabase.from("program_days").update({ title } as never).eq("id", dayId);
+  if (error) throw error;
+}
+
+/** Legger til en øvelse i en dag med øvelsens standardverdier. */
+export async function addExerciseToDay(dayId: string, exerciseId: string): Promise<void> {
+  const [{ data: ex, error: exErr }, { data: rows, error: rowsErr }] = await Promise.all([
+    supabase
+      .from("exercises")
+      .select("default_sets, default_reps, default_duration_sec")
+      .eq("id", exerciseId)
+      .single(),
+    supabase
+      .from("program_day_exercises")
+      .select("sort_order")
+      .eq("program_day_id", dayId)
+      .order("sort_order", { ascending: false })
+      .limit(1),
+  ]);
+  if (exErr) throw exErr;
+  if (rowsErr) throw rowsErr;
+
+  const nextSort = ((rows?.[0] as { sort_order: number } | undefined)?.sort_order ?? 0) + 1;
+  const e = ex as { default_sets: number | null; default_reps: number | null; default_duration_sec: number | null };
+
+  const { error } = await supabase.from("program_day_exercises").insert({
+    program_day_id: dayId,
+    exercise_id: exerciseId,
+    sort_order: nextSort,
+    sets: e.default_sets,
+    reps: e.default_reps,
+    duration_sec: e.default_duration_sec,
+  } as never);
+  if (error) throw error;
+}
+
+export async function removeExerciseFromDay(dayExerciseId: string): Promise<void> {
+  const { error } = await supabase.from("program_day_exercises").delete().eq("id", dayExerciseId);
+  if (error) throw error;
+}
+
+/** Endre sett/reps/tid/belastningsnotat — evt. bytt selve øvelsen (regresjon/progresjon eller helt annen). */
+export async function updateDayExercise(
+  dayExerciseId: string,
+  patch: {
+    exercise_id?: string;
+    sets?: number | null;
+    reps?: number | null;
+    duration_sec?: number | null;
+    load_note?: string | null;
+  }
+): Promise<void> {
+  const { error } = await supabase.from("program_day_exercises").update(patch as never).eq("id", dayExerciseId);
+  if (error) throw error;
+}
+
+/** Flytt øvelsen ett hakk opp/ned i dagens rekkefølge (bytter sort_order med naboen). */
+export async function moveExerciseInDay(
+  dayExercises: ProgramDayExercise[],
+  dayExerciseId: string,
+  direction: "up" | "down"
+): Promise<void> {
+  const ordered = [...dayExercises].sort((a, b) => a.sort_order - b.sort_order);
+  const i = ordered.findIndex((e) => e.id === dayExerciseId);
+  const j = direction === "up" ? i - 1 : i + 1;
+  if (i < 0 || j < 0 || j >= ordered.length) return;
+
+  const a = ordered[i];
+  const b = ordered[j];
+  const [aErr, bErr] = await Promise.all([
+    supabase.from("program_day_exercises").update({ sort_order: b.sort_order } as never).eq("id", a.id),
+    supabase.from("program_day_exercises").update({ sort_order: a.sort_order } as never).eq("id", b.id),
+  ]).then((rs) => rs.map((r) => r.error));
+  if (aErr) throw aErr;
+  if (bErr) throw bErr;
+}
+
+/** Lagrer det aktive (ikke-mal) programmet som en gjenbrukbar SmerteFri-mal. */
+export async function saveProgramAsTemplate(programId: string): Promise<{ templateId: string }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Ikke innlogget");
+
+  const source = await getTemplateDetail(programId);
+  if (!source) throw new Error("Fant ikke programmet");
+
+  const { data: prog, error: progErr } = await supabase
+    .from("programs")
+    .insert({
+      name: source.name,
+      description: source.description,
+      is_template: true,
+      relevant_stage: source.relevant_stage,
+      created_by: user.id,
+    } as never)
+    .select("id")
+    .single();
+  if (progErr) throw progErr;
+  const templateId = (prog as { id: string }).id;
+
+  for (const day of source.days) {
+    const { data: d, error: dErr } = await supabase
+      .from("program_days")
+      .insert({ program_id: templateId, day_index: day.day_index, title: day.title } as never)
+      .select("id")
+      .single();
+    if (dErr) throw dErr;
+    const dayId = (d as { id: string }).id;
+
+    if (day.exercises.length) {
+      const rows = day.exercises.map((e) => ({
+        program_day_id: dayId,
+        exercise_id: e.exercise_id,
+        sort_order: e.sort_order,
+        sets: e.sets,
+        reps: e.reps,
+        duration_sec: e.duration_sec,
+        load_note: e.load_note,
+      }));
+      const { error: eErr } = await supabase.from("program_day_exercises").insert(rows as never);
+      if (eErr) throw eErr;
+    }
+  }
+
+  return { templateId };
+}
+
+export type AssignmentHistoryRow = {
+  id: string;
+  program_id: string;
+  program_name: string;
+  status: string;
+  assigned_at: string;
+  updated_at: string;
+};
+
+/** Tidligere (og nåværende) programtildelinger for en kunde, nyeste først. */
+export async function getAssignmentHistory(clientId: string): Promise<AssignmentHistoryRow[]> {
+  const { data, error } = await supabase
+    .from("program_assignments")
+    .select("id, program_id, status, assigned_at, updated_at, program:programs(name)")
+    .eq("client_id", clientId)
+    .order("assigned_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as unknown as Array<{
+    id: string;
+    program_id: string;
+    status: string;
+    assigned_at: string;
+    updated_at: string;
+    program: { name: string } | null;
+  }>).map((r) => ({
+    id: r.id,
+    program_id: r.program_id,
+    program_name: r.program?.name ?? "—",
+    status: r.status,
+    assigned_at: r.assigned_at,
+    updated_at: r.updated_at,
+  }));
+}
+
 export async function endAssignment(clientId: string): Promise<void> {
   const { error } = await supabase
     .from("program_assignments")
