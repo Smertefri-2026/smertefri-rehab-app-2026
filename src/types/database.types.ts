@@ -961,6 +961,7 @@ export type Database = {
           postal_code: string | null
           role: Database["public"]["Enums"]["app_role"]
           signup_intent: string
+          stripe_customer_id: string | null
           updated_at: string
         }
         Insert: {
@@ -977,6 +978,7 @@ export type Database = {
           postal_code?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           signup_intent?: string
+          stripe_customer_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -993,6 +995,7 @@ export type Database = {
           postal_code?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           signup_intent?: string
+          stripe_customer_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1167,6 +1170,56 @@ export type Database = {
           {
             foreignKeyName: "programs_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          client_id: string
+          created_at: string
+          current_period_end: string | null
+          id: string
+          plan_key: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string
+          stripe_price_id: string
+          stripe_subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          client_id: string
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan_key: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string
+          stripe_price_id: string
+          stripe_subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          client_id?: string
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan_key?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string
+          stripe_price_id?: string
+          stripe_subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_client_id_fkey"
+            columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1651,6 +1704,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      upsert_subscription_from_webhook: {
+        Args: {
+          p_cancel_at_period_end: boolean
+          p_client_id: string
+          p_current_period_end: string
+          p_plan_key: string
+          p_status: Database["public"]["Enums"]["subscription_status"]
+          p_stripe_customer_id: string
+          p_stripe_price_id: string
+          p_stripe_subscription_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "client" | "trainer" | "admin"
@@ -1674,6 +1740,15 @@ export type Database = {
         | "strålende"
         | "verkende"
         | "strammende"
+      subscription_status:
+        | "active"
+        | "trialing"
+        | "past_due"
+        | "canceled"
+        | "incomplete"
+        | "incomplete_expired"
+        | "unpaid"
+        | "paused"
       test_category: "bodyweight" | "strength" | "cardio"
       trainer_application_status: "pending" | "approved" | "rejected"
       trainer_status: "active" | "inactive"
@@ -1828,6 +1903,16 @@ export const Constants = {
         "strålende",
         "verkende",
         "strammende",
+      ],
+      subscription_status: [
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "incomplete",
+        "incomplete_expired",
+        "unpaid",
+        "paused",
       ],
       test_category: ["bodyweight", "strength", "cardio"],
       trainer_application_status: ["pending", "approved", "rejected"],

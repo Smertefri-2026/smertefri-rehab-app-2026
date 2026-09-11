@@ -31,6 +31,7 @@
     "react-turnstile": "^1.1.5",
     "recharts": "^3.7.0",
     "resend": "^6.9.1",
+    "stripe": "^22.6.2",
     "zustand": "^5.0.10"
   },
   "devDependencies": {
