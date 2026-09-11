@@ -57,7 +57,7 @@ export default function TrainerCard({ trainer, href }: Props) {
         </div>
 
         {/* 🧑‍🏫 Info */}
-        <div>
+        <div className="min-w-0">
           <p className="text-base font-semibold text-sf-text">
             {trainer.first_name} {trainer.last_name}
           </p>
@@ -65,8 +65,26 @@ export default function TrainerCard({ trainer, href }: Props) {
             {age !== null ? `${age} år` : "—"} • {trainer.city ?? "—"}
           </p>
         </div>
-
       </div>
+
+      {/* 🏷 Kompetanse/spesialiteter */}
+      {trainer.specialties && trainer.specialties.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {trainer.specialties.map((s) => (
+            <span
+              key={s}
+              className="rounded-full bg-sf-soft px-2.5 py-1 text-xs font-medium text-sf-text"
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* 📝 Kort presentasjon */}
+      {trainer.bio && (
+        <p className="mt-3 text-sm text-sf-muted whitespace-pre-wrap">{trainer.bio}</p>
+      )}
     </section>
   );
 

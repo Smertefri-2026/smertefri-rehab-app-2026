@@ -16,6 +16,7 @@ import type { Trainer } from "@/types/trainer";
 import TrainerCard from "@/components/trainer/TrainerCard";
 import TrainerDetails from "@/components/trainer/TrainerDetails";
 import TrainerActions from "@/components/trainer/TrainerActions";
+import NextSessionCard from "@/components/trainer/NextSessionCard";
 
 export default function MyTrainerPage() {
   const router = useRouter();
@@ -40,8 +41,8 @@ export default function MyTrainerPage() {
         const trainerId = await getActiveTrainerIdForClient(userId);
         const t = trainerId ? await getTrainerById(trainerId) : null;
         if (alive) setTrainer(t);
-      } catch (e: any) {
-        if (alive) setError(e?.message ?? "Kunne ikke hente din rehabtrener");
+      } catch (e) {
+        if (alive) setError(e instanceof Error ? e.message : "Kunne ikke hente din rehabtrener");
       }
     })();
 
@@ -83,6 +84,7 @@ export default function MyTrainerPage() {
             </Link>
           )}
           <TrainerCard trainer={trainer} />
+          {userId && <NextSessionCard clientId={userId} trainerId={trainer.id} />}
           <TrainerActions trainerId={trainer.id} />
           <TrainerDetails trainer={trainer} canEdit={false} />
         </div>

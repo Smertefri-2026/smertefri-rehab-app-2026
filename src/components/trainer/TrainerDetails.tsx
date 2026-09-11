@@ -58,7 +58,7 @@ export default function TrainerDetails({ trainer, canEdit = true, onSaved }: Pro
 
       onSaved?.();
       setSaved(true);
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
       setError("Kunne ikke lagre trenerdetaljer.");
     } finally {
@@ -78,9 +78,9 @@ export default function TrainerDetails({ trainer, canEdit = true, onSaved }: Pro
       });
       if (error) throw error;
       onSaved?.();
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      alert(e?.message ?? "Kunne ikke endre trenerstatus");
+      alert(e instanceof Error ? e.message : "Kunne ikke endre trenerstatus");
     } finally {
       setStatusSaving(false);
     }
@@ -142,23 +142,20 @@ export default function TrainerDetails({ trainer, canEdit = true, onSaved }: Pro
           />
         )}
 
-        {/* BIO */}
-        <div className="sm:col-span-2">
-          <label className="text-xs text-sf-muted">Bio</label>
-
-          {readOnlyMode ? (
-            <p className="mt-1 rounded-lg border bg-sf-soft px-3 py-2 text-sm whitespace-pre-wrap">
-              {trainer.bio ?? "—"}
-            </p>
-          ) : (
+        {/* BIO — i lesemodus vises den allerede øverst på TrainerCard, så vi
+            unngår å gjenta den her. I redigeringsmodus (trener/admin) er
+            dette selve skjemafeltet. */}
+        {!readOnlyMode && (
+          <div className="sm:col-span-2">
+            <label className="text-xs text-sf-muted">Bio</label>
             <textarea
               value={form.bio}
               onChange={(e) => setForm({ ...form, bio: e.target.value })}
               rows={4}
               className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
             />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* 👁 ADMIN: STATUS (aktiv/inaktiv — styrer om treneren kan tildeles nye kunder) */}
         {role === "admin" && (
