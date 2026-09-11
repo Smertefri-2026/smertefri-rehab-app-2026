@@ -41,10 +41,9 @@ Authentication → URL Configuration:
   `http://localhost:3020/**`
 - `mailer_autoconfirm = false` (e-postbekreftelse påkrevd)
 
-### Custom SMTP (må på plass før reelle brukere)
+### Custom SMTP — satt (2026-09-11)
 
-Default Supabase-SMTP er begrenset til noen få e-poster/time og gir dårlig
-leveranse. Sett Custom SMTP (Authentication → SMTP Settings):
+Custom SMTP via Resend er konfigurert (Authentication → SMTP Settings):
 
 | Felt | Verdi |
 |---|---|
@@ -52,11 +51,17 @@ leveranse. Sett Custom SMTP (Authentication → SMTP Settings):
 | Port | `465` |
 | Username | `resend` |
 | Password | Resend API-nøkkel (`RESEND_API_KEY`) |
-| Sender email | `no-reply@send.smertefri.no` (verifisert Resend-domene) |
+| Sender email | `no-reply@send.smertefri.no` (samme verifiserte domene som lead-e-post) |
 | Sender name | `SmerteFri` |
 
-Sett også `rate_limit_email_sent` til ~30. Verifiser at `send.smertefri.no`
-har gyldige SPF/DKIM i Resend før du skrur på.
+`rate_limit_email_sent` satt til 30/time. Verifisert via Supabase sine egne
+auth-logger: `user_confirmation_requested` (registrering) og
+`user_recovery_requested` (glemt passord) fullfører uten feil mot en ekte
+Resend-testadresse (`delivered@resend.dev`). Kunne ikke bekrefte siste steg
+(faktisk innboks-levering) programmatisk — Resend-nøkkelen i bruk er
+send-only og har ikke lesetilgang til sende-loggen. Anbefaling: gjør én
+manuell registrering/reset med en ekte adresse du selv kan sjekke, før
+løsningen åpnes for reelle brukere.
 
 ## Migrasjoner og typer
 
