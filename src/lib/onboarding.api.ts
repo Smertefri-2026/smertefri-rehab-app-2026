@@ -143,3 +143,133 @@ export async function submitOnboarding(
 
   return { cleared, profile };
 }
+
+export type OnboardingHistoryRow = {
+  id: string;
+  assessment_id: string;
+  snapshot: Record<string, unknown>;
+  changed_fields: string[];
+  changed_at: string;
+};
+
+/** Endringshistorikk for «Min kartlegging», nyeste først. */
+export async function getOnboardingHistory(clientId: string): Promise<OnboardingHistoryRow[]> {
+  const { data, error } = await supabase
+    .from("onboarding_history")
+    .select("id, assessment_id, snapshot, changed_fields, changed_at")
+    .eq("client_id", clientId)
+    .order("changed_at", { ascending: false });
+  if (error) throw error;
+  return (data as OnboardingHistoryRow[]) ?? [];
+}
+
+async function snapshotCurrent(row: OnboardingRow, changedFields: string[]) {
+  const { error } = await supabase.from("onboarding_history").insert({
+    assessment_id: row.id,
+    client_id: row.client_id,
+    snapshot: row as unknown as Record<string, unknown>,
+    changed_fields: changedFields,
+  } as never);
+  if (error) throw error;
+}
+
+/**
+ * Oppdaterer ikke-kritiske deler av en allerede fullført kartlegging (mål,
+ * plagene, hverdagen, historikk) — «Min kartlegging». Forrige tilstand
+ * snapshottes til onboarding_history før raden oppdateres, så historikken
+ * aldri går tapt. Feltene som ikke er med i `patch` beholdes uendret —
+ * kunden trenger ikke fylle ut alt på nytt. Rører aldri red_flags/completed_at
+ * (se updateRedFlags for det).
+ */
+export async function updateOnboardingSection(
+  patch: Partial<
+    Omit<OnboardingAnswers, "redFlags">
+  >
+): Promise<{ profile: CalibrationProfile }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Ikke innlogget");
+
+  const existing = await getMyOnboarding();
+  if (!existing || !existing.completed_at) {
+    throw new Error("Fullfør kartleggingen først på /onboarding");
+  }
+
+  const merged = {
+    goal: patch.goal ?? existing.goal ?? "",
+    problemArea: patch.problemArea ?? existing.problem_area ?? "",
+    problemDuration: patch.problemDuration ?? existing.problem_duration ?? "",
+    painIntensityNow: patch.painIntensityNow ?? existing.pain_intensity_now ?? 0,
+    aggravatingFactors: patch.aggravatingFactors ?? existing.aggravating_factors ?? "",
+    relievingFactors: patch.relievingFactors ?? existing.relieving_factors ?? "",
+    limitingFactors: patch.limitingFactors ?? existing.limiting_factors ?? "",
+    activityLevel: patch.activityLevel ?? existing.activity_level ?? "",
+    fearOfMovementScore: patch.fearOfMovementScore ?? existing.fear_of_movement_score ?? 0,
+    sleepQuality: patch.sleepQuality ?? existing.sleep_quality ?? "",
+    stressLevel: patch.stressLevel ?? existing.stress_level ?? "",
+    previousInjuries: patch.previousInjuries ?? existing.previous_injuries ?? "",
+    previousTreatment: patch.previousTreatment ?? existing.previous_treatment ?? "",
+  };
+
+  const { profile } = suggestCalibrationProfile({
+    fearOfMovementScore: merged.fearOfMovementScore,
+    activityLevel: merged.activityLevel,
+    problemDuration: merged.problemDuration,
+    painIntensityNow: merged.painIntensityNow,
+    stressLevel: merged.stressLevel,
+  });
+
+  await snapshotCurrent(existing, Object.keys(patch));
+
+  const { error } = await supabase
+    .from("onboarding_assessments")
+    .update({
+      goal: merged.goal || null,
+      problem_area: merged.problemArea || null,
+      problem_duration: merged.problemDuration || null,
+      pain_intensity_now: merged.painIntensityNow,
+      aggravating_factors: merged.aggravatingFactors || null,
+      relieving_factors: merged.relievingFactors || null,
+      limiting_factors: merged.limitingFactors || null,
+      activity_level: merged.activityLevel || null,
+      fear_of_movement_score: merged.fearOfMovementScore,
+      sleep_quality: merged.sleepQuality || null,
+      stress_level: merged.stressLevel || null,
+      previous_injuries: merged.previousInjuries || null,
+      previous_treatment: merged.previousTreatment || null,
+      calibration_profile: profile,
+    } as never)
+    .eq("id", existing.id);
+  if (error) throw error;
+
+  return { profile };
+}
+
+/**
+ * Oppdaterer trygghetssjekken (røde flagg) på en fullført kartlegging.
+ * Skrives alltid — også når den IKKE er klarert, slik at det finnes et reelt
+ * spor treneren kan se. Rører aldri completed_at: et nytt rødt flagg gir en
+ * tydelig «ta kontakt med lege»-beskjed i appen, men låser ikke kunden ute av
+ * appen på egen hånd — det er en menneskelig, ikke automatisk, avgjørelse.
+ */
+export async function updateRedFlags(
+  redFlags: Record<string, boolean>
+): Promise<{ cleared: boolean }> {
+  const existing = await getMyOnboarding();
+  if (!existing || !existing.completed_at) {
+    throw new Error("Fullfør kartleggingen først på /onboarding");
+  }
+
+  const cleared = isRedFlagCleared(redFlags);
+
+  await snapshotCurrent(existing, ["redFlags"]);
+
+  const { error } = await supabase
+    .from("onboarding_assessments")
+    .update({ red_flags: redFlags, red_flag_cleared: cleared } as never)
+    .eq("id", existing.id);
+  if (error) throw error;
+
+  return { cleared };
+}

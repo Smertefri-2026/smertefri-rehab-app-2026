@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HeartPulse, Activity, Utensils, Gauge } from "lucide-react";
+import { HeartPulse, Activity, Utensils, Gauge, ClipboardEdit } from "lucide-react";
 
 import AppPage from "@/components/layout/AppPage";
 import { useRole } from "@/providers/RoleProvider";
@@ -127,7 +127,7 @@ export default function MinPlanPage() {
 
           <ZoneHistoryStrip zones={history} />
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Link
               href="/pain"
               className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4 text-sm font-medium text-ink shadow-card transition hover:shadow-pop"
@@ -145,6 +145,12 @@ export default function MinPlanPage() {
               className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4 text-sm font-medium text-ink shadow-card transition hover:shadow-pop"
             >
               <Utensils size={18} className="text-ink-faint" /> Kosthold
+            </Link>
+            <Link
+              href="/kartlegging"
+              className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4 text-sm font-medium text-ink shadow-card transition hover:shadow-pop"
+            >
+              <ClipboardEdit size={18} className="text-ink-faint" /> Min kartlegging
             </Link>
           </div>
         </section>

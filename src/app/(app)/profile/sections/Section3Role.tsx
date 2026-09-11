@@ -55,6 +55,13 @@ export default function Section3Role() {
               Du er registrert som kunde. SmerteFri tildeler deg en rehabtrener.
             </p>
 
+            <Link
+              href="/kartlegging"
+              className="inline-block text-sm font-medium text-primary-ink hover:underline"
+            >
+              Se og oppdater kartleggingen din →
+            </Link>
+
             {trainer ? (
               <div className="rounded-xl border border-sf-border bg-sf-soft p-4 space-y-3">
                 <div className="flex items-center gap-3">

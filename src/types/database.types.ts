@@ -768,6 +768,48 @@ export type Database = {
           },
         ]
       }
+      onboarding_history: {
+        Row: {
+          assessment_id: string
+          changed_at: string
+          changed_fields: string[]
+          client_id: string
+          id: string
+          snapshot: Json
+        }
+        Insert: {
+          assessment_id: string
+          changed_at?: string
+          changed_fields?: string[]
+          client_id: string
+          id?: string
+          snapshot: Json
+        }
+        Update: {
+          assessment_id?: string
+          changed_at?: string
+          changed_fields?: string[]
+          client_id?: string
+          id?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_history_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           amount_ore: number | null
