@@ -9,7 +9,7 @@ Nye SmerteFri bygges fortløpende rett på produksjonsdomenene. Det finnes
 | Innlogget app | `https://app.smertefri.no` |
 | Vercel-prosjekt | `smertefri-ny-staging` (id `prj_7dmZvBLa0VsuaDUMif2sVuKuWlmP`) |
 | Git-branch (kilde) | `feature/nye-smertefri` |
-| Supabase | `smertefri-dev-sep-26` (`lclsquqcongfnngtsgik`) — brukes inntil videre |
+| Supabase | `smertefri-dev-sep-26` (`lclsquqcongfnngtsgik`) — navnet er historisk; org-planen er **Pro**, ikke gratis-tier |
 | Vercels egen adresse | `smertefri-ny-staging.vercel.app` (kan stå) |
 
 Hver `git push` til `feature/nye-smertefri` → automatisk produksjonsdeploy.
@@ -69,3 +69,17 @@ løsningen åpnes for reelle brukere.
 supabase db push --linked
 supabase gen types typescript --project-id lclsquqcongfnngtsgik --schema public 2>/dev/null > src/types/database.types.ts
 ```
+
+## Backup (sjekket 11.9.2026)
+
+Daglige fysiske backups kjører og fullfører normalt (verifisert via
+Management API — 3 av 3 siste dager OK). **PITR (point-in-time recovery)
+er ikke slått på** — ved et problem midt på dagen kan dere kun gjenopprette
+til forrige natts backup, ikke til et nøyaktig tidspunkt. Org-planen er Pro,
+så PITR kan slås på uten planoppgradering — vurder det før reelle
+betalende kunder.
+
+Alle fremmednøkler til `profiles(id)` har eksplisitt `on delete
+cascade`/`on delete set null` (migrasjon `20260911000023`), så en bruker
+kan faktisk slettes helt (GDPR-forespørsel) uten manuell SQL-opprydding
+først — verifisert direkte mot `pg_constraint`.
