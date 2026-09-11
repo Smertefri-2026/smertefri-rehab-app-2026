@@ -918,6 +918,7 @@ export type Database = {
           phone: string | null
           postal_code: string | null
           role: Database["public"]["Enums"]["app_role"]
+          signup_intent: string
           updated_at: string
         }
         Insert: {
@@ -933,6 +934,7 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          signup_intent?: string
           updated_at?: string
         }
         Update: {
@@ -948,6 +950,7 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          signup_intent?: string
           updated_at?: string
         }
         Relationships: []

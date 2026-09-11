@@ -22,6 +22,7 @@ export default function EmailSentPage() {
   // avgjør riktig tilstand fra hash + sessionStorage + sesjon.
   const [view, setView] = useState<View>("checking");
   const [email, setEmail] = useState("");
+  const [intent, setIntent] = useState<"client" | "trainer">("client");
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [resendError, setResendError] = useState<string | null>(null);
 
@@ -55,6 +56,20 @@ export default function EmailSentPage() {
     }
     /* eslint-enable react-hooks/set-state-in-effect */
 
+    async function markConfirmed(userId: string) {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("signup_intent")
+          .eq("id", userId)
+          .single();
+        if (alive) setIntent(profile?.signup_intent === "trainer" ? "trainer" : "client");
+      } catch {
+        /* behold default "client"-tekst hvis oppslaget feiler */
+      }
+      if (alive) setView("confirmed");
+    }
+
     (async () => {
       if (fromEmailLink) await new Promise((r) => setTimeout(r, 1500));
       if (!alive) return;
@@ -62,14 +77,18 @@ export default function EmailSentPage() {
       if (!alive) return;
       // En eksisterende sesjon betyr «konto klar» KUN hvis vi ikke nettopp
       // registrerte oss (da er den bare en gammel/annen innlogging).
-      if (data.session && !(pendingEmail && !fromEmailLink)) setView("confirmed");
-      else if (fromEmailLink) setView("expired");
-      else setView("pending");
+      if (data.session && !(pendingEmail && !fromEmailLink)) {
+        await markConfirmed(data.session.user.id);
+      } else if (fromEmailLink) {
+        setView("expired");
+      } else {
+        setView("pending");
+      }
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (alive && event === "SIGNED_IN" && session) {
-        setView("confirmed");
+        markConfirmed(session.user.id);
         try {
           sessionStorage.removeItem("sf_pending_email");
         } catch {
@@ -175,16 +194,22 @@ export default function EmailSentPage() {
           <h1 className="mt-6 text-xl font-semibold text-ink">E-posten er bekreftet</h1>
 
           <p className="mt-3 text-sm text-ink-soft">
-            Kontoen din er aktivert. Neste steg er å fullføre kartleggingen, så
-            kobler vi deg med en rehabtrener og setter opp planen din.
+            {intent === "trainer" ? (
+              <>Kontoen din er aktivert. Neste steg er å sende søknaden din som rehabtrener.</>
+            ) : (
+              <>
+                Kontoen din er aktivert. Neste steg er å fullføre kartleggingen, så
+                kobler vi deg med en rehabtrener og setter opp planen din.
+              </>
+            )}
           </p>
 
           <div className="mt-8 flex flex-col gap-3">
             <Link
-              href="/dashboard"
+              href={intent === "trainer" ? "/trainer-application" : "/dashboard"}
               className="rounded-full bg-primary py-3 text-base font-medium text-primary-ink transition hover:opacity-90"
             >
-              Kom i gang
+              {intent === "trainer" ? "Send søknad" : "Kom i gang"}
             </Link>
             <Link
               href="/login"

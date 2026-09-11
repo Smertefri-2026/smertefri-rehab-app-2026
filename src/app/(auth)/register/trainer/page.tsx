@@ -46,6 +46,10 @@ export default function RegisterTrainerPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/register/email-sent`,
+        // Rutingshint (ikke en rolle/rettighet) — se migrasjon 0021. Gjør at
+        // OnboardingGate sender denne brukeren til /trainer-application i
+        // stedet for kundens kartlegging.
+        data: { signup_intent: "trainer" },
       },
     });
 
