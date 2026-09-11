@@ -9,7 +9,7 @@ export function useCalendarState() {
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
 
-  // ✅ Når "week" på mobil egentlig er 2-dagers view (timeGridTwoDay)
+  // ✅ Når "week" på mobil egentlig vises dag-for-dag (timeGridDay)
   const [isMobileWeek, setIsMobileWeek] = useState(false);
 
   const handlePrev = () => {

@@ -44,11 +44,14 @@ function isoDaysAhead(n: number) {
   return d.toISOString();
 }
 
-function fullName(p?: Partial<ProfileLite> | null) {
+function realName(p?: Partial<ProfileLite> | null) {
   const first = String(p?.first_name ?? "").trim();
   const last = String(p?.last_name ?? "").trim();
-  const name = `${first} ${last}`.trim();
-  return name || String(p?.email ?? "").trim() || "—";
+  return `${first} ${last}`.trim() || null;
+}
+
+function fullName(p?: Partial<ProfileLite> | null) {
+  return realName(p) || String(p?.email ?? "").trim() || "—";
 }
 
 export default function AdminCalendarPage() {
@@ -254,14 +257,14 @@ export default function AdminCalendarPage() {
 
                 <div className="col-span-2">
                   <div className="truncate">{clientName}</div>
-                  {clientObj?.email ? (
+                  {realName(clientObj) && clientObj?.email ? (
                     <div className="mt-1 text-[11px] text-sf-muted truncate">{clientObj.email}</div>
                   ) : null}
                 </div>
 
                 <div className="col-span-2">
                   <div className="truncate">{trainerName}</div>
-                  {trainerObj?.email ? (
+                  {realName(trainerObj) && trainerObj?.email ? (
                     <div className="mt-1 text-[11px] text-sf-muted truncate">{trainerObj.email}</div>
                   ) : null}
                 </div>

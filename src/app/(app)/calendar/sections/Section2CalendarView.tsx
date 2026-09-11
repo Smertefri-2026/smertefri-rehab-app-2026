@@ -54,11 +54,17 @@ export default function Section2CalendarView({
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  /* 🎯 App-view → FullCalendar-view */
+  /* 🎯 App-view → FullCalendar-view.
+     "Uke" på mobil vises som én dag av gangen (swipe/piler for neste/forrige)
+     — en ekte 7-dagers ukevisning rekker ikke over en telefonbredde uten
+     sideveis-scroll, og et forsøk på en 2-dagers mellomting hadde samme
+     problem i mindre grad. Én dag av gangen er den vanlige, velprøvde
+     mønsteret for kalender-apper på mobil. */
+  const isMobileWeek = view === "week" && isMobile;
   const effectiveView =
     view === "week"
       ? isMobile
-        ? "timeGridTwoDay"
+        ? "timeGridDay"
         : "timeGridWeek"
       : view === "day"
       ? "timeGridDay"
@@ -66,10 +72,10 @@ export default function Section2CalendarView({
       ? "dayGridMonth"
       : "multiMonthYear";
 
-  // ✅ Informer parent/hook om vi er i mobil-uke (2-dagers)
+  // ✅ Informer parent/hook om vi er i mobil-uke (dag-for-dag-navigasjon)
   useEffect(() => {
-    onMobileWeekChange?.(view === "week" && effectiveView === "timeGridTwoDay");
-  }, [view, effectiveView, onMobileWeekChange]);
+    onMobileWeekChange?.(isMobileWeek);
+  }, [isMobileWeek, onMobileWeekChange]);
 
   /* ✅ Defensive: ISO-strenger for å unngå mutasjon/caching-bugs */
   const safeEvents = useMemo(() => {
@@ -92,25 +98,7 @@ export default function Section2CalendarView({
     });
   }, [events]);
 
-  /* ✅ Filter til synlig 2-dagers range for å unngå “hengende” events */
-  const visibleEvents = useMemo(() => {
-    if (effectiveView !== "timeGridTwoDay") return safeEvents;
-
-    const rangeStart = currentDate.startOf("day").toDate().getTime();
-    const rangeEnd = currentDate.startOf("day").add(2, "day").toDate().getTime();
-
-    return safeEvents.filter((e: any) => {
-      const s =
-        typeof e?.start === "string"
-          ? new Date(e.start).getTime()
-          : e?.start instanceof Date
-          ? e.start.getTime()
-          : NaN;
-
-      if (!Number.isFinite(s)) return false;
-      return s >= rangeStart && s < rangeEnd;
-    });
-  }, [safeEvents, effectiveView, currentDate]);
+  const visibleEvents = safeEvents;
 
   /* 🔁 Bytt view i FullCalendar */
   useEffect(() => {
@@ -176,9 +164,11 @@ export default function Section2CalendarView({
           <h2 className="text-sm font-semibold text-center">
             {view === "day" && currentDate.format("dddd D. MMMM")}
             {view === "week" &&
-              `${currentDate.startOf("week").format("D. MMM")} – ${currentDate
-                .endOf("week")
-                .format("D. MMM YYYY")}`}
+              (isMobileWeek
+                ? currentDate.format("dddd D. MMMM")
+                : `${currentDate.startOf("week").format("D. MMM")} – ${currentDate
+                    .endOf("week")
+                    .format("D. MMM YYYY")}`)}
             {view === "month" && currentDate.format("MMMM YYYY")}
             {view === "year" && currentDate.format("YYYY")}
           </h2>
@@ -234,19 +224,6 @@ export default function Section2CalendarView({
                 dayHeaderFormat: { weekday: "short", day: "numeric" },
               },
               timeGridWeek: {
-                slotMinTime: "06:00:00",
-                slotMaxTime: "22:00:00",
-                slotDuration: "00:30:00",
-                slotLabelFormat: {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                },
-                dayHeaderFormat: { weekday: "short", day: "numeric" },
-              },
-              timeGridTwoDay: {
-                type: "timeGrid",
-                duration: { days: 2 },
                 slotMinTime: "06:00:00",
                 slotMaxTime: "22:00:00",
                 slotDuration: "00:30:00",
