@@ -12,6 +12,7 @@ type ProfileMini = {
   last_name: string | null;
   avatar_url: string | null;
   role: string | null;
+  email: string | null;
 };
 
 type MemberRow = {
@@ -34,7 +35,7 @@ function pickProfile(p: MemberRow["profile"]): ProfileMini | null {
 function fullName(p: ProfileMini | null) {
   if (!p) return "Ukjent";
   const name = `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim();
-  return name || "Ukjent";
+  return name || p.email || "Ukjent";
 }
 
 function initials(p: ProfileMini | null) {
@@ -80,7 +81,7 @@ export default function Section2ThreadList() {
           last_message_at,
           members:chat_members(
             user_id,
-            profile:profiles(id, first_name, last_name, avatar_url, role)
+            profile:profiles(id, first_name, last_name, avatar_url, role, email)
           )
         )
       `

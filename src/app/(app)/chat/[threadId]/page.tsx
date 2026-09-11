@@ -13,6 +13,7 @@ type ProfileMini = {
   last_name: string | null;
   avatar_url: string | null;
   role: string | null;
+  email: string | null;
 };
 
 type MemberRow = {
@@ -44,7 +45,7 @@ function fullName(p: ProfileMini | null) {
   const first = p.first_name ?? "";
   const last = p.last_name ?? "";
   const name = `${first} ${last}`.trim();
-  return name || "Ukjent";
+  return name || p.email || "Ukjent";
 }
 
 function initialsFromProfile(p: ProfileMini | null) {
@@ -152,7 +153,7 @@ export default function ChatThreadPage() {
             title,
             members:chat_members(
               user_id,
-              profile:profiles(id, first_name, last_name, avatar_url, role)
+              profile:profiles(id, first_name, last_name, avatar_url, role, email)
             )
           `
         )
