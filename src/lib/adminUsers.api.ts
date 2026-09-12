@@ -12,5 +12,5 @@ export async function adminSetUserRole(userId: string, newRole: UserRole): Promi
     p_user_id: userId,
     p_new_role: newRole,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
