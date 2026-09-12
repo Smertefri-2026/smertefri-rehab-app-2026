@@ -39,7 +39,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
 };
 
 export default function AdminUsersPage() {
-  const { role, userId, loading: roleLoading } = useRole();
+  const { role, loading: roleLoading } = useRole();
 
   const [rows, setRows] = useState<Row[]>([]);
   const [trainerById, setTrainerById] = useState<Record<string, ProfileLite>>({});
@@ -258,20 +258,16 @@ export default function AdminUsersPage() {
               <div key={r.id} className="grid grid-cols-12 px-4 py-3 text-sm border-t border-sf-border">
                 <div className="col-span-4">{fullName(r)}</div>
                 <div className="col-span-2">
-                  {r.id === userId ? (
-                    <span title="Kan ikke endre din egen rolle her">{ROLE_LABEL[(r.role as UserRole) ?? "client"] ?? r.role ?? "—"}</span>
-                  ) : (
-                    <select
-                      value={(r.role as UserRole) ?? "client"}
-                      disabled={changingId === r.id}
-                      onChange={(e) => handleRoleChange(r, e.target.value as UserRole)}
-                      className="w-full rounded-md border border-sf-border bg-white px-2 py-1 text-sm disabled:opacity-50"
-                    >
-                      <option value="client">Kunde</option>
-                      <option value="trainer">Rehabtrener</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  )}
+                  <select
+                    value={(r.role as UserRole) ?? "client"}
+                    disabled={changingId === r.id}
+                    onChange={(e) => handleRoleChange(r, e.target.value as UserRole)}
+                    className="w-full rounded-md border border-sf-border bg-white px-2 py-1 text-sm disabled:opacity-50"
+                  >
+                    <option value="client">Kunde</option>
+                    <option value="trainer">Rehabtrener</option>
+                    <option value="admin">Admin</option>
+                  </select>
                 </div>
                 <div className="col-span-2">{r.city ?? "—"}</div>
 
