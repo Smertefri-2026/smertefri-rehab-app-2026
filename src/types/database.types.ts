@@ -500,54 +500,72 @@ export type Database = {
       exercises: {
         Row: {
           body_areas: string[]
+          capacity_level: Database["public"]["Enums"]["capacity_level"] | null
           created_at: string
           created_by: string | null
           default_duration_sec: number | null
           default_reps: number | null
           default_sets: number | null
+          equipment: string[]
           id: string
           instruction: string | null
-          media_url: string | null
+          is_active: boolean
+          movement_pattern:
+            | Database["public"]["Enums"]["movement_pattern"]
+            | null
           name: string
           progression_of: string | null
           purposes: string[]
           regression_of: string | null
           relevant_stages: Database["public"]["Enums"]["trapp_stage"][]
           updated_at: string
+          video_url: string | null
         }
         Insert: {
           body_areas?: string[]
+          capacity_level?: Database["public"]["Enums"]["capacity_level"] | null
           created_at?: string
           created_by?: string | null
           default_duration_sec?: number | null
           default_reps?: number | null
           default_sets?: number | null
+          equipment?: string[]
           id?: string
           instruction?: string | null
-          media_url?: string | null
+          is_active?: boolean
+          movement_pattern?:
+            | Database["public"]["Enums"]["movement_pattern"]
+            | null
           name: string
           progression_of?: string | null
           purposes?: string[]
           regression_of?: string | null
           relevant_stages?: Database["public"]["Enums"]["trapp_stage"][]
           updated_at?: string
+          video_url?: string | null
         }
         Update: {
           body_areas?: string[]
+          capacity_level?: Database["public"]["Enums"]["capacity_level"] | null
           created_at?: string
           created_by?: string | null
           default_duration_sec?: number | null
           default_reps?: number | null
           default_sets?: number | null
+          equipment?: string[]
           id?: string
           instruction?: string | null
-          media_url?: string | null
+          is_active?: boolean
+          movement_pattern?:
+            | Database["public"]["Enums"]["movement_pattern"]
+            | null
           name?: string
           progression_of?: string | null
           purposes?: string[]
           regression_of?: string | null
           relevant_stages?: Database["public"]["Enums"]["trapp_stage"][]
           updated_at?: string
+          video_url?: string | null
         }
         Relationships: [
           {
@@ -1764,7 +1782,24 @@ export type Database = {
       booking_repeat: "none" | "weekly" | "biweekly"
       booking_status: "planned" | "confirmed" | "completed" | "cancelled"
       calibration_profile: "forsiktig" | "standard" | "aktiv"
+      capacity_level:
+        | "svaert_lav"
+        | "nybegynner"
+        | "moderat"
+        | "godt_trent"
+        | "idrettsaktiv"
       completion_status: "ja" | "delvis" | "nei"
+      movement_pattern:
+        | "squat"
+        | "hinge"
+        | "lunge"
+        | "press"
+        | "pull"
+        | "carry"
+        | "gait"
+        | "balance"
+        | "rotation"
+        | "conditioning"
       order_product_type: "program_access" | "membership" | "trainer_session"
       order_status: "pending" | "paid" | "failed" | "refunded"
       pain_pattern:
@@ -1926,7 +1961,26 @@ export const Constants = {
       booking_repeat: ["none", "weekly", "biweekly"],
       booking_status: ["planned", "confirmed", "completed", "cancelled"],
       calibration_profile: ["forsiktig", "standard", "aktiv"],
+      capacity_level: [
+        "svaert_lav",
+        "nybegynner",
+        "moderat",
+        "godt_trent",
+        "idrettsaktiv",
+      ],
       completion_status: ["ja", "delvis", "nei"],
+      movement_pattern: [
+        "squat",
+        "hinge",
+        "lunge",
+        "press",
+        "pull",
+        "carry",
+        "gait",
+        "balance",
+        "rotation",
+        "conditioning",
+      ],
       order_product_type: ["program_access", "membership", "trainer_session"],
       order_status: ["pending", "paid", "failed", "refunded"],
       pain_pattern: [

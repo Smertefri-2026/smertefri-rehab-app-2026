@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 import { useRole } from "@/providers/RoleProvider";
 import { getMyOnboarding } from "@/lib/onboarding.api";
 import { getExercises, getActiveAssignment, type Exercise } from "@/lib/program.api";
+import { getTrappState } from "@/lib/trapp.api";
+import { activityLevelToCapacity, capacityIndex } from "@/lib/exercise/taxonomy";
 
 /**
  * Enkle, generelle øvelsesforslag basert på hovedplagen fra kartleggingen —
  * kun for klienter uten et aktivt program ennå (har du et program, er det
- * det som gjelder, ikke generelle forslag). Filtrert til Trappens "ro"-nivå
- * (tryggest, ingen belastningsprogresjon). Ingen diagnose, ingen automatisk
- * tildeling — bare et startpunkt før/mens man venter på rehabtrener.
+ * det som gjelder, ikke generelle forslag). Tar hensyn til klientens
+ * FAKTISKE Trapp-stadium (ikke hardkodet "ro") og et forsiktig avledet
+ * kapasitetsnivå fra kartleggingens aktivitetsspørsmål, i tillegg til
+ * smerteområdet. Ingen diagnose, ingen automatisk tildeling/erstatning av
+ * trenerens program — bare et startpunkt før/mens man venter på rehabtrener.
  */
 export default function PainExerciseSuggestions() {
   const { role, userId } = useRole();
@@ -24,13 +28,15 @@ export default function PainExerciseSuggestions() {
 
     (async () => {
       try {
-        const [onboarding, assignment] = await Promise.all([
+        const [onboarding, assignment, trapp] = await Promise.all([
           getMyOnboarding(),
           getActiveAssignment(userId),
+          getTrappState(userId),
         ]);
         if (!alive) return;
 
-        // Har kunden allerede et program, er det programmet som gjelder.
+        // Har kunden allerede et program, er det programmet (og relevant
+        // kartlegging trenerern har gjort der) som gjelder, ikke generelle forslag.
         if (assignment) {
           setExercises([]);
           return;
@@ -43,11 +49,20 @@ export default function PainExerciseSuggestions() {
           return;
         }
 
+        // Nystartede uten et satt Trapp-trinn ennå regnes som "ro" — samme
+        // trygge standardverdi som transition_trapp_stage() selv bruker.
+        const stage = trapp?.current_stage ?? "ro";
+        const capacity = activityLevelToCapacity(onboarding?.activity_level);
+        const capIdx = capacityIndex(capacity);
+
         const all = await getExercises();
         if (!alive) return;
 
         const matches = all
-          .filter((e) => e.body_areas.includes(area) && e.relevant_stages.includes("ro"))
+          .filter((e) => e.is_active)
+          .filter((e) => e.body_areas.includes(area))
+          .filter((e) => e.relevant_stages.includes(stage))
+          .filter((e) => e.capacity_level == null || capacityIndex(e.capacity_level) <= capIdx)
           .slice(0, 4);
         setExercises(matches);
       } catch {

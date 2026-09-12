@@ -6,20 +6,42 @@
 // uten å røre malen.
 import { supabase } from "@/lib/supabaseClient";
 import type { TrappStage } from "@/lib/trapp/stages";
+import type { CapacityLevel, MovementPattern } from "@/lib/exercise/taxonomy";
 
 export type Exercise = {
   id: string;
   name: string;
   instruction: string | null;
-  media_url: string | null;
+  video_url: string | null;
   default_sets: number | null;
   default_reps: number | null;
   default_duration_sec: number | null;
   body_areas: string[];
   purposes: string[];
   relevant_stages: TrappStage[];
+  movement_pattern: MovementPattern | null;
+  capacity_level: CapacityLevel | null;
+  equipment: string[];
   regression_of: string | null;
   progression_of: string | null;
+  is_active: boolean;
+};
+
+export type ExerciseInput = {
+  name: string;
+  instruction?: string | null;
+  video_url?: string | null;
+  default_sets?: number | null;
+  default_reps?: number | null;
+  default_duration_sec?: number | null;
+  body_areas?: string[];
+  purposes?: string[];
+  relevant_stages?: TrappStage[];
+  movement_pattern?: MovementPattern | null;
+  capacity_level?: CapacityLevel | null;
+  equipment?: string[];
+  regression_of?: string | null;
+  progression_of?: string | null;
 };
 
 export type ProgramTemplate = {
@@ -38,7 +60,7 @@ export type ProgramDayExercise = {
   reps: number | null;
   duration_sec: number | null;
   load_note: string | null;
-  exercise: Pick<Exercise, "id" | "name" | "instruction" | "regression_of" | "progression_of">;
+  exercise: Pick<Exercise, "id" | "name" | "instruction" | "video_url" | "regression_of" | "progression_of">;
 };
 
 export type ProgramDay = {
@@ -84,7 +106,7 @@ const DAY_SELECT = `
     id, day_index, title,
     program_day_exercises (
       id, exercise_id, sort_order, sets, reps, duration_sec, load_note,
-      exercise:exercises ( id, name, instruction, regression_of, progression_of )
+      exercise:exercises ( id, name, instruction, video_url, regression_of, progression_of )
     )
   )
 `;
@@ -114,6 +136,61 @@ export async function getExercises(): Promise<Exercise[]> {
   const { data, error } = await supabase.from("exercises").select("*").order("name");
   if (error) throw error;
   return (data as Exercise[]) ?? [];
+}
+
+/** Admin → Innhold: oppretter en ny øvelse i biblioteket. */
+export async function createExercise(input: ExerciseInput): Promise<{ id: string }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Ikke innlogget");
+
+  const { data, error } = await supabase
+    .from("exercises")
+    .insert({ ...input, created_by: user.id } as never)
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data as { id: string };
+}
+
+/** Admin → Innhold: redigerer metadata på en eksisterende øvelse. */
+export async function updateExercise(id: string, patch: Partial<ExerciseInput>): Promise<void> {
+  const { error } = await supabase.from("exercises").update(patch as never).eq("id", id);
+  if (error) throw error;
+}
+
+/** Arkiverer/gjenåpner en øvelse. Arkivering sletter ingenting — historiske
+ *  program_day_exercises fortsetter å referere raden og vises uendret. */
+export async function setExerciseActive(id: string, isActive: boolean): Promise<void> {
+  const { error } = await supabase.from("exercises").update({ is_active: isActive } as never).eq("id", id);
+  if (error) throw error;
+}
+
+export type ExerciseUsage = {
+  totalUses: number;
+  programs: { id: string; name: string; isTemplate: boolean }[];
+};
+
+/** Admin → Innhold: hvor brukes denne øvelsen — i hvilke programmer/maler. */
+export async function getExerciseUsage(exerciseId: string): Promise<ExerciseUsage> {
+  const { data, error } = await supabase
+    .from("program_day_exercises")
+    .select("id, program_day:program_days(program:programs(id, name, is_template))")
+    .eq("exercise_id", exerciseId);
+  if (error) throw error;
+
+  const rows = (data ?? []) as unknown as Array<{
+    id: string;
+    program_day: { program: { id: string; name: string; is_template: boolean } | null } | null;
+  }>;
+
+  const seen = new Map<string, { id: string; name: string; isTemplate: boolean }>();
+  for (const r of rows) {
+    const p = r.program_day?.program;
+    if (p && !seen.has(p.id)) seen.set(p.id, { id: p.id, name: p.name, isTemplate: p.is_template });
+  }
+  return { totalUses: rows.length, programs: Array.from(seen.values()) };
 }
 
 export async function getTemplates(stage?: TrappStage): Promise<ProgramTemplate[]> {

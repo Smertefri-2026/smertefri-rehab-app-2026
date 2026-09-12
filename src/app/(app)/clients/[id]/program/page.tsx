@@ -546,11 +546,13 @@ function DayEditor({
       <div className="flex items-center gap-2">
         <Select value={pick} onChange={(e) => setPick(e.target.value)} className="max-w-xs">
           <option value="">Legg til øvelse …</option>
-          {exercises.map((ex) => (
-            <option key={ex.id} value={ex.id}>
-              {ex.name}
-            </option>
-          ))}
+          {exercises
+            .filter((ex) => ex.is_active)
+            .map((ex) => (
+              <option key={ex.id} value={ex.id}>
+                {ex.name}
+              </option>
+            ))}
         </Select>
         <button
           type="button"

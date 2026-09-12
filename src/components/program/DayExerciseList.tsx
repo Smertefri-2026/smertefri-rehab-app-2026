@@ -29,6 +29,16 @@ export default function DayExerciseList({ exercises }: { exercises: ProgramDayEx
           {e.exercise.instruction && (
             <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">{e.exercise.instruction}</p>
           )}
+          {e.exercise.video_url && (
+            <a
+              href={e.exercise.video_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block text-[13px] font-medium text-primary-ink hover:underline"
+            >
+              Se video
+            </a>
+          )}
         </li>
       ))}
     </ol>
