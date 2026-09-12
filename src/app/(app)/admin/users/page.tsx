@@ -5,6 +5,7 @@ import AppPage from "@/components/layout/AppPage";
 import { supabase } from "@/lib/supabaseClient";
 import { useRole } from "@/providers/RoleProvider";
 import { getActiveTrainerIdMapForClients } from "@/lib/assignments.api";
+import { adminSetUserRole, type UserRole } from "@/lib/adminUsers.api";
 
 type Role = "client" | "trainer" | "admin" | "all";
 
@@ -31,8 +32,14 @@ function fullName(r: { first_name?: string | null; last_name?: string | null; em
   return n || r.email || r.id || "—";
 }
 
+const ROLE_LABEL: Record<UserRole, string> = {
+  client: "Kunde",
+  trainer: "Rehabtrener",
+  admin: "Admin",
+};
+
 export default function AdminUsersPage() {
-  const { role, loading: roleLoading } = useRole();
+  const { role, userId, loading: roleLoading } = useRole();
 
   const [rows, setRows] = useState<Row[]>([]);
   const [trainerById, setTrainerById] = useState<Record<string, ProfileLite>>({});
@@ -40,6 +47,36 @@ export default function AdminUsersPage() {
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const [changingId, setChangingId] = useState<string | null>(null);
+  const [roleErr, setRoleErr] = useState<string | null>(null);
+
+  async function handleRoleChange(target: Row, newRole: UserRole) {
+    const currentRole = (target.role ?? "client") as UserRole;
+    if (newRole === currentRole) return;
+
+    const name = fullName(target);
+    const confirmed = window.confirm(
+      `Endre rolle for ${name} fra "${ROLE_LABEL[currentRole] ?? target.role}" til "${ROLE_LABEL[newRole]}"?\n\n` +
+        (newRole === "trainer"
+          ? "Brukeren får trenertilgang med én gang og en tom trenerprofil opprettes hvis den ikke finnes."
+          : currentRole === "trainer"
+          ? "Trenerprofilen og historiske kundetildelinger beholdes uendret — de slettes ikke."
+          : "")
+    );
+    if (!confirmed) return;
+
+    setChangingId(target.id);
+    setRoleErr(null);
+    try {
+      await adminSetUserRole(target.id, newRole);
+      setRows((prev) => prev.map((r) => (r.id === target.id ? { ...r, role: newRole } : r)));
+    } catch (e) {
+      setRoleErr(e instanceof Error ? e.message : "Kunne ikke endre rolle");
+    } finally {
+      setChangingId(null);
+    }
+  }
 
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role>("all");
@@ -188,6 +225,12 @@ export default function AdminUsersPage() {
         </div>
       ) : null}
 
+      {roleErr ? (
+        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Kunne ikke endre rolle: {roleErr}
+        </div>
+      ) : null}
+
       <div className="mt-4 rounded-2xl border border-sf-border overflow-hidden">
         <div className="grid grid-cols-12 bg-sf-soft px-4 py-2 text-xs font-medium text-sf-muted">
           <div className="col-span-4">Navn</div>
@@ -214,7 +257,22 @@ export default function AdminUsersPage() {
             return (
               <div key={r.id} className="grid grid-cols-12 px-4 py-3 text-sm border-t border-sf-border">
                 <div className="col-span-4">{fullName(r)}</div>
-                <div className="col-span-2">{r.role ?? "—"}</div>
+                <div className="col-span-2">
+                  {r.id === userId ? (
+                    <span title="Kan ikke endre din egen rolle her">{ROLE_LABEL[(r.role as UserRole) ?? "client"] ?? r.role ?? "—"}</span>
+                  ) : (
+                    <select
+                      value={(r.role as UserRole) ?? "client"}
+                      disabled={changingId === r.id}
+                      onChange={(e) => handleRoleChange(r, e.target.value as UserRole)}
+                      className="w-full rounded-md border border-sf-border bg-white px-2 py-1 text-sm disabled:opacity-50"
+                    >
+                      <option value="client">Kunde</option>
+                      <option value="trainer">Rehabtrener</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  )}
+                </div>
                 <div className="col-span-2">{r.city ?? "—"}</div>
 
                 <div className="col-span-2">

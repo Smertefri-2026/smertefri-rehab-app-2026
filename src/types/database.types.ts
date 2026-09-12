@@ -1656,6 +1656,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_user_role: {
+        Args: { p_new_role: string; p_user_id: string }
+        Returns: undefined
+      }
       advance_program_day: {
         Args: { p_assignment_id: string }
         Returns: number
