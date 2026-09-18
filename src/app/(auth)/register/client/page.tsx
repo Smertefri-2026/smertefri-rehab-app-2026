@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Turnstile from "react-turnstile";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function RegisterClientPage() {
@@ -12,9 +13,12 @@ export default function RegisterClientPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const passwordsMatch =
     password.length > 0 &&
@@ -30,6 +34,11 @@ export default function RegisterClientPage() {
       return;
     }
 
+    if (siteKey && !captchaToken) {
+      setError("Bekreft at du er et menneske.");
+      return;
+    }
+
     setLoading(true);
 
     const { error } = await supabase.auth.signUp({
@@ -37,6 +46,7 @@ export default function RegisterClientPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/register/email-sent`,
+        captchaToken: captchaToken ?? undefined,
       },
     });
 
@@ -44,6 +54,7 @@ export default function RegisterClientPage() {
 
     if (error) {
       setError(error.message);
+      setCaptchaToken(null);
       return;
     }
 
@@ -134,11 +145,20 @@ export default function RegisterClientPage() {
           </p>
         )}
 
+        {siteKey && (
+          <Turnstile
+            sitekey={siteKey}
+            onVerify={(token) => setCaptchaToken(token)}
+            onExpire={() => setCaptchaToken(null)}
+            onError={() => setCaptchaToken(null)}
+          />
+        )}
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <button
           type="submit"
-          disabled={loading || !passwordsMatch}
+          disabled={loading || !passwordsMatch || (!!siteKey && !captchaToken)}
           className="w-full rounded-full bg-[#007C80] py-3 text-white disabled:opacity-50"
         >
           {loading ? "Oppretter konto…" : "Opprett konto"}

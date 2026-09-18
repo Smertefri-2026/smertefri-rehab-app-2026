@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Turnstile from "react-turnstile";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function RegisterTrainerPage() {
@@ -13,9 +14,12 @@ export default function RegisterTrainerPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const passwordsMatch = useMemo(() => {
     return (
@@ -36,6 +40,11 @@ export default function RegisterTrainerPage() {
       return;
     }
 
+    if (siteKey && !captchaToken) {
+      setError("Bekreft at du er et menneske.");
+      return;
+    }
+
     setLoading(true);
 
     // NB: rollen settes IKKE her — alle nye brukere starter som 'client'.
@@ -50,6 +59,7 @@ export default function RegisterTrainerPage() {
         // OnboardingGate sender denne brukeren til /trainer-application i
         // stedet for kundens kartlegging.
         data: { signup_intent: "trainer" },
+        captchaToken: captchaToken ?? undefined,
       },
     });
 
@@ -57,6 +67,7 @@ export default function RegisterTrainerPage() {
 
     if (signUpError || !data.user) {
       setError(signUpError?.message || "Kunne ikke registrere trener");
+      setCaptchaToken(null);
       return;
     }
 
@@ -154,11 +165,20 @@ export default function RegisterTrainerPage() {
           </p>
         )}
 
+        {siteKey && (
+          <Turnstile
+            sitekey={siteKey}
+            onVerify={(token) => setCaptchaToken(token)}
+            onExpire={() => setCaptchaToken(null)}
+            onError={() => setCaptchaToken(null)}
+          />
+        )}
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <button
           type="submit"
-          disabled={!passwordsMatch || loading}
+          disabled={!passwordsMatch || loading || (!!siteKey && !captchaToken)}
           className="w-full rounded-full bg-[#007C80] py-3 font-medium text-white hover:opacity-90 transition disabled:opacity-60"
         >
           {loading ? "Oppretter konto…" : "Opprett konto"}
