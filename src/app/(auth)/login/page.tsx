@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Turnstile from "react-turnstile";
 import { supabase } from "@/lib/supabaseClient";
 import InstallPWAButton from "@/components/pwa/InstallPWAButton";
 import { Field, Input } from "@/ui/components/Field";
@@ -16,16 +17,26 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    // Supabase krever captchaToken på /token?grant_type=password også, når
+    // captcha er aktivert i prosjektet - ikke bare på signup/recovery.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken: captchaToken ?? undefined },
+    });
 
     if (signInError) {
       setLoading(false);
+      setCaptchaToken(null);
       setError("Feil e-post eller passord");
       return;
     }
@@ -73,6 +84,15 @@ export default function LoginPage() {
             </button>
           </div>
         </Field>
+
+        {siteKey && (
+          <Turnstile
+            sitekey={siteKey}
+            onVerify={(token) => setCaptchaToken(token)}
+            onExpire={() => setCaptchaToken(null)}
+            onError={() => setCaptchaToken(null)}
+          />
+        )}
 
         {error && <p className="text-center text-sm text-danger-ink">{error}</p>}
 

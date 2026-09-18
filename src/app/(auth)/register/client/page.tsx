@@ -34,11 +34,9 @@ export default function RegisterClientPage() {
       return;
     }
 
-    if (siteKey && !captchaToken) {
-      setError("Bekreft at du er et menneske.");
-      return;
-    }
-
+    // NB: blokkerer IKKE på manglende captchaToken ennå - domenedekningen for
+    // denne widgeten på app.smertefri.no er ikke bekreftet. Sender token når
+    // den finnes; server ignorerer den til captcha er aktivert i Supabase.
     setLoading(true);
 
     const { error } = await supabase.auth.signUp({
@@ -158,7 +156,7 @@ export default function RegisterClientPage() {
 
         <button
           type="submit"
-          disabled={loading || !passwordsMatch || (!!siteKey && !captchaToken)}
+          disabled={loading || !passwordsMatch}
           className="w-full rounded-full bg-[#007C80] py-3 text-white disabled:opacity-50"
         >
           {loading ? "Oppretter konto…" : "Opprett konto"}

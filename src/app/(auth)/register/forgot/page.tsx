@@ -17,12 +17,9 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     if (state === "sending") return;
 
-    if (siteKey && !captchaToken) {
-      setState("error");
-      setError("Bekreft at du er et menneske.");
-      return;
-    }
-
+    // NB: blokkerer IKKE på manglende captchaToken ennå - domenedekningen for
+    // denne widgeten på app.smertefri.no er ikke bekreftet. Sender token når
+    // den finnes; server ignorerer den til captcha er aktivert i Supabase.
     setState("sending");
     setError(null);
 
@@ -96,7 +93,7 @@ export default function ForgotPasswordPage() {
 
             <button
               type="submit"
-              disabled={state === "sending" || (!!siteKey && !captchaToken)}
+              disabled={state === "sending"}
               className="w-full rounded-full bg-primary py-3 text-base font-medium text-primary-ink transition hover:opacity-90 disabled:opacity-50"
             >
               {state === "sending" ? "Sender …" : "Send lenke"}

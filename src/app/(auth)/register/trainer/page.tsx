@@ -40,11 +40,9 @@ export default function RegisterTrainerPage() {
       return;
     }
 
-    if (siteKey && !captchaToken) {
-      setError("Bekreft at du er et menneske.");
-      return;
-    }
-
+    // NB: blokkerer IKKE på manglende captchaToken ennå - domenedekningen for
+    // denne widgeten på app.smertefri.no er ikke bekreftet. Sender token når
+    // den finnes; server ignorerer den til captcha er aktivert i Supabase.
     setLoading(true);
 
     // NB: rollen settes IKKE her — alle nye brukere starter som 'client'.
@@ -178,7 +176,7 @@ export default function RegisterTrainerPage() {
 
         <button
           type="submit"
-          disabled={!passwordsMatch || loading || (!!siteKey && !captchaToken)}
+          disabled={!passwordsMatch || loading}
           className="w-full rounded-full bg-[#007C80] py-3 font-medium text-white hover:opacity-90 transition disabled:opacity-60"
         >
           {loading ? "Oppretter konto…" : "Opprett konto"}
