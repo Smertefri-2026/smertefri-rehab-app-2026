@@ -8,7 +8,7 @@ import { useRole } from "@/providers/RoleProvider";
 import { Field, Input, Textarea, Select } from "@/ui/components/Field";
 import { Button } from "@/ui/components/Button";
 import { cn } from "@/ui/cn";
-import { TRAPP_STAGES, TRAPP_ORDER } from "@/lib/trapp/stages";
+import { TRAPP_STAGES, TRAPP_ORDER, type TrappStage } from "@/lib/trapp/stages";
 import {
   getExercises,
   getTemplates,
@@ -36,6 +36,51 @@ import {
 function stageLabel(stage: string | null) {
   if (!stage) return "Alle trinn";
   return TRAPP_STAGES[stage as keyof typeof TRAPP_STAGES]?.label ?? stage;
+}
+
+type StageTab = "alle" | TrappStage;
+
+/** Trapp-tabs med treff-antall — én øvelse kan telle i flere faner samtidig. */
+function StageTabs({
+  active,
+  counts,
+  onChange,
+}: {
+  active: StageTab;
+  counts: Record<StageTab, number>;
+  onChange: (t: StageTab) => void;
+}) {
+  const tabs: Array<{ key: StageTab; label: string }> = [
+    { key: "alle", label: "Alle" },
+    ...TRAPP_ORDER.map((s) => ({ key: s as StageTab, label: TRAPP_STAGES[s].label })),
+  ];
+  return (
+    <div className="flex flex-wrap gap-2">
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => onChange(t.key)}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+            active === t.key
+              ? "border-primary bg-primary text-white"
+              : "border-border bg-surface text-ink-soft hover:bg-surface-alt"
+          )}
+        >
+          {t.label}
+          <span
+            className={cn(
+              "rounded-full px-1.5 text-[11px] tabular-nums",
+              active === t.key ? "bg-white/20" : "bg-surface-alt text-ink-faint"
+            )}
+          >
+            {counts[t.key] ?? 0}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /** Samme visuelle idé som ChoiceGroup (piller), men for flervalg mot et array-felt. */
@@ -72,6 +117,70 @@ function MultiPills({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+type ExerciseFilters = {
+  pattern: MovementPattern | "";
+  bodyArea: string;
+  capacity: CapacityLevel | "";
+  equipment: string;
+  purpose: string;
+};
+
+const EMPTY_FILTERS: ExerciseFilters = { pattern: "", bodyArea: "", capacity: "", equipment: "", purpose: "" };
+
+/** Filtre for bevegelsesmønster, kroppsregion, kapasitetsnivå, utstyr og type — uavhengige av Trapp-fanene. */
+function FilterBar({ filters, onChange }: { filters: ExerciseFilters; onChange: (f: ExerciseFilters) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <Select
+        value={filters.pattern}
+        onChange={(e) => onChange({ ...filters, pattern: e.target.value as MovementPattern | "" })}
+      >
+        <option value="">Alle mønstre</option>
+        {MOVEMENT_PATTERN_ORDER.map((p) => (
+          <option key={p} value={p}>
+            {MOVEMENT_PATTERN_LABELS[p]}
+          </option>
+        ))}
+      </Select>
+      <Select value={filters.bodyArea} onChange={(e) => onChange({ ...filters, bodyArea: e.target.value })}>
+        <option value="">Alle regioner</option>
+        {BODY_AREA_OPTIONS.map((a) => (
+          <option key={a} value={a}>
+            {a}
+          </option>
+        ))}
+      </Select>
+      <Select
+        value={filters.capacity}
+        onChange={(e) => onChange({ ...filters, capacity: e.target.value as CapacityLevel | "" })}
+      >
+        <option value="">Alle kapasitetsnivå</option>
+        {CAPACITY_LEVEL_ORDER.map((c) => (
+          <option key={c} value={c}>
+            {CAPACITY_LEVEL_LABELS[c]}
+          </option>
+        ))}
+      </Select>
+      <Select value={filters.equipment} onChange={(e) => onChange({ ...filters, equipment: e.target.value })}>
+        <option value="">Alt utstyr</option>
+        {EQUIPMENT_OPTIONS.map((eq) => (
+          <option key={eq} value={eq}>
+            {eq}
+          </option>
+        ))}
+      </Select>
+      <Select value={filters.purpose} onChange={(e) => onChange({ ...filters, purpose: e.target.value })}>
+        <option value="">Alle typer</option>
+        {PURPOSE_OPTIONS.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </Select>
     </div>
   );
 }
@@ -333,6 +442,8 @@ export default function AdminInnholdPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<"new" | string | null>(null);
   const [usage, setUsage] = useState<ExerciseUsage | null>(null);
+  const [activeTab, setActiveTab] = useState<StageTab>("alle");
+  const [filters, setFilters] = useState<ExerciseFilters>(EMPTY_FILTERS);
 
   async function load() {
     const [ex, tpl] = await Promise.all([getExercises(), getTemplates()]);
@@ -356,10 +467,32 @@ export default function AdminInnholdPage() {
     };
   }, [role, roleLoading, router]);
 
-  const visibleExercises = useMemo(
-    () => exercises.filter((e) => showArchived || e.is_active),
-    [exercises, showArchived]
-  );
+  // Respekterer arkiv-toggle + de fem uavhengige filtrene, men IKKE
+  // Trapp-fanen — fanene teller/filtrerer oppå dette, slik at én øvelse kan
+  // vises i flere faner og "Alle" fortsatt er komplett bibliotek (under
+  // gjeldende filtre).
+  const filteredExercises = useMemo(() => {
+    return exercises
+      .filter((e) => showArchived || e.is_active)
+      .filter((e) => !filters.pattern || e.movement_pattern === filters.pattern)
+      .filter((e) => !filters.bodyArea || e.body_areas.includes(filters.bodyArea))
+      .filter((e) => !filters.capacity || e.capacity_level === filters.capacity)
+      .filter((e) => !filters.equipment || e.equipment.includes(filters.equipment))
+      .filter((e) => !filters.purpose || e.purposes.includes(filters.purpose));
+  }, [exercises, showArchived, filters]);
+
+  const tabCounts = useMemo(() => {
+    const counts = { alle: filteredExercises.length } as Record<StageTab, number>;
+    for (const stage of TRAPP_ORDER) {
+      counts[stage] = filteredExercises.filter((e) => e.relevant_stages.includes(stage)).length;
+    }
+    return counts;
+  }, [filteredExercises]);
+
+  const visibleExercises = useMemo(() => {
+    if (activeTab === "alle") return filteredExercises;
+    return filteredExercises.filter((e) => e.relevant_stages.includes(activeTab));
+  }, [filteredExercises, activeTab]);
 
   async function startEdit(id: string) {
     setEditing(id);
@@ -501,10 +634,17 @@ export default function AdminInnholdPage() {
           />
         )}
 
+        <StageTabs active={activeTab} counts={tabCounts} onChange={setActiveTab} />
+        <FilterBar filters={filters} onChange={setFilters} />
+
         {loading ? (
           <p className="text-sm text-ink-soft">Laster …</p>
         ) : visibleExercises.length === 0 ? (
-          <p className="text-sm text-ink-soft">Ingen øvelser registrert.</p>
+          <p className="text-sm text-ink-soft">
+            {exercises.length === 0
+              ? "Ingen øvelser registrert."
+              : "Ingen øvelser i dette utvalget — vurder om dette Trapp-trinnet/filteret er for tynt dekket."}
+          </p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-border shadow-card">
             <table className="w-full min-w-[720px] text-left text-sm">
