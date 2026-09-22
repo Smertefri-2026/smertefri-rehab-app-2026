@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Turnstile from "react-turnstile";
 import { supabase } from "@/lib/supabaseClient";
+import { HONEYPOT_FIELD_NAME, honeypotWrapperStyle, isLikelyBot, useBotGuardMountTime } from "@/lib/botGuard";
 
 export default function RegisterClientPage() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export default function RegisterClientPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
+  const mountedAt = useBotGuardMountTime();
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -31,6 +34,13 @@ export default function RegisterClientPage() {
 
     if (!passwordsMatch) {
       setError("Passordene er ikke like");
+      return;
+    }
+
+    // Honeypot/tidssjekk — se src/lib/botGuard.ts. Later stille som suksess
+    // uten å faktisk opprette bruker, for ikke å avsløre deteksjonen.
+    if (isLikelyBot(honeypot, mountedAt.current)) {
+      router.push("/register/email-sent");
       return;
     }
 
@@ -86,6 +96,19 @@ export default function RegisterClientPage() {
 
       {/* FORM */}
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div style={honeypotWrapperStyle} aria-hidden="true">
+          <label htmlFor={HONEYPOT_FIELD_NAME}>La dette feltet stå tomt</label>
+          <input
+            id={HONEYPOT_FIELD_NAME}
+            name={HONEYPOT_FIELD_NAME}
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+          />
+        </div>
+
         <input
           type="email"
           required
